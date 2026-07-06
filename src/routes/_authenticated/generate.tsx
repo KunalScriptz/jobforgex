@@ -5,17 +5,12 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { scoreResume, tailorResume, generateCoverLetter, saveArtifact } from "@/lib/ai-generate.functions";
-import { listBoards } from "@/lib/workspace.functions";
+import { listJobs } from "@/lib/jobs.functions";
 import { listModels } from "@/lib/ai-config.functions";
-import { createJob } from "@/lib/jobs.functions";
 import { compileArtifactPdf } from "@/lib/pdf.functions";
-import { extractJobInsights } from "@/lib/insights.functions";
 
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
@@ -29,21 +24,17 @@ function GeneratePage() {
   const scoreFn = useServerFn(scoreResume);
   const tailorFn = useServerFn(tailorResume);
   const coverFn = useServerFn(generateCoverLetter);
-  const createJobFn = useServerFn(createJob);
   const saveArtifactFn = useServerFn(saveArtifact);
   const compilePdfFn = useServerFn(compileArtifactPdf);
-  const extractInsightsFn = useServerFn(extractJobInsights);
-  const getBoards = useServerFn(listBoards);
+  const getJobs = useServerFn(listJobs);
   const getModels = useServerFn(listModels);
 
-  const { data: boards = [] } = useQuery({ queryKey: ["boards"], queryFn: () => getBoards() });
+  const { data: allJobs = [] } = useQuery({ queryKey: ["jobs", "all"], queryFn: () => getJobs({ data: {} } as any) });
   const { data: models = [] } = useQuery({ queryKey: ["models"], queryFn: () => getModels() });
 
-  const [jd, setJd] = useState("");
-  const [url, setUrl] = useState("");
-  const [company, setCompany] = useState("");
-  const [title, setTitle] = useState("");
-  const [boardId, setBoardId] = useState<string>("");
+  const [selectedJobId, setSelectedJobId] = useState<string>("");
+  const selectedJob = allJobs.find((j: any) => j.id === selectedJobId);
+
   const [modelId, setModelId] = useState<string>("");
   const [doTailor, setDoTailor] = useState(true);
   const [doCover, setDoCover] = useState(false);
@@ -54,41 +45,37 @@ function GeneratePage() {
   const [totalCost, setTotalCost] = useState(0);
 
   const scoreMut = useMutation({
-    mutationFn: async () => scoreFn({ data: { jd, model_id: modelId || undefined } } as any),
+    mutationFn: async () => {
+      if (!selectedJob?.description || selectedJob.description.length < 30) throw new Error("Selected job has no description to score against.");
+      return scoreFn({ data: { jd: selectedJob.description, model_id: modelId || undefined, job_id: selectedJob.id } } as any);
+    },
     onSuccess: (r: any) => { setReport(r.report); setTotalCost((c) => c + Number(r.cost)); qc.invalidateQueries({ queryKey: ["costs"] }); },
     onError: (e: any) => toast.error(e.message),
   });
 
   const genMut = useMutation({
     mutationFn: async () => {
-      if (!company || !title || !boardId) throw new Error("Company, title, and board are required");
-      const activeBoard = boardId || boards[0]?.id;
-      const job = await createJobFn({ data: {
-        board_id: activeBoard, company, title, description: jd, url: url || null,
-        status: "wishlist",
-        resume_score: report?.score ?? null,
-      } } as any);
+      if (!selectedJob) throw new Error("Select a job first.");
+      const jd = selectedJob.description ?? "";
+      if (jd.length < 30) throw new Error("Selected job has no description.");
 
       let localCost = 0;
       let t: any = null, c: any = null;
       const compileJobs: Promise<any>[] = [];
       if (doTailor) {
-        t = await tailorFn({ data: { jd, company, title, model_id: modelId || undefined, job_id: job.id } } as any);
-        const savedT = await saveArtifactFn({ data: { job_id: job.id, kind: "tailored_resume", filename: t.filename, latex_source: t.latex } } as any);
+        t = await tailorFn({ data: { jd, company: selectedJob.company, title: selectedJob.title, model_id: modelId || undefined, job_id: selectedJob.id } } as any);
+        const savedT = await saveArtifactFn({ data: { job_id: selectedJob.id, kind: "tailored_resume", filename: t.filename, latex_source: t.latex } } as any);
         compileJobs.push(compilePdfFn({ data: { artifact_id: savedT.id } } as any).catch(() => null));
         localCost += Number(t.cost);
       }
       if (doCover) {
-        c = await coverFn({ data: { jd, company, title, model_id: modelId || undefined, job_id: job.id } } as any);
-        const savedC = await saveArtifactFn({ data: { job_id: job.id, kind: "cover_letter", filename: c.filename, latex_source: c.latex } } as any);
+        c = await coverFn({ data: { jd, company: selectedJob.company, title: selectedJob.title, model_id: modelId || undefined, job_id: selectedJob.id } } as any);
+        const savedC = await saveArtifactFn({ data: { job_id: selectedJob.id, kind: "cover_letter", filename: c.filename, latex_source: c.latex } } as any);
         compileJobs.push(compilePdfFn({ data: { artifact_id: savedC.id } } as any).catch(() => null));
         localCost += Number(c.cost);
       }
-      // Fire insights extraction in background; don't block save.
-      extractInsightsFn({ data: { job_id: job.id } } as any).catch(() => null);
-      // Await compiles so the UI reflects PDFs immediately when we invalidate.
       await Promise.all(compileJobs);
-      return { t, c, localCost, jobId: job.id };
+      return { t, c, localCost };
     },
     onSuccess: ({ t, c, localCost }) => {
       if (t) setTailored(t);
@@ -96,7 +83,7 @@ function GeneratePage() {
       setTotalCost((x) => x + localCost);
       qc.invalidateQueries({ queryKey: ["jobs"] });
       qc.invalidateQueries({ queryKey: ["costs"] });
-      toast.success("Generated, PDFs compiled & saved to your board");
+      toast.success("Generated and saved to job");
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -113,42 +100,62 @@ function GeneratePage() {
     <div className="p-6">
       <div className="mb-6">
         <h1 className="text-2xl font-bold">Generate</h1>
-        <p className="text-sm text-muted-foreground">Paste a JD → score → tailor → save.</p>
+        <p className="text-sm text-muted-foreground">Select a saved job, score your fit, and generate documents.</p>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Job description</CardTitle>
-            <CardDescription>Paste the JD. Optionally add company, title, and URL.</CardDescription>
+            <CardTitle>Job</CardTitle>
+            <CardDescription>Pick a job from your board.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
-              <div><Label>Company</Label><Input value={company} onChange={(e) => setCompany(e.target.value)} placeholder="Acme Inc." /></div>
-              <div><Label>Title</Label><Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Senior Data Scientist" /></div>
-            </div>
-            <div><Label>Job URL (optional)</Label><Input value={url} onChange={(e) => setUrl(e.target.value)} /></div>
-            <div><Label>Board</Label>
-              <Select value={boardId} onValueChange={setBoardId}>
-                <SelectTrigger><SelectValue placeholder="Choose board" /></SelectTrigger>
-                <SelectContent>{boards.map((b: any) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
+            <Select value={selectedJobId} onValueChange={(v) => { setSelectedJobId(v); setReport(null); setTailored(null); setCover(null); }}>
+              <SelectTrigger><SelectValue placeholder="Choose a job…" /></SelectTrigger>
+              <SelectContent>
+                {allJobs.map((j: any) => (
+                  <SelectItem key={j.id} value={j.id}>{j.company} — {j.title}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {selectedJob && (
+              <div className="space-y-2">
+                <div className="text-sm font-medium">{selectedJob.title} <span className="text-muted-foreground">@ {selectedJob.company}</span></div>
+                {selectedJob.description && (
+                  <div className="max-h-64 overflow-auto rounded border bg-muted/30 p-3 text-xs whitespace-pre-wrap leading-relaxed">
+                    {selectedJob.description}
+                  </div>
+                )}
+                <div className="flex items-center gap-2">
+                  <Button onClick={() => scoreMut.mutate()} disabled={scoreMut.isPending || !selectedJob.description || selectedJob.description.length < 30} variant="outline" size="sm">
+                    <Sparkles className="mr-1.5 h-4 w-4" />{scoreMut.isPending ? "Scoring…" : "Score my resume"}
+                  </Button>
+                </div>
+              </div>
+            )}
+
             <div><Label>Model</Label>
               <Select value={modelId} onValueChange={setModelId}>
                 <SelectTrigger><SelectValue placeholder="Default model" /></SelectTrigger>
                 <SelectContent>{models.map((m: any) => <SelectItem key={m.id} value={m.id}>{m.display_name}{m.is_default ? " (default)" : ""}</SelectItem>)}</SelectContent>
               </Select>
             </div>
-            <div><Label>Job description</Label>
-              <Textarea rows={12} value={jd} onChange={(e) => setJd(e.target.value)} placeholder="Paste the full JD here..." />
+
+            <div className="flex items-center gap-4 pt-1">
+              <label className="flex items-center gap-2 text-sm">
+                <Checkbox checked={doTailor} onCheckedChange={(v) => setDoTailor(!!v)} /> Generate tailored resume
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <Checkbox checked={doCover} onCheckedChange={(v) => setDoCover(!!v)} /> Generate cover letter
+              </label>
             </div>
-            <div className="flex items-center gap-2">
-              <Button onClick={() => scoreMut.mutate()} disabled={scoreMut.isPending || jd.length < 30} variant="outline">
-                <Sparkles className="mr-1.5 h-4 w-4" />{scoreMut.isPending ? "Scoring..." : "Score my resume"}
-              </Button>
-              <div className="ml-auto text-xs text-muted-foreground">Total session cost: ${totalCost.toFixed(4)}</div>
-            </div>
+
+            <Button onClick={() => genMut.mutate()} disabled={genMut.isPending || !selectedJob || (!doTailor && !doCover)}>
+              <Wand2 className="mr-1.5 h-4 w-4" />{genMut.isPending ? "Generating…" : "Generate & save"}
+            </Button>
+
+            <div className="text-xs text-muted-foreground">Total session cost: ${totalCost.toFixed(4)}</div>
           </CardContent>
         </Card>
 
@@ -173,24 +180,6 @@ function GeneratePage() {
             </Card>
           )}
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Generate</CardTitle>
-              <CardDescription>Creates the job, saves artifacts, moves it to Wishlist.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <label className="flex items-center gap-2 text-sm">
-                <Checkbox checked={doTailor} onCheckedChange={(v) => setDoTailor(!!v)} /> Generate tailored resume
-              </label>
-              <label className="flex items-center gap-2 text-sm">
-                <Checkbox checked={doCover} onCheckedChange={(v) => setDoCover(!!v)} /> Generate cover letter
-              </label>
-              <Button onClick={() => genMut.mutate()} disabled={genMut.isPending || jd.length < 30 || !company || !title || !boardId}>
-                <Wand2 className="mr-1.5 h-4 w-4" />{genMut.isPending ? "Generating..." : "Generate & save"}
-              </Button>
-            </CardContent>
-          </Card>
-
           {tailored && (
             <ArtifactCard title="Tailored resume" filename={tailored.filename} latex={tailored.latex} onDownload={() => download(tailored.filename, tailored.latex)} />
           )}
@@ -201,6 +190,10 @@ function GeneratePage() {
       </div>
     </div>
   );
+}
+
+function Label({ children }: { children: React.ReactNode }) {
+  return <div className="mb-1 text-sm font-medium leading-none">{children}</div>;
 }
 
 function ReportList({ title, items }: { title: string; items?: string[] }) {

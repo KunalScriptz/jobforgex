@@ -9,6 +9,9 @@ import {
 } from "lucide-react";
 import JSZip from "jszip";
 
+import { Checkbox } from "@/components/ui/checkbox";
+import { tailorResume, generateCoverLetter, saveArtifact } from "@/lib/ai-generate.functions";
+
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -128,7 +131,7 @@ export function JobDetailDialog({ jobId, open, onOpenChange }: {
         <div className="flex-1 overflow-y-auto p-6">
           {tab === "insights" && <InsightsTab job={job} />}
           {tab === "notes" && <NotesTab job={job} />}
-          {tab === "documents" && <DocumentsTab artifacts={artifacts} jobId={jobId!} />}
+          {tab === "documents" && <DocumentsTab artifacts={artifacts} jobId={jobId!} job={job} />}
           {tab === "company" && <CompanyTab job={job} />}
           {tab === "ai" && (
             activeToolId
@@ -312,10 +315,48 @@ function NotesTab({ job }: { job: any }) {
   );
 }
 
-function DocumentsTab({ artifacts, jobId }: { artifacts: any[]; jobId: string }) {
+function DocumentsTab({ artifacts, jobId, job }: { artifacts: any[]; jobId: string; job?: any }) {
   const urlFn = useServerFn(getArtifactPdfUrl);
   const [zipping, setZipping] = useState(false);
-  if (!artifacts.length) return <Empty text="No documents yet. Use AI Tools or Generate to create them." />;
+  const qc = useQueryClient();
+  const tailorFn = useServerFn(tailorResume);
+  const coverFn = useServerFn(generateCoverLetter);
+  const saveArtifactFn = useServerFn(saveArtifact);
+  const compilePdfFn = useServerFn(compileArtifactPdf);
+
+  const [doTailor, setDoTailor] = useState(true);
+  const [doCover, setDoCover] = useState(false);
+
+  const gen = useMutation({
+    mutationFn: async () => {
+      if (!job?.description || job.description.length < 30) throw new Error("Job has no description to generate from.");
+      const jd = job.description;
+      let localCost = 0;
+      let t: any = null, c: any = null;
+      const compileJobs: Promise<any>[] = [];
+      if (doTailor) {
+        t = await tailorFn({ data: { jd, company: job.company, title: job.title, job_id: job.id } } as any);
+        const savedT = await saveArtifactFn({ data: { job_id: job.id, kind: "tailored_resume", filename: t.filename, latex_source: t.latex } } as any);
+        compileJobs.push(compilePdfFn({ data: { artifact_id: savedT.id } } as any).catch(() => null));
+        localCost += Number(t.cost);
+      }
+      if (doCover) {
+        c = await coverFn({ data: { jd, company: job.company, title: job.title, job_id: job.id } } as any);
+        const savedC = await saveArtifactFn({ data: { job_id: job.id, kind: "cover_letter", filename: c.filename, latex_source: c.latex } } as any);
+        compileJobs.push(compilePdfFn({ data: { artifact_id: savedC.id } } as any).catch(() => null));
+        localCost += Number(c.cost);
+      }
+      await Promise.all(compileJobs);
+      return { localCost };
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["job", jobId] });
+      qc.invalidateQueries({ queryKey: ["jobs"] });
+      qc.invalidateQueries({ queryKey: ["costs"] });
+      toast.success("Documents generated");
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
 
   async function downloadAll() {
     setZipping(true);
@@ -353,17 +394,41 @@ function DocumentsTab({ artifacts, jobId }: { artifacts: any[]; jobId: string })
   }
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <div className="text-xs text-muted-foreground">{artifacts.length} document{artifacts.length === 1 ? "" : "s"}</div>
-        <Button size="sm" variant="outline" onClick={downloadAll} disabled={zipping}>
-          {zipping ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Download className="mr-1 h-3.5 w-3.5" />}
-          Download all (.zip)
-        </Button>
-      </div>
-      <div className="grid gap-3 md:grid-cols-2">
-        {artifacts.map((a) => <DocumentCard key={a.id} art={a} jobId={jobId} />)}
-      </div>
+    <div className="space-y-4">
+      {job && job.description && job.description.length >= 30 && (
+        <div className="rounded-xl border bg-card p-4">
+          <div className="mb-3 text-sm font-semibold">Generate documents</div>
+          <div className="flex flex-wrap items-center gap-4">
+            <label className="flex items-center gap-2 text-sm">
+              <Checkbox checked={doTailor} onCheckedChange={(v) => setDoTailor(!!v)} /> Tailored resume
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <Checkbox checked={doCover} onCheckedChange={(v) => setDoCover(!!v)} /> Cover letter
+            </label>
+            <Button size="sm" onClick={() => gen.mutate()} disabled={gen.isPending || (!doTailor && !doCover)}>
+              {gen.isPending ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Wand2 className="mr-1 h-3.5 w-3.5" />}
+              {gen.isPending ? "Generating…" : "Generate"}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {!artifacts.length && <Empty text="No documents yet. Generate tailored resume or cover letter above." />}
+
+      {!!artifacts.length && (
+        <>
+          <div className="flex items-center justify-between">
+            <div className="text-xs text-muted-foreground">{artifacts.length} document{artifacts.length === 1 ? "" : "s"}</div>
+            <Button size="sm" variant="outline" onClick={downloadAll} disabled={zipping}>
+              {zipping ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Download className="mr-1 h-3.5 w-3.5" />}
+              Download all (.zip)
+            </Button>
+          </div>
+          <div className="grid gap-3 md:grid-cols-2">
+            {artifacts.map((a) => <DocumentCard key={a.id} art={a} jobId={jobId} />)}
+          </div>
+        </>
+      )}
     </div>
   );
 }
