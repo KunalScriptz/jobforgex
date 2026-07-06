@@ -207,30 +207,36 @@ export type Database = {
       }
       job_artifacts: {
         Row: {
+          compile_error: string | null
           created_at: string
           filename: string
           id: string
           job_id: string
           kind: Database["public"]["Enums"]["artifact_kind"]
           latex_source: string
+          pdf_storage_path: string | null
           workspace_id: string
         }
         Insert: {
+          compile_error?: string | null
           created_at?: string
           filename: string
           id?: string
           job_id: string
           kind: Database["public"]["Enums"]["artifact_kind"]
           latex_source: string
+          pdf_storage_path?: string | null
           workspace_id: string
         }
         Update: {
+          compile_error?: string | null
           created_at?: string
           filename?: string
           id?: string
           job_id?: string
           kind?: Database["public"]["Enums"]["artifact_kind"]
           latex_source?: string
+          pdf_storage_path?: string | null
           workspace_id?: string
         }
         Relationships: [
@@ -258,6 +264,7 @@ export type Database = {
           date_applied: string | null
           description: string
           id: string
+          insights: Json | null
           notes: string | null
           resume_score: number | null
           status: Database["public"]["Enums"]["job_status"]
@@ -273,6 +280,7 @@ export type Database = {
           date_applied?: string | null
           description?: string
           id?: string
+          insights?: Json | null
           notes?: string | null
           resume_score?: number | null
           status?: Database["public"]["Enums"]["job_status"]
@@ -288,6 +296,7 @@ export type Database = {
           date_applied?: string | null
           description?: string
           id?: string
+          insights?: Json | null
           notes?: string | null
           resume_score?: number | null
           status?: Database["public"]["Enums"]["job_status"]
