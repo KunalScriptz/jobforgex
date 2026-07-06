@@ -82,10 +82,37 @@ function CheckerPage() {
             <CardDescription>Optional JD for keyword/responsibility match.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            <Textarea rows={10} value={jd} onChange={(e) => setJd(e.target.value)} placeholder="Paste JD (optional)" />
-            <Button onClick={() => runAll.mutate()} disabled={runAll.isPending || !resume}>
-              <ClipboardCheck className="mr-1.5 h-4 w-4" />{runAll.isPending ? "Running..." : "Run checks"}
+            <Textarea
+              rows={10}
+              value={jd}
+              onChange={(e) => setJd(e.target.value)}
+              placeholder="Paste the full job description here (optional). Leave blank to run only the ATS audit."
+              className={jdBlocked ? "border-amber-500/60 focus-visible:ring-amber-500/40" : ""}
+            />
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+              <div className="text-muted-foreground">
+                {jdEmpty
+                  ? <>No JD — ATS audit only. Paste a JD to also get a JD-match score.</>
+                  : <>{jdLen.toLocaleString()} chars · {jdWordCount.toLocaleString()} words</>}
+              </div>
+              {jdTooShort && (
+                <span className="rounded-full border border-amber-500/50 bg-amber-500/10 px-2 py-0.5 font-medium text-amber-600">
+                  Need ≥ {MIN_JD} chars for a useful match ({MIN_JD - jdLen} to go)
+                </span>
+              )}
+              {jdTooLong && (
+                <span className="rounded-full border border-red-500/50 bg-red-500/10 px-2 py-0.5 font-medium text-red-600">
+                  Over {MAX_JD.toLocaleString()} char limit
+                </span>
+              )}
+            </div>
+            <Button onClick={() => runAll.mutate()} disabled={runAll.isPending || !resume || jdBlocked}>
+              <ClipboardCheck className="mr-1.5 h-4 w-4" />
+              {runAll.isPending ? "Running..." : jdEmpty ? "Run ATS audit" : "Run ATS + JD match"}
             </Button>
+            {!resume && (
+              <p className="text-xs text-muted-foreground">Upload a base resume first to enable checks.</p>
+            )}
           </CardContent>
         </Card>
 
