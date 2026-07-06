@@ -7,6 +7,7 @@ import {
   FileText, Building2, StickyNote, ClipboardList, FolderOpen, Download, RefreshCw,
   AlertTriangle, CheckCircle2, Tag, Target, GraduationCap, Users,
 } from "lucide-react";
+import JSZip from "jszip";
 
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -312,10 +313,57 @@ function NotesTab({ job }: { job: any }) {
 }
 
 function DocumentsTab({ artifacts, jobId }: { artifacts: any[]; jobId: string }) {
+  const urlFn = useServerFn(getArtifactPdfUrl);
+  const [zipping, setZipping] = useState(false);
   if (!artifacts.length) return <Empty text="No documents yet. Use AI Tools or Generate to create them." />;
+
+  async function downloadAll() {
+    setZipping(true);
+    try {
+      const zip = new JSZip();
+      const used = new Set<string>();
+      const unique = (name: string) => {
+        let n = name, i = 1;
+        while (used.has(n)) { const dot = name.lastIndexOf("."); n = dot > 0 ? `${name.slice(0, dot)}_${i}${name.slice(dot)}` : `${name}_${i}`; i++; }
+        used.add(n); return n;
+      };
+      for (const a of artifacts) {
+        if (a.latex_source) {
+          zip.file(unique(a.filename ?? "document.txt"), a.latex_source);
+        }
+        if (a.pdf_storage_path) {
+          try {
+            const { url, filename } = await urlFn({ data: { artifact_id: a.id } } as any);
+            const res = await fetch(url);
+            if (res.ok) zip.file(unique(filename), await res.arrayBuffer());
+          } catch { /* skip failed pdf */ }
+        }
+      }
+      const blob = await zip.generateAsync({ type: "blob" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = `job_${jobId.slice(0, 8)}_documents.zip`;
+      link.click();
+      toast.success("Bundled documents");
+    } catch (e: any) {
+      toast.error(String(e?.message ?? e).slice(0, 200));
+    } finally {
+      setZipping(false);
+    }
+  }
+
   return (
-    <div className="grid gap-3 md:grid-cols-2">
-      {artifacts.map((a) => <DocumentCard key={a.id} art={a} jobId={jobId} />)}
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <div className="text-xs text-muted-foreground">{artifacts.length} document{artifacts.length === 1 ? "" : "s"}</div>
+        <Button size="sm" variant="outline" onClick={downloadAll} disabled={zipping}>
+          {zipping ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Download className="mr-1 h-3.5 w-3.5" />}
+          Download all (.zip)
+        </Button>
+      </div>
+      <div className="grid gap-3 md:grid-cols-2">
+        {artifacts.map((a) => <DocumentCard key={a.id} art={a} jobId={jobId} />)}
+      </div>
     </div>
   );
 }

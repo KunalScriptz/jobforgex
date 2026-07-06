@@ -3,7 +3,7 @@ import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import CodeMirror from "@uiw/react-codemirror";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { HexColorPicker } from "react-colorful";
 
 import { getBaseResume, saveBaseResume, updateResumeColors, listVersions, restoreVersion } from "@/lib/resumes.functions";
@@ -14,7 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Download, Save, History, RotateCcw, LayoutList } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
-import { LatexPreview } from "@/components/latex-preview";
+import { LatexPreview, type LatexPreviewHandle } from "@/components/latex-preview";
 
 export const Route = createFileRoute("/_authenticated/resumes")({ component: ResumesPage });
 
@@ -104,6 +104,9 @@ function ResumesPage() {
   const saveColors = useServerFn(updateResumeColors);
   const getVersions = useServerFn(listVersions);
   const restore = useServerFn(restoreVersion);
+  const cmTheme = useIsDark();
+  const previewRef = useRef<LatexPreviewHandle>(null);
+  const sectionsPreviewRef = useRef<LatexPreviewHandle>(null);
 
   const { data: resume } = useQuery({ queryKey: ["resume","base"], queryFn: () => getBase() });
   const { data: versions = [] } = useQuery({
@@ -126,9 +129,27 @@ function ResumesPage() {
 
   const save = useMutation({
     mutationFn: async () => saveFn({ data: { latex_source: source, primary_color: hexToRgbTuple(primary), secondary_color: hexToRgbTuple(secondary) } } as any),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["resume"] }); toast.success("Saved"); },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["resume"] });
+      toast.success("Saved");
+      // Trigger a preview recompile on both mounts (only the active one has the ref set).
+      previewRef.current?.compile();
+      sectionsPreviewRef.current?.compile();
+    },
     onError: (e: any) => toast.error(e.message),
   });
+
+  // Ctrl+S / Cmd+S to save
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
+        e.preventDefault();
+        if (!save.isPending) save.mutate();
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [save]);
 
   function applyColors(next: { primary?: string; secondary?: string }) {
     let src = source;
@@ -174,16 +195,23 @@ function ResumesPage() {
                 onChange={setSource}
                 height="calc(100vh - 320px)"
                 basicSetup={{ lineNumbers: true, foldGutter: true }}
-                theme={useIsDark()}
+                theme={cmTheme}
               />
             </div>
             <div className="overflow-hidden rounded-lg border bg-white" style={{ height: "calc(100vh - 280px)" }}>
-              <LatexPreview source={source} />
+              <LatexPreview ref={previewRef} source={source} auto={false} />
             </div>
           </div>
         </TabsContent>
         <TabsContent value="sections" className="mt-4">
-          <SectionsEditor source={source} onChange={setSource} />
+          <div className="grid gap-4 lg:grid-cols-2">
+            <div className="overflow-auto" style={{ maxHeight: "calc(100vh - 220px)" }}>
+              <SectionsEditor source={source} onChange={setSource} />
+            </div>
+            <div className="overflow-hidden rounded-lg border bg-white" style={{ height: "calc(100vh - 220px)" }}>
+              <LatexPreview ref={sectionsPreviewRef} source={source} auto={false} />
+            </div>
+          </div>
         </TabsContent>
         <TabsContent value="versions" className="mt-4">
           <Card>
