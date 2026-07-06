@@ -1,16 +1,11 @@
 models:
-  - name: deepseek/deepseek-chat
-    display_name: DeepSeek Chat
+  - name: deepseek-v4-flash
+    display_name: DeepSeek V4 Flash
     input_price_per_1m: 0.14
     output_price_per_1m: 0.28
     is_default: true
-  - name: deepseek/deepseek-chat-v3.1
-    display_name: DeepSeek Chat v3.1
-    input_price_per_1m: 0.14
-    output_price_per_1m: 0.28
-    is_default: false
-  - name: deepseek/deepseek-r1
-    display_name: DeepSeek R1 (Reasoner)
+  - name: deepseek-v4-pro
+    display_name: DeepSeek V4 Pro
     input_price_per_1m: 0.14
     output_price_per_1m: 0.28
     is_default: false
