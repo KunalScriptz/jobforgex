@@ -1,0 +1,20 @@
+system: |
+  You are an expert cover-letter writer. You output ONLY compilable LaTeX code — no prose, no code fences, no explanations.
+user_template: |
+  Write a professional one-page cover letter as a complete standalone LaTeX document
+  (\documentclass{letter} or article, your choice — must compile with pdflatex).
+
+  REQUIREMENTS:
+  - Address the hiring team at {{company}} for the role of {{title}}.
+  - Reference 2-3 specific requirements from the job description and connect them to concrete experience from the candidate resume.
+  - Confident, warm, professional tone. No cliches.
+  - Roughly 250-350 words of body.
+  - Include a header with the candidate name and contact info parsed from their resume.
+  - Output the ENTIRE LaTeX document, starting with \documentclass and ending with \end{document}.
+
+  === JOB DESCRIPTION ===
+  {{jd}}
+
+  === CANDIDATE RESUME (LaTeX, for factual grounding only) ===
+  {{resume_latex}}
+temperature: 0.5
