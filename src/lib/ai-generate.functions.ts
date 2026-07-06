@@ -15,6 +15,34 @@ function stripFences(s: string) {
   return s.replace(/^```(?:latex|tex)?\s*/i, "").replace(/```\s*$/i, "").trim();
 }
 
+/**
+ * Some models emit `letter`/`moderncv`/`fontawesome` commands even when told
+ * not to. Rewrite them into plain LaTeX so the document compiles with a bare
+ * `article` class.
+ */
+function sanitizeCoverLetterLatex(src: string): string {
+  let s = src;
+
+  // Force article class + drop unsupported packages/classes.
+  s = s.replace(/\\documentclass(\[[^\]]*\])?\{(letter|moderncv|europecv|cv|scrlttr2)\}/g,
+    "\\documentclass[11pt]{article}\\usepackage[margin=1in]{geometry}\\usepackage{parskip}");
+  s = s.replace(/\\usepackage(\[[^\]]*\])?\{(moderncv|fontawesome5?|marvosym|academicons|fontspec)\}/g, "");
+
+  // letter-class commands → plain text.
+  s = s.replace(/\\opening\{([^}]*)\}/g, "$1\n\n");
+  s = s.replace(/\\closing\{([^}]*)\}/g, "$1");
+  s = s.replace(/\\signature\{([^}]*)\}/g, "$1");
+  s = s.replace(/\\(fromaddress|toaddress|address|fromname|fromphone|fromemail|name|title|phone|email|homepage|social|extrainfo|photo|quote|makelettertitle|makecvtitle|recomputelengths|makeletterclosing)\s*(\[[^\]]*\])?\s*\{[^}]*\}/g, "");
+  s = s.replace(/\\(makelettertitle|makecvtitle|recomputelengths|makeletterclosing)\b/g, "");
+  s = s.replace(/\\begin\{letter\}\s*\{[^}]*\}/g, "");
+  s = s.replace(/\\end\{letter\}/g, "");
+
+  // fontawesome icons → drop.
+  s = s.replace(/\\fa[A-Za-z]+\*?\s*(\[[^\]]*\])?/g, "");
+
+  return s;
+}
+
 function sanitizeFilenamePart(s: string) {
   return s.replace(/[^A-Za-z0-9]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 60) || "unknown";
 }
@@ -142,7 +170,7 @@ export const generateCoverLetter = createServerFn({ method: "POST" })
       vars: { jd: data.jd, resume_latex: resume.latex_source, company: data.company, title: data.title },
     });
 
-    const latex = stripFences(result.content);
+    const latex = sanitizeCoverLetterLatex(stripFences(result.content));
     const name = extractResumeName(resume.latex_source ?? "");
     const filename = buildDocFilename({ name, company: data.company, title: data.title, suffix: "Cover_Letter" });
     return { latex, filename, cost: result.totalCost, model: result.modelName };
