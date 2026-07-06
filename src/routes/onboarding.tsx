@@ -43,7 +43,7 @@ function OnboardingPage() {
     }
   }, [ws, navigate]);
 
-  if (isLoading) return <FullScreenLoader />;
+  if (isLoading && ws === undefined) return <FullScreenLoader />;
 
   const progress = ((step - 1) / 3) * 100;
 
