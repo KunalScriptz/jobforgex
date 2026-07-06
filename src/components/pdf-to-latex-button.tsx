@@ -31,8 +31,8 @@ export function PdfToLatexButton({ onLatex, size = "sm", variant = "outline", la
     setBusy(true);
     const t = toast.loading("Reading PDF…");
     try {
-      const { extractPdfText } = await import("@/lib/pdf-extract.client");
-      const text = await extractPdfText(file);
+      const text = await extractPdf(file);
+      if (!text) throw new Error("PDF extraction is only available in the browser.");
       toast.loading("Converting to LaTeX with your AI model…", { id: t });
       const res = await convert({ data: { text } } as any);
       onLatex(res.latex);
