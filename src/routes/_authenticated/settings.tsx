@@ -45,11 +45,25 @@ function ProviderCard() {
 
   const submit = useMutation({
     mutationFn: async () => {
-      if (apiKey) await test({ data: { base_url: baseUrl, api_key: apiKey, model } } as any);
-      await save({ data: { base_url: baseUrl, api_key: apiKey || "unchanged", name: "DeepSeek" } } as any);
+      setTestReply("");
+      setTestError("");
+      const cleanKey = apiKey.trim();
+      await save({ data: { base_url: baseUrl.trim(), api_key: cleanKey || undefined, name: "DeepSeek" } } as any);
+      if (!cleanKey) return null;
+      try {
+        return await pingSaved({ data: { model: model.trim() } } as any);
+      } catch (e: any) {
+        throw new Error(`Key was saved, but the model test failed:\n${e?.message ?? String(e)}`);
+      }
     },
-    onSuccess: () => { toast.success("Saved"); qc.invalidateQueries({ queryKey: ["provider"] }); setApiKey(""); },
-    onError: (e: any) => { setTestError(e?.message ?? String(e)); toast.error("Save failed — see error card"); },
+    onSuccess: (r: any) => {
+      const reply = r?.reply ?? "";
+      if (reply) setTestReply(reply);
+      toast.success(reply ? `Saved. Model replied: ${reply.slice(0, 80)}` : "Saved");
+      qc.invalidateQueries({ queryKey: ["provider"] });
+      setApiKey("");
+    },
+    onError: (e: any) => { setTestError(e?.message ?? String(e)); toast.error("Save/test failed — see full error"); },
   });
 
   const runTest = useMutation({
@@ -78,7 +92,7 @@ function ProviderCard() {
             <CardTitle className="flex items-center gap-2">
               <Sparkles className="h-4 w-4 text-primary" /> AI provider
             </CardTitle>
-            <CardDescription>Your key is encrypted at rest. Leave blank to keep current key.</CardDescription>
+          <CardDescription>Your key is encrypted at rest. Paste a new key to replace it, then save and test.</CardDescription>
           </div>
           <StatusPill status={status} />
         </div>
@@ -92,7 +106,7 @@ function ProviderCard() {
         <div><Label>Test model</Label><Input value={model} onChange={(e) => setModel(e.target.value)} /></div>
         <div className="flex flex-wrap gap-2">
           <Button onClick={() => submit.mutate()} disabled={submit.isPending}>
-            {submit.isPending && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}Save
+            {submit.isPending && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}{apiKey.trim() ? "Save & test" : "Save"}
           </Button>
           <Button variant="secondary" onClick={() => runTest.mutate()} disabled={runTest.isPending || !p?.has_key}>
             {runTest.isPending ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <PlugZap className="mr-1.5 h-4 w-4" />}
@@ -118,7 +132,7 @@ function ProviderCard() {
               {testError}
             </pre>
             <div className="mt-2 text-[11px] text-muted-foreground">
-              Tip: if this says 401/Authentication, either the key is invalid, the model id is wrong, or your saved key was encrypted with a previous secret — paste the key again and Save.
+              Tip: if this says 401/Authentication, the provider rejected the saved key/model/base URL. The card above shows the exact URL, model, key length, and response body.
             </div>
           </div>
         )}
