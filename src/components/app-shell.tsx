@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { getMyWorkspace } from "@/lib/workspace.functions";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 const NAV = [
   { to: "/dashboard", label: "Board", icon: LayoutDashboard },
@@ -57,9 +58,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </nav>
         <div className="border-t p-3 text-xs">
           <div className="truncate font-medium">{ws?.name ?? "Workspace"}</div>
-          <button onClick={signOut} className="mt-2 flex items-center gap-1.5 text-muted-foreground hover:text-foreground">
-            <LogOut className="h-3.5 w-3.5" /> Sign out
-          </button>
+          <div className="mt-2 flex flex-col gap-1.5">
+            <ThemeToggle />
+            <button onClick={signOut} className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground">
+              <LogOut className="h-3.5 w-3.5" /> Sign out
+            </button>
+          </div>
         </div>
       </aside>
       <main className="flex-1 overflow-x-hidden">{children}</main>

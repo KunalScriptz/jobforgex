@@ -10,7 +10,7 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
-import { ClipboardCheck } from "lucide-react";
+import { ClipboardCheck, AlertTriangle } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/checker")({ component: CheckerPage });
 
@@ -22,6 +22,7 @@ function CheckerPage() {
   const [jd, setJd] = useState("");
   const [scoreReport, setScoreReport] = useState<any>(null);
   const [atsReport, setAtsReport] = useState<any>(null);
+  const [errText, setErrText] = useState<string>("");
 
   const runAll = useMutation({
     mutationFn: async () => {
@@ -31,11 +32,17 @@ function CheckerPage() {
       return results;
     },
     onSuccess: (r: any) => {
+      setErrText("");
       setAtsReport(r.ats?.report ?? null);
       setScoreReport(r.score?.report ?? null);
       toast.success("Checks complete");
     },
-    onError: (e: any) => toast.error(e.message),
+    onError: (e: any) => {
+      const msg = e?.message ?? e?.toString?.() ?? "Unknown error";
+      const cause = e?.cause ? `\ncause: ${JSON.stringify(e.cause).slice(0, 500)}` : "";
+      setErrText(`${msg}${cause}`);
+      toast.error(msg.slice(0, 160));
+    },
   });
 
   return (
@@ -58,6 +65,19 @@ function CheckerPage() {
         </Card>
 
         <div className="space-y-4">
+          {errText && (
+            <Card className="border-red-500/40">
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-red-600 text-base">
+                  <AlertTriangle className="h-4 w-4" /> Check failed
+                </CardTitle>
+                <CardDescription>Full error from the server (not a generic message).</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <pre className="max-h-72 overflow-auto whitespace-pre-wrap rounded bg-muted/40 p-2 text-[11px]">{errText}</pre>
+              </CardContent>
+            </Card>
+          )}
           {atsReport && (
             <Card>
               <CardHeader><CardTitle>ATS score: {atsReport.ats_score}/100</CardTitle></CardHeader>
