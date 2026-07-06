@@ -29,6 +29,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogT
 import { CompanyAutocomplete } from "@/components/company-autocomplete";
 import { JobDetailDialog } from "@/components/job-detail-dialog";
 import { CompanyLogo } from "@/components/company-logo";
+import { OnboardingGuide } from "@/components/onboarding-guide";
 
 export const Route = createFileRoute("/_authenticated/jobs")({ component: JobsPage });
 
@@ -218,6 +219,7 @@ function JobsPage() {
           {selectMode ? "Exit select" : "Select"}
         </Button>
         <AddJobDialog boards={boards} />
+        <OnboardingGuide />
         <span className="text-xs text-muted-foreground">
           {selectMode ? "Tap cards to select · bulk-move below" : "Drag cards or use Select to bulk-move"}
         </span>
@@ -312,7 +314,7 @@ function Column({
   return (
     <div
       ref={setNodeRef}
-      className={`flex w-72 shrink-0 flex-col rounded-xl border bg-muted/30 transition-colors ${
+      className={`flex w-72 shrink-0 flex-1 lg:min-w-0 flex-col rounded-xl border bg-muted/30 transition-colors ${
         isOver ? "border-primary bg-primary/5" : "border-border"
       }`}
     >
