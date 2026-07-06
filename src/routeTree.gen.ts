@@ -13,9 +13,13 @@ import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
+import { Route as AuthenticatedResumesRouteImport } from './routes/_authenticated/resumes'
 import { Route as AuthenticatedJobsRouteImport } from './routes/_authenticated/jobs'
 import { Route as AuthenticatedGenerateRouteImport } from './routes/_authenticated/generate'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedCostsRouteImport } from './routes/_authenticated/costs'
+import { Route as AuthenticatedCheckerRouteImport } from './routes/_authenticated/checker'
 
 const OnboardingRoute = OnboardingRouteImport.update({
   id: '/onboarding',
@@ -36,6 +40,16 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedResumesRoute = AuthenticatedResumesRouteImport.update({
+  id: '/resumes',
+  path: '/resumes',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedJobsRoute = AuthenticatedJobsRouteImport.update({
   id: '/jobs',
   path: '/jobs',
@@ -51,22 +65,40 @@ const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedCostsRoute = AuthenticatedCostsRouteImport.update({
+  id: '/costs',
+  path: '/costs',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedCheckerRoute = AuthenticatedCheckerRouteImport.update({
+  id: '/checker',
+  path: '/checker',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/onboarding': typeof OnboardingRoute
+  '/checker': typeof AuthenticatedCheckerRoute
+  '/costs': typeof AuthenticatedCostsRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/generate': typeof AuthenticatedGenerateRoute
   '/jobs': typeof AuthenticatedJobsRoute
+  '/resumes': typeof AuthenticatedResumesRoute
+  '/settings': typeof AuthenticatedSettingsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/onboarding': typeof OnboardingRoute
+  '/checker': typeof AuthenticatedCheckerRoute
+  '/costs': typeof AuthenticatedCostsRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/generate': typeof AuthenticatedGenerateRoute
   '/jobs': typeof AuthenticatedJobsRoute
+  '/resumes': typeof AuthenticatedResumesRoute
+  '/settings': typeof AuthenticatedSettingsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -74,9 +106,13 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/onboarding': typeof OnboardingRoute
+  '/_authenticated/checker': typeof AuthenticatedCheckerRoute
+  '/_authenticated/costs': typeof AuthenticatedCostsRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/generate': typeof AuthenticatedGenerateRoute
   '/_authenticated/jobs': typeof AuthenticatedJobsRoute
+  '/_authenticated/resumes': typeof AuthenticatedResumesRoute
+  '/_authenticated/settings': typeof AuthenticatedSettingsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -84,20 +120,38 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/onboarding'
+    | '/checker'
+    | '/costs'
     | '/dashboard'
     | '/generate'
     | '/jobs'
+    | '/resumes'
+    | '/settings'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/onboarding' | '/dashboard' | '/generate' | '/jobs'
+  to:
+    | '/'
+    | '/auth'
+    | '/onboarding'
+    | '/checker'
+    | '/costs'
+    | '/dashboard'
+    | '/generate'
+    | '/jobs'
+    | '/resumes'
+    | '/settings'
   id:
     | '__root__'
     | '/'
     | '/_authenticated'
     | '/auth'
     | '/onboarding'
+    | '/_authenticated/checker'
+    | '/_authenticated/costs'
     | '/_authenticated/dashboard'
     | '/_authenticated/generate'
     | '/_authenticated/jobs'
+    | '/_authenticated/resumes'
+    | '/_authenticated/settings'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -137,6 +191,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/settings': {
+      id: '/_authenticated/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AuthenticatedSettingsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/resumes': {
+      id: '/_authenticated/resumes'
+      path: '/resumes'
+      fullPath: '/resumes'
+      preLoaderRoute: typeof AuthenticatedResumesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/jobs': {
       id: '/_authenticated/jobs'
       path: '/jobs'
@@ -158,19 +226,41 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/costs': {
+      id: '/_authenticated/costs'
+      path: '/costs'
+      fullPath: '/costs'
+      preLoaderRoute: typeof AuthenticatedCostsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/checker': {
+      id: '/_authenticated/checker'
+      path: '/checker'
+      fullPath: '/checker'
+      preLoaderRoute: typeof AuthenticatedCheckerRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedCheckerRoute: typeof AuthenticatedCheckerRoute
+  AuthenticatedCostsRoute: typeof AuthenticatedCostsRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedGenerateRoute: typeof AuthenticatedGenerateRoute
   AuthenticatedJobsRoute: typeof AuthenticatedJobsRoute
+  AuthenticatedResumesRoute: typeof AuthenticatedResumesRoute
+  AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedCheckerRoute: AuthenticatedCheckerRoute,
+  AuthenticatedCostsRoute: AuthenticatedCostsRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedGenerateRoute: AuthenticatedGenerateRoute,
   AuthenticatedJobsRoute: AuthenticatedJobsRoute,
+  AuthenticatedResumesRoute: AuthenticatedResumesRoute,
+  AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
