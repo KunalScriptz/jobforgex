@@ -1,0 +1,35 @@
+{
+  "manifest_version": 3,
+  "name": "JobForge Autofill",
+  "version": "1.0.0",
+  "description": "Save jobs to your JobForge board with one click from any job posting.",
+  "permissions": ["storage", "activeTab", "scripting"],
+  "host_permissions": ["<all_urls>"],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "JobForge",
+    "default_icon": { "48": "icon.png", "128": "icon.png" }
+  },
+  "icons": { "48": "icon.png", "128": "icon.png" },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*.greenhouse.io/*",
+        "*://*.lever.co/*",
+        "*://*.ashbyhq.com/*",
+        "*://*.workday.com/*",
+        "*://*.myworkdayjobs.com/*",
+        "*://*.linkedin.com/jobs/*",
+        "*://*.indeed.com/*",
+        "*://*.wellfound.com/*",
+        "*://*.smartrecruiters.com/*",
+        "*://*.jobvite.com/*",
+        "*://*/careers/*",
+        "*://*/jobs/*"
+      ],
+      "js": ["content.js"],
+      "css": ["content.css"],
+      "run_at": "document_idle"
+    }
+  ]
+}
