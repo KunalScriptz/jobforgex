@@ -8,6 +8,8 @@ import { scoreResume, tailorResume, generateCoverLetter, saveArtifact } from "@/
 import { listBoards } from "@/lib/workspace.functions";
 import { listModels } from "@/lib/ai-config.functions";
 import { createJob } from "@/lib/jobs.functions";
+import { compileArtifactPdf } from "@/lib/pdf.functions";
+import { extractJobInsights } from "@/lib/insights.functions";
 
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -29,6 +31,8 @@ function GeneratePage() {
   const coverFn = useServerFn(generateCoverLetter);
   const createJobFn = useServerFn(createJob);
   const saveArtifactFn = useServerFn(saveArtifact);
+  const compilePdfFn = useServerFn(compileArtifactPdf);
+  const extractInsightsFn = useServerFn(extractJobInsights);
   const getBoards = useServerFn(listBoards);
   const getModels = useServerFn(listModels);
 
@@ -67,16 +71,23 @@ function GeneratePage() {
 
       let localCost = 0;
       let t: any = null, c: any = null;
+      const compileJobs: Promise<any>[] = [];
       if (doTailor) {
         t = await tailorFn({ data: { jd, company, title, model_id: modelId || undefined, job_id: job.id } } as any);
-        await saveArtifactFn({ data: { job_id: job.id, kind: "tailored_resume", filename: t.filename, latex_source: t.latex } } as any);
+        const savedT = await saveArtifactFn({ data: { job_id: job.id, kind: "tailored_resume", filename: t.filename, latex_source: t.latex } } as any);
+        compileJobs.push(compilePdfFn({ data: { artifact_id: savedT.id } } as any).catch(() => null));
         localCost += Number(t.cost);
       }
       if (doCover) {
         c = await coverFn({ data: { jd, company, title, model_id: modelId || undefined, job_id: job.id } } as any);
-        await saveArtifactFn({ data: { job_id: job.id, kind: "cover_letter", filename: c.filename, latex_source: c.latex } } as any);
+        const savedC = await saveArtifactFn({ data: { job_id: job.id, kind: "cover_letter", filename: c.filename, latex_source: c.latex } } as any);
+        compileJobs.push(compilePdfFn({ data: { artifact_id: savedC.id } } as any).catch(() => null));
         localCost += Number(c.cost);
       }
+      // Fire insights extraction in background; don't block save.
+      extractInsightsFn({ data: { job_id: job.id } } as any).catch(() => null);
+      // Await compiles so the UI reflects PDFs immediately when we invalidate.
+      await Promise.all(compileJobs);
       return { t, c, localCost, jobId: job.id };
     },
     onSuccess: ({ t, c, localCost }) => {
@@ -85,7 +96,7 @@ function GeneratePage() {
       setTotalCost((x) => x + localCost);
       qc.invalidateQueries({ queryKey: ["jobs"] });
       qc.invalidateQueries({ queryKey: ["costs"] });
-      toast.success("Generated & saved to your board");
+      toast.success("Generated, PDFs compiled & saved to your board");
     },
     onError: (e: any) => toast.error(e.message),
   });
