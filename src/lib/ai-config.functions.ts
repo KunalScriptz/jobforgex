@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { pingDeepseek } from "./deepseek.server";
+import { decryptApiKey } from "./crypto.server";
 
 async function loadWorkspaceId(supabase: any, userId: string): Promise<string> {
   const { data } = await supabase.from("workspaces").select("id").eq("owner_user_id", userId).maybeSingle();
@@ -68,6 +69,41 @@ export const testConnection = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     await pingDeepseek(data.base_url, data.api_key, data.model);
     return { ok: true };
+  });
+
+// Sends a real chat request to the *saved* provider using the given model id
+// and returns the model's reply. Used by Settings > "Test model".
+export const pingSavedModel = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { model: string }) => z.object({ model: z.string().min(1).max(80) }).parse(d))
+  .handler(async ({ data, context }) => {
+    const wsId = await loadWorkspaceId(context.supabase, context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: provider } = await supabaseAdmin
+      .from("ai_providers").select("*")
+      .eq("workspace_id", wsId).eq("is_active", true)
+      .order("created_at").limit(1).maybeSingle();
+    if (!provider || !provider.api_key_encrypted) throw new Error("No provider saved. Enter and save your API key first.");
+    const key = decryptApiKey(provider.api_key_encrypted as string);
+
+    const res = await fetch(`${(provider.base_url as string).replace(/\/$/, "")}/chat/completions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+      body: JSON.stringify({
+        model: data.model,
+        temperature: 0,
+        max_tokens: 20,
+        messages: [
+          { role: "system", content: "Respond with exactly: hi model is working" },
+          { role: "user", content: "ping" },
+        ],
+      }),
+    });
+    const text = await res.text();
+    if (!res.ok) throw new Error(`Provider ${res.status}: ${text.slice(0, 400)}`);
+    let reply = "";
+    try { reply = JSON.parse(text)?.choices?.[0]?.message?.content ?? ""; } catch { reply = text.slice(0, 200); }
+    return { reply: reply.trim() || "(empty response)", model: data.model };
   });
 
 export const listModels = createServerFn({ method: "GET" })
