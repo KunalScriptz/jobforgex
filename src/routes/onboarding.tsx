@@ -39,7 +39,7 @@ function OnboardingPage() {
 
   useEffect(() => {
     if (ws) {
-      if (ws.onboarding_complete) navigate({ to: "/dashboard" });
+      if (ws.onboarding_complete) navigate({ to: "/jobs" });
       else setStep(ws.onboarding_step ?? 1);
     }
   }, [ws, navigate]);
@@ -64,7 +64,7 @@ function OnboardingPage() {
         }} />}
         {step === 3 && <Step3 onDone={async () => {
           qc.invalidateQueries({ queryKey: ["ws"] });
-          navigate({ to: "/dashboard" });
+          navigate({ to: "/jobs" });
         }} />}
       </div>
     </div>
