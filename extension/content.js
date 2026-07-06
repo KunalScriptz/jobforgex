@@ -22,13 +22,46 @@
 
   function guessCompany() {
     const host = location.hostname.replace(/^www\./, "");
+    // 1. Structured data (JobPosting schema)
+    try {
+      const scripts = document.querySelectorAll('script[type="application/ld+json"]');
+      for (const s of scripts) {
+        const parsed = JSON.parse(s.textContent || "null");
+        const arr = Array.isArray(parsed) ? parsed : [parsed];
+        for (const node of arr) {
+          const t = node && (node["@type"] || (node["@graph"] && "graph"));
+          if (!node) continue;
+          if (t === "JobPosting" && node.hiringOrganization) {
+            const n = typeof node.hiringOrganization === "string" ? node.hiringOrganization : node.hiringOrganization.name;
+            if (n) return String(n).trim();
+          }
+          if (node["@graph"]) {
+            for (const g of node["@graph"]) {
+              if (g && g["@type"] === "JobPosting" && g.hiringOrganization) {
+                const n = typeof g.hiringOrganization === "string" ? g.hiringOrganization : g.hiringOrganization.name;
+                if (n) return String(n).trim();
+              }
+            }
+          }
+        }
+      }
+    } catch (_) {}
+    // 2. Common meta tags
+    const metaCompany =
+      pickMeta("twitter:data1") ||
+      document.querySelector('meta[name="twitter:label1"][content*="ompany"]')?.nextElementSibling?.getAttribute("content");
+    if (metaCompany && !/salary|location/i.test(metaCompany)) return metaCompany.trim();
     // Greenhouse: job-boards.greenhouse.io/<slug>/jobs/<id>
     if (host.includes("greenhouse.io")) {
+      const gh = document.querySelector('.company-name, [class*="company"]');
+      if (gh && text(gh)) return text(gh).replace(/^at\s+/i, "");
       const m = location.pathname.match(/^\/([^\/]+)/);
       if (m) return prettify(m[1]);
     }
     // Lever: jobs.lever.co/<company>/<id>
     if (host.includes("lever.co")) {
+      const lv = document.querySelector('.main-header-logo img, .main-header-text');
+      if (lv) { const n = lv.getAttribute?.("alt") || text(lv); if (n) return n.trim(); }
       const m = location.pathname.match(/^\/([^\/]+)/);
       if (m) return prettify(m[1]);
     }
@@ -36,11 +69,19 @@
       const m = location.pathname.match(/^\/([^\/]+)/);
       if (m) return prettify(m[1]);
     }
-    // LinkedIn: look at company link
-    const li = document.querySelector('a[href*="/company/"]');
-    if (li) return text(li);
+    // LinkedIn / Indeed / generic
+    const li = document.querySelector('a[href*="/company/"], a[data-tracking-control-name*="company"]');
+    if (li && text(li)) return text(li).trim();
+    const generic = document.querySelector('[data-company-name], [data-testid*="company" i], [class*="companyName" i], [class*="employer" i]');
+    if (generic && text(generic)) return text(generic).trim();
     const og = pickMeta("og:site_name");
     if (og && og.toLowerCase() !== "linkedin") return og;
+    // Title pattern: "Job Title at Company"
+    const t = document.title;
+    const atMatch = t.match(/\s+at\s+([^|\-–—]+)/i);
+    if (atMatch) return atMatch[1].trim();
+    const pipeMatch = t.split(/[|\-–—]/).map((s) => s.trim()).filter(Boolean);
+    if (pipeMatch.length >= 2) return pipeMatch[pipeMatch.length - 1];
     return prettify(host.split(".")[0]);
   }
 
@@ -77,7 +118,8 @@
 
   const fab = document.createElement("button");
   fab.id = "jobforge-fab";
-  fab.innerHTML = `<span class="dot"></span> Save to JobForge`;
+  const iconUrl = chrome.runtime.getURL("icon-32.png");
+  fab.innerHTML = `<img src="${iconUrl}" alt="" /> Save to JobForge`;
   document.documentElement.appendChild(fab);
 
   let panel = null;
