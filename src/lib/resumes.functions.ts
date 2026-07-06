@@ -2,6 +2,8 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import RESUME_TEMPLATE_TEX from "@/config/resume-template.tex?raw";
+import { decryptApiKey } from "./crypto.server";
 
 async function wsId(supabase: any, userId: string) {
   const { data } = await supabase.from("workspaces").select("id").eq("owner_user_id", userId).maybeSingle();
@@ -114,4 +116,118 @@ export const restoreVersion = createServerFn({ method: "POST" })
     if (!v) throw new Error("Version not found");
     await context.supabase.from("resumes").update({ latex_source: v.latex_source }).eq("id", v.resume_id);
     return { ok: true };
+  });
+
+// -------- Convert pasted PDF-extracted plain text into JobForge LaTeX --------
+
+export const convertPdfTextToLatex = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { text: string; model_id?: string | null }) =>
+    z.object({
+      text: z.string().min(80, "Extracted PDF text is too short — try a text-based PDF.").max(60_000),
+      model_id: z.string().uuid().optional().nullable(),
+    }).parse(d))
+  .handler(async ({ data, context }) => {
+    const wsId = await (async () => {
+      const { data: w } = await context.supabase.from("workspaces").select("id").eq("owner_user_id", context.userId).maybeSingle();
+      if (!w) throw new Error("Workspace not found");
+      return w.id as string;
+    })();
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    // Resolve model
+    let model: any = null;
+    if (data.model_id) {
+      const { data: m } = await context.supabase.from("ai_models").select("*").eq("id", data.model_id).eq("workspace_id", wsId).maybeSingle();
+      model = m;
+    }
+    if (!model) {
+      const { data: m } = await context.supabase.from("ai_models").select("*").eq("workspace_id", wsId).eq("is_default", true).maybeSingle();
+      model = m;
+    }
+    if (!model) {
+      const { data: m } = await context.supabase.from("ai_models").select("*").eq("workspace_id", wsId).order("created_at").limit(1).maybeSingle();
+      model = m;
+    }
+    if (!model) throw new Error("No AI model configured. Add one in Settings.");
+
+    const { data: provider } = await supabaseAdmin
+      .from("ai_providers").select("*")
+      .eq("workspace_id", wsId).eq("is_active", true)
+      .order("created_at").limit(1).maybeSingle();
+    if (!provider?.api_key_encrypted) throw new Error("AI provider not configured. Add your API key in Settings.");
+
+    let apiKey: string;
+    try { apiKey = decryptApiKey(provider.api_key_encrypted as string).trim(); }
+    catch (e: any) { throw new Error(`Could not decrypt saved API key (${e?.message}). Re-save it in Settings.`); }
+
+    const system = [
+      "You convert a raw resume (plain text extracted from a PDF) into a LaTeX resume that EXACTLY follows the template provided below.",
+      "",
+      "Hard rules:",
+      "1. Output ONLY the LaTeX source. No markdown fences, no commentary, no ``` blocks. Start with \\documentclass and end with \\end{document}.",
+      "2. Keep the entire preamble, \\usepackage lines, color definitions, \\titleformat, and all \\newcommand macros IDENTICAL to the template. Do not add or remove packages.",
+      "3. Reuse the template's custom commands (\\resumeSubheading, \\resumeItem, \\resumeItemListStart/End, \\resumeSubHeadingListStart/End, \\resumeProjectHeading) for every entry — never hand-roll itemize/tabular blocks.",
+      "4. Populate every section (Professional Summary, Technical Skills, Experience, Projects, Education, Achievements, Certifications) from the candidate's actual content. Omit a section only if the candidate truly has nothing for it.",
+      "5. Preserve every job, project, degree, achievement, and certification. Do NOT invent facts, dates, or metrics — if a field is missing, drop it rather than fabricate.",
+      "6. Escape LaTeX-special characters in prose: % & _ # $ { } ~ ^ \\ — e.g. write 90\\% not 90%.",
+      "7. Bold important keywords (metrics, tools, technologies) inside bullets using \\textbf{...}, matching the template's style.",
+      "8. In the centered header, keep the icon commands (\\faMobile, \\faAt, \\faLinkedinSquare, \\faGithub, \\faGlobe, \\faMapMarker) and replace the placeholder values with the candidate's real contact info. Drop an icon line entirely if that info is not in the resume.",
+      "9. Do not include Kunal / Worley / VIT or any other names from the template — those are placeholders only.",
+    ].join("\n");
+
+    const userMsg =
+      "=== TEMPLATE (structure to follow exactly) ===\n" +
+      RESUME_TEMPLATE_TEX +
+      "\n\n=== CANDIDATE RESUME TEXT (extracted from PDF) ===\n" +
+      data.text +
+      "\n\nReturn the final LaTeX document now.";
+
+    const url = `${(provider.base_url as string).replace(/\/$/, "")}/chat/completions`;
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model: model.name,
+        temperature: 0.2,
+        messages: [
+          { role: "system", content: system },
+          { role: "user", content: userMsg },
+        ],
+      }),
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`Provider HTTP ${res.status}: ${text.slice(0, 500)}`);
+    }
+    const json: any = await res.json();
+    let content: string = json.choices?.[0]?.message?.content ?? "";
+    // Strip ``` fences if the model added them
+    content = content.replace(/^\s*```(?:latex|tex)?\s*/i, "").replace(/```\s*$/, "").trim();
+    // Trim anything before \documentclass and after \end{document}
+    const startIdx = content.indexOf("\\documentclass");
+    const endMarker = "\\end{document}";
+    const endIdx = content.lastIndexOf(endMarker);
+    if (startIdx >= 0 && endIdx > startIdx) {
+      content = content.slice(startIdx, endIdx + endMarker.length);
+    }
+    if (!content.includes("\\documentclass") || !content.includes("\\end{document}")) {
+      throw new Error("Model did not return a complete LaTeX document. Try again or paste your resume text manually.");
+    }
+
+    const inTok: number = json.usage?.prompt_tokens ?? 0;
+    const outTok: number = json.usage?.completion_tokens ?? 0;
+    const inCost = (inTok / 1_000_000) * Number(model.input_price_per_1m);
+    const outCost = (outTok / 1_000_000) * Number(model.output_price_per_1m);
+    const totalCost = inCost + outCost;
+
+    await supabaseAdmin.from("ai_cost_logs").insert({
+      workspace_id: wsId, user_id: context.userId,
+      model_id: model.id, model_name: model.display_name,
+      input_tokens: inTok, output_tokens: outTok, total_tokens: inTok + outTok,
+      input_cost: inCost, output_cost: outCost, total_cost: totalCost,
+      purpose: "custom",
+    });
+
+    return { latex: content, cost: totalCost, model: model.display_name };
   });
