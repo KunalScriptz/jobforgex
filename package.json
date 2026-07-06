@@ -55,7 +55,7 @@
     "date-fns": "^4.1.0",
     "embla-carousel-react": "^8.6.0",
     "input-otp": "^1.4.2",
-    "js-yaml": "^5.2.1",
+    "js-yaml": "^4",
     "lucide-react": "^0.575.0",
     "react": "^19.2.0",
     "react-colorful": "^5.7.0",
