@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import CodeMirror from "@uiw/react-codemirror";
 import { HexColorPicker } from "react-colorful";
@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Download, Save, History, RotateCcw } from "lucide-react";
+import { LatexPreview } from "@/components/latex-preview";
 
 export const Route = createFileRoute("/_authenticated/resumes")({ component: ResumesPage });
 
@@ -85,8 +86,6 @@ function ResumesPage() {
     link.click();
   }
 
-  const preview = useMemo(() => renderLatexPreview(source), [source]);
-
   if (!resume) return <div className="p-6 text-sm text-muted-foreground">No base resume — finish onboarding.</div>;
 
   return (
@@ -117,13 +116,8 @@ function ResumesPage() {
                 theme="light"
               />
             </div>
-            <div className="rounded-lg border bg-white">
-              <div className="border-b p-2 text-xs font-medium text-muted-foreground">Preview (approximation) · compile the .tex for a real PDF</div>
-              <div
-                className="max-h-[calc(100vh-320px)] overflow-auto p-6 text-[13px]"
-                style={{ color: "#111", ["--accent" as any]: primary, ["--secondary" as any]: secondary }}
-                dangerouslySetInnerHTML={{ __html: preview }}
-              />
+            <div className="overflow-hidden rounded-lg border bg-white" style={{ height: "calc(100vh - 280px)" }}>
+              <LatexPreview source={source} />
             </div>
           </div>
         </TabsContent>
