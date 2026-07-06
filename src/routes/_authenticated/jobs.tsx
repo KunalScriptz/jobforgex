@@ -9,11 +9,12 @@ import {
   DragOverlay,
   DragStartEvent,
   PointerSensor,
-  useDraggable,
   useDroppable,
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
+import { SortableContext, useSortable, arrayMove, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { Briefcase, FileText, Trophy, ThumbsDown, Sparkles, Trash2, CheckSquare, X } from "lucide-react";
 
 import { listJobs, bulkUpdateStatus, deleteJob } from "@/lib/jobs.functions";
@@ -51,6 +52,21 @@ function JobsPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkStatus, setBulkStatus] = useState<Status | "">("");
 
+  // Per-column order override, persisted per workspace/browser.
+  const ORDER_KEY = "jobforgex:columnOrder:v1";
+  const [orderMap, setOrderMap] = useState<Record<Status, string[]>>(() => {
+    if (typeof window === "undefined") return { wishlist: [], applied: [], interview: [], offer: [], rejected: [] };
+    try {
+      return JSON.parse(localStorage.getItem(ORDER_KEY) || "") || { wishlist: [], applied: [], interview: [], offer: [], rejected: [] };
+    } catch {
+      return { wishlist: [], applied: [], interview: [], offer: [], rejected: [] };
+    }
+  });
+  function persistOrder(next: Record<Status, string[]>) {
+    setOrderMap(next);
+    try { localStorage.setItem(ORDER_KEY, JSON.stringify(next)); } catch {}
+  }
+
   const { data: boards = [] } = useQuery({ queryKey: ["boards"], queryFn: () => getBoards() });
   const { data: allJobs = [] } = useQuery({
     queryKey: ["jobs", "all"],
@@ -71,8 +87,17 @@ function JobsPage() {
   const byStatus = useMemo(() => {
     const m: Record<Status, any[]> = { wishlist: [], applied: [], interview: [], offer: [], rejected: [] };
     for (const j of filtered) (m[j.status as Status] ?? m.wishlist).push(j);
+    // Apply saved order per column: known ids first (in saved order), then new ids by created_at.
+    (Object.keys(m) as Status[]).forEach((s) => {
+      const saved = orderMap[s] ?? [];
+      const byId = new Map(m[s].map((j) => [j.id, j]));
+      const ordered: any[] = [];
+      for (const id of saved) if (byId.has(id)) { ordered.push(byId.get(id)); byId.delete(id); }
+      for (const j of m[s]) if (byId.has(j.id)) ordered.push(j);
+      m[s] = ordered;
+    });
     return m;
-  }, [filtered]);
+  }, [filtered, orderMap]);
 
   const move = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: Status }) =>
@@ -117,12 +142,48 @@ function JobsPage() {
 
   function onDragEnd(e: DragEndEvent) {
     setActiveId(null);
-    const over = e.over?.id as Status | undefined;
-    const id = e.active.id as string;
-    if (!over) return;
-    const job = filtered.find((j: any) => j.id === id);
-    if (!job || job.status === over) return;
-    move.mutate({ id, status: over });
+    const activeIdStr = e.active.id as string;
+    const overId = e.over?.id as string | undefined;
+    if (!overId) return;
+    const activeJob = filtered.find((j: any) => j.id === activeIdStr);
+    if (!activeJob) return;
+
+    // Dropped directly on a column droppable → move to that column (append to end).
+    const columnIds = COLUMNS.map((c) => c.id) as string[];
+    if (columnIds.includes(overId)) {
+      const targetStatus = overId as Status;
+      const next = { ...orderMap };
+      // Remove from any column it was in.
+      (Object.keys(next) as Status[]).forEach((s) => { next[s] = (next[s] ?? []).filter((x) => x !== activeIdStr); });
+      next[targetStatus] = [...(next[targetStatus] ?? []), activeIdStr];
+      persistOrder(next);
+      if (activeJob.status !== targetStatus) move.mutate({ id: activeIdStr, status: targetStatus });
+      return;
+    }
+
+    // Dropped on another card → reorder (same column) or insert (cross column).
+    const overJob = filtered.find((j: any) => j.id === overId);
+    if (!overJob) return;
+    const targetStatus = overJob.status as Status;
+
+    const next = { ...orderMap };
+    const currentIdsForTarget = byStatus[targetStatus].map((j: any) => j.id);
+    // Remove active from every column first.
+    (Object.keys(next) as Status[]).forEach((s) => { next[s] = (next[s] ?? []).filter((x) => x !== activeIdStr); });
+
+    if (activeJob.status === targetStatus) {
+      const oldIndex = currentIdsForTarget.indexOf(activeIdStr);
+      const newIndex = currentIdsForTarget.indexOf(overId);
+      next[targetStatus] = arrayMove(currentIdsForTarget, oldIndex, newIndex);
+    } else {
+      const idsWithoutActive = currentIdsForTarget.filter((x) => x !== activeIdStr);
+      const insertAt = idsWithoutActive.indexOf(overId);
+      const before = idsWithoutActive.slice(0, insertAt);
+      const after = idsWithoutActive.slice(insertAt);
+      next[targetStatus] = [...before, activeIdStr, ...after];
+      move.mutate({ id: activeIdStr, status: targetStatus });
+    }
+    persistOrder(next);
   }
 
   return (
@@ -247,17 +308,19 @@ function Column({
         <span className="text-xs text-muted-foreground">{jobs.length}</span>
       </div>
       <div className="flex flex-1 flex-col gap-2 overflow-y-auto p-2">
-        {jobs.map((j) => (
-          <DraggableCard
-            key={j.id}
-            job={j}
-            selectMode={selectMode}
-            selected={selected.has(j.id)}
-            onToggleSelect={onToggleSelect}
-            onOpen={onOpen}
-            onDelete={onDelete}
-          />
-        ))}
+        <SortableContext items={jobs.map((j) => j.id)} strategy={verticalListSortingStrategy}>
+          {jobs.map((j) => (
+            <SortableCard
+              key={j.id}
+              job={j}
+              selectMode={selectMode}
+              selected={selected.has(j.id)}
+              onToggleSelect={onToggleSelect}
+              onOpen={onOpen}
+              onDelete={onDelete}
+            />
+          ))}
+        </SortableContext>
         {jobs.length === 0 && (
           <div className="rounded-md border border-dashed py-6 text-center text-xs text-muted-foreground">
             Drop here
@@ -268,7 +331,7 @@ function Column({
   );
 }
 
-function DraggableCard({
+function SortableCard({
   job, selectMode, selected, onToggleSelect, onOpen, onDelete,
 }: {
   job: any;
@@ -278,13 +341,18 @@ function DraggableCard({
   onOpen: (id: string) => void;
   onDelete: (id: string) => void;
 }) {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: job.id,
     disabled: selectMode,
   });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  } as React.CSSProperties;
   return (
     <div
       ref={setNodeRef}
+      style={style}
       {...(selectMode ? {} : attributes)}
       {...(selectMode ? {} : listeners)}
       className={isDragging ? "opacity-30" : ""}
