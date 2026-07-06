@@ -13,6 +13,7 @@ import remarkGfm from "remark-gfm";
 
 import { Checkbox } from "@/components/ui/checkbox";
 import { tailorResume, generateCoverLetter, saveArtifact } from "@/lib/ai-generate.functions";
+import { TailoringLoader } from "@/components/tailoring-loader";
 
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -419,6 +420,14 @@ function DocumentsTab({ artifacts, jobId, job }: { artifacts: any[]; jobId: stri
               {gen.isPending ? "Generating…" : "Generate"}
             </Button>
           </div>
+          {gen.isPending && (
+            <div className="mt-4 border-t pt-2">
+              <TailoringLoader
+                kind={doTailor && doCover ? "both" : doCover ? "cover_letter" : "resume"}
+                estimatedSeconds={doTailor && doCover ? 70 : 45}
+              />
+            </div>
+          )}
         </div>
       )}
 
