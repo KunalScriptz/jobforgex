@@ -54,6 +54,7 @@
     "cmdk": "^1.1.1",
     "date-fns": "^4.1.0",
     "embla-carousel-react": "^8.6.0",
+    "html-docx-js-typescript": "^0.1.5",
     "input-otp": "^1.4.2",
     "js-yaml": "^4",
     "jspdf": "^4.2.1",
