@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import CodeMirror from "@uiw/react-codemirror";
 import { HexColorPicker } from "react-colorful";
@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Download, Save, History, RotateCcw } from "lucide-react";
+import { LatexPreview } from "@/components/latex-preview";
 
 export const Route = createFileRoute("/_authenticated/resumes")({ component: ResumesPage });
 
@@ -85,8 +86,6 @@ function ResumesPage() {
     link.click();
   }
 
-  const preview = useMemo(() => renderLatexPreview(source), [source]);
-
   if (!resume) return <div className="p-6 text-sm text-muted-foreground">No base resume — finish onboarding.</div>;
 
   return (
@@ -117,13 +116,8 @@ function ResumesPage() {
                 theme="light"
               />
             </div>
-            <div className="rounded-lg border bg-white">
-              <div className="border-b p-2 text-xs font-medium text-muted-foreground">Preview (approximation) · compile the .tex for a real PDF</div>
-              <div
-                className="max-h-[calc(100vh-320px)] overflow-auto p-6 text-[13px]"
-                style={{ color: "#111", ["--accent" as any]: primary, ["--secondary" as any]: secondary }}
-                dangerouslySetInnerHTML={{ __html: preview }}
-              />
+            <div className="overflow-hidden rounded-lg border bg-white" style={{ height: "calc(100vh - 280px)" }}>
+              <LatexPreview source={source} />
             </div>
           </div>
         </TabsContent>
@@ -170,48 +164,3 @@ function ColorButton({ label, value, onChange }: { label: string; value: string;
   );
 }
 
-// Very lightweight LaTeX → HTML preview. Not perfect, but readable.
-function renderLatexPreview(src: string): string {
-  let s = src;
-  // Strip preamble
-  const bodyMatch = s.match(/\\begin\{document\}([\s\S]*)\\end\{document\}/);
-  if (bodyMatch) s = bodyMatch[1];
-  // strip comments
-  s = s.replace(/(^|[^\\])%.*$/gm, "$1");
-  // sections
-  s = s.replace(/\\section\*?\{([^}]+)\}/g, '<h2 style="color:var(--accent);border-bottom:2px solid var(--accent);margin-top:14px;font-size:15px;text-transform:uppercase;letter-spacing:.5px;">$1</h2>');
-  // subsections
-  s = s.replace(/\\resumeSubheading\{([^}]*)\}\{([^}]*)\}\{([^}]*)\}\{([^}]*)\}/g,
-    '<div style="margin-top:8px;"><div style="display:flex;justify-content:space-between;"><strong style="color:var(--secondary);">$1</strong><span style="color:#555;">$2</span></div><div style="display:flex;justify-content:space-between;font-style:italic;color:#555;font-size:12px;"><span>$3</span><span>$4</span></div></div>');
-  s = s.replace(/\\resumeProjectHeading\{([\s\S]*?)\}\{([^}]*)\}/g,
-    '<div style="margin-top:8px;display:flex;justify-content:space-between;"><span style="color:var(--secondary);">$1</span><span style="color:#555;">$2</span></div>');
-  s = s.replace(/\\resumeItem\{([\s\S]*?)\}/g, '<li>$1</li>');
-  s = s.replace(/\\resumeItemListStart/g, '<ul style="margin:4px 0 4px 20px;padding:0;list-style:disc;">');
-  s = s.replace(/\\resumeItemListEnd/g, "</ul>");
-  s = s.replace(/\\resumeSubHeadingListStart/g, "");
-  s = s.replace(/\\resumeSubHeadingListEnd/g, "");
-  // begin/end blocks that are noise
-  s = s.replace(/\\begin\{(center|itemize|tabular\*?)\}[^\n]*/g, "");
-  s = s.replace(/\\end\{(center|itemize|tabular\*?)\}/g, "");
-  // headings top center: \textbf{\Huge ... Name}
-  s = s.replace(/\\textbf\{\\Huge\s*\\scshape\s*(?:\\color\{[^}]+\})?\s*([^}]+)\}/,
-    '<h1 style="color:var(--accent);text-align:center;margin:0;font-size:26px;letter-spacing:1px;">$1</h1>');
-  // \textbf{\color{...}xxx}
-  s = s.replace(/\\textbf\{\\color\{[^}]+\}([^}]+)\}/g, '<strong style="color:var(--secondary);">$1</strong>');
-  s = s.replace(/\\textbf\{([^}]+)\}/g, "<strong>$1</strong>");
-  s = s.replace(/\\textit\{([^}]+)\}/g, "<em>$1</em>");
-  s = s.replace(/\\emph\{([^}]+)\}/g, "<em>$1</em>");
-  s = s.replace(/\\href\{([^}]*)\}\{([^}]*)\}/g, '<a href="$1" style="color:var(--secondary);">$2</a>');
-  s = s.replace(/\\color\{[^}]+\}/g, "");
-  // remove common commands we don't render
-  s = s.replace(/\\(vspace|hspace|noindent|small|scshape|Huge|large|centering|raggedright|raggedbottom|faMobile|faAt|faLinkedinSquare|faGithub|faGlobe|faMapMarker|input)\s*\{[^}]*\}/g, "");
-  s = s.replace(/\\(vspace|hspace|noindent|small|scshape|Huge|large|centering|raggedright|raggedbottom|faMobile|faAt|faLinkedinSquare|faGithub|faGlobe|faMapMarker)\b/g, "");
-  s = s.replace(/\$\|\$/g, " · ").replace(/\\\|/g, " · ");
-  s = s.replace(/\\newline|\\\\/g, "<br />");
-  // strip remaining LaTeX groups noise
-  s = s.replace(/\\[a-zA-Z]+\*?(\[[^\]]*\])?/g, "");
-  s = s.replace(/[{}]/g, "");
-  // paragraphs
-  s = s.split(/\n{2,}/).map((p) => p.trim() ? `<p style="margin:6px 0;">${p.replace(/\n/g, " ")}</p>` : "").join("");
-  return s;
-}
