@@ -427,3 +427,82 @@ function JobCard({
     </div>
   );
 }
+function AddJobDialog({ boards }: { boards: any[] }) {
+  const qc = useQueryClient();
+  const create = useServerFn(createJob);
+  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState<any>({
+    company: "", title: "", description: "", board_id: "",
+    status: "wishlist", date_applied: "", url: "", notes: "",
+  });
+
+  // Default board on open
+  useMemo(() => {
+    if (open && !form.board_id && boards[0]?.id) setForm((f: any) => ({ ...f, board_id: boards[0].id }));
+  }, [open, boards, form.board_id]);
+
+  const submit = useMutation({
+    mutationFn: async () => {
+      const payload: any = { ...form };
+      if (!payload.date_applied) delete payload.date_applied;
+      if (!payload.url) delete payload.url;
+      if (!payload.notes) delete payload.notes;
+      return create({ data: payload } as any);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["jobs"] });
+      toast.success("Job added");
+      setOpen(false);
+      setForm({ ...form, company: "", title: "", description: "", url: "", notes: "", date_applied: "" });
+    },
+    onError: (e: any) => toast.error(String(e?.message ?? e).slice(0, 200)),
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button size="sm"><Plus className="mr-1 h-4 w-4" />Add job</Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-lg">
+        <DialogHeader><DialogTitle>Add job manually</DialogTitle></DialogHeader>
+        <form onSubmit={(e) => { e.preventDefault(); submit.mutate(); }} className="space-y-3">
+          <div>
+            <div className="mb-1 flex items-center justify-between">
+              <Label>Company</Label>
+              <span className="text-xs text-muted-foreground">Required</span>
+            </div>
+            <CompanyAutocomplete
+              value={form.company}
+              onChange={(v) => setForm({ ...form, company: v })}
+              onPick={(s) => setForm({ ...form, company: s.name, url: form.url || `https://${s.domain}` })}
+              placeholder="Start typing…"
+              required
+            />
+          </div>
+          <div><Label>Title *</Label><Input required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} /></div>
+          <div><Label>Board *</Label>
+            <Select value={form.board_id} onValueChange={(v) => setForm({ ...form, board_id: v })}>
+              <SelectTrigger><SelectValue placeholder="Select board" /></SelectTrigger>
+              <SelectContent>{boards.map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div><Label>Status</Label>
+              <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>{COLUMNS.map((c) => <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div><Label>Date applied</Label><Input type="date" value={form.date_applied} onChange={(e) => setForm({ ...form, date_applied: e.target.value })} /></div>
+          </div>
+          <div><Label>Job URL</Label><Input value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} /></div>
+          <div><Label>Description *</Label><Textarea required rows={4} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></div>
+          <div><Label>Notes</Label><Textarea rows={2} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
+          <DialogFooter>
+            <Button type="submit" disabled={submit.isPending || !form.board_id}>Add</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
