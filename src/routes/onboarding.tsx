@@ -223,7 +223,12 @@ function Step2({ onBack, onDone }: { onBack: () => void; onDone: () => void }) {
             )}
             <p className="mt-1 text-xs text-muted-foreground">You can add more models later in Settings.</p>
           </div>
-          <Button type="submit" disabled={busy}>{busy ? "Testing..." : "Test & save"}</Button>
+          <div className="flex items-center gap-3">
+            <Button type="button" variant="outline" onClick={onBack} disabled={busy}>
+              <ArrowLeft className="mr-1.5 h-4 w-4" /> Back
+            </Button>
+            <Button type="submit" disabled={busy}>{busy ? "Testing..." : "Test & save"}</Button>
+          </div>
         </form>
       </CardContent>
     </Card>
