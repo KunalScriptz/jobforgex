@@ -28,9 +28,11 @@ function GeneratePage() {
   const coverFn = useServerFn(generateCoverLetter);
   const createJobFn = useServerFn(createJob);
   const saveArtifactFn = useServerFn(saveArtifact);
+  const getBoards = useServerFn(listBoards);
+  const getModels = useServerFn(listModels);
 
-  const { data: boards = [] } = useQuery({ queryKey: ["boards"], queryFn: () => useServerFn(listBoards)() });
-  const { data: models = [] } = useQuery({ queryKey: ["models"], queryFn: () => useServerFn(listModels)() });
+  const { data: boards = [] } = useQuery({ queryKey: ["boards"], queryFn: () => getBoards() });
+  const { data: models = [] } = useQuery({ queryKey: ["models"], queryFn: () => getModels() });
 
   const [jd, setJd] = useState("");
   const [url, setUrl] = useState("");
