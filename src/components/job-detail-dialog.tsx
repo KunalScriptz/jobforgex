@@ -1,10 +1,11 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import {
   Sparkles, ArrowLeft, Copy, Save, Loader2, MessagesSquare, Info, Wand2,
-  FileText, Building2, StickyNote, ClipboardList, FolderOpen,
+  FileText, Building2, StickyNote, ClipboardList, FolderOpen, Download, RefreshCw,
+  AlertTriangle, CheckCircle2, Tag, Target, GraduationCap, Users,
 } from "lucide-react";
 
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -13,6 +14,8 @@ import { Textarea } from "@/components/ui/textarea";
 
 import { getJob, updateJob, bulkUpdateStatus } from "@/lib/jobs.functions";
 import { AI_TOOLS_META, runAiTool, saveToolOutput } from "@/lib/ai-tools.functions";
+import { extractJobInsights } from "@/lib/insights.functions";
+import { compileArtifactPdf, getArtifactPdfUrl } from "@/lib/pdf.functions";
 
 type Status = "wishlist" | "applied" | "interview" | "offer" | "rejected";
 const STATUSES: Status[] = ["wishlist","applied","interview","offer","rejected"];
@@ -126,20 +129,150 @@ export function JobDetailDialog({ jobId, open, onOpenChange }: {
 // ---------------- Tabs ----------------
 
 function InsightsTab({ job }: { job: any }) {
+  const qc = useQueryClient();
+  const extractFn = useServerFn(extractJobInsights);
+  const insights: any = job?.insights ?? null;
+
+  const extract = useMutation({
+    mutationFn: (force: boolean) =>
+      extractFn({ data: { job_id: job.id, force } } as any),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["job", job.id] }); toast.success("Insights ready"); },
+    onError: (e: any) => toast.error(String(e?.message ?? e).slice(0, 200)),
+  });
+
+  // Auto-extract once if description is present and we have none yet
+  useEffect(() => {
+    if (!insights && job?.description && job.description.length >= 40 && !extract.isPending) {
+      extract.mutate(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [job?.id]);
+
   if (!job) return null;
+
   return (
-    <div className="space-y-4">
-      <Section icon={ClipboardList} title="Job Description">
-        <pre className="max-h-96 overflow-auto whitespace-pre-wrap rounded-lg border bg-muted/30 p-3 text-xs leading-relaxed">
-          {job.description || "No description saved."}
-        </pre>
+    <div className="space-y-5">
+      {/* AI Powered Summary card */}
+      <div className="relative overflow-hidden rounded-xl border bg-gradient-to-br from-primary/10 via-transparent to-transparent p-4">
+        <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-primary/10 blur-3xl" />
+        <div className="relative">
+          <div className="mb-2 flex items-center justify-between">
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-primary">
+              <Sparkles className="h-3.5 w-3.5" /> AI Powered Summary
+            </div>
+            <Button
+              size="sm" variant="ghost"
+              onClick={() => extract.mutate(true)}
+              disabled={extract.isPending || !job.description}
+            >
+              {extract.isPending
+                ? <><Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> Analyzing…</>
+                : <><RefreshCw className="mr-1 h-3.5 w-3.5" /> {insights ? "Re-analyze" : "Analyze"}</>}
+            </Button>
+          </div>
+          {insights?.summary ? (
+            <p className="text-sm leading-relaxed">{insights.summary}</p>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              {job.description ? "Click Analyze to extract keywords, skills, and responsibilities." : "Add a job description first."}
+            </p>
+          )}
+          {insights && (
+            <div className="mt-3 flex flex-wrap gap-1.5 text-[11px]">
+              {insights.seniority && insights.seniority !== "unknown" && (
+                <span className="rounded-full bg-primary/10 px-2 py-0.5 font-medium capitalize text-primary">{insights.seniority}</span>
+              )}
+              {insights.remote && insights.remote !== "unknown" && (
+                <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 font-medium capitalize text-emerald-600 dark:text-emerald-400">{insights.remote}</span>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {insights && (
+        <div className="grid gap-4 md:grid-cols-2">
+          <ChipList icon={Tag} title="Top Keywords" items={insights.keywords} tone="primary" />
+          <ChipList icon={Target} title="Hard Skills" items={insights.hard_skills} tone="violet" />
+          <BulletCard icon={Users} title="Soft Skills" items={insights.soft_skills} />
+          <BulletCard icon={GraduationCap} title="Qualifications" items={insights.qualifications} />
+          <BulletCard icon={ClipboardList} title="Responsibilities" items={insights.responsibilities} colSpan />
+        </div>
+      )}
+
+      <Section icon={ClipboardList} title="Job Description (keywords highlighted)">
+        <HighlightedJd text={job.description || "No description saved."} keywords={insights?.keywords ?? []} />
       </Section>
+
       {job.url && (
         <Section icon={Building2} title="Job URL">
           <a href={job.url} target="_blank" rel="noreferrer" className="break-all text-sm text-primary underline">
             {job.url}
           </a>
         </Section>
+      )}
+    </div>
+  );
+}
+
+function ChipList({ icon: Icon, title, items, tone }: { icon: any; title: string; items?: string[]; tone: "primary" | "violet" }) {
+  if (!items?.length) return null;
+  const chip = tone === "primary"
+    ? "bg-primary/10 text-primary border-primary/20"
+    : "bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/20";
+  return (
+    <div className="rounded-lg border bg-card p-3">
+      <div className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        <Icon className="h-3.5 w-3.5" /> {title}
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        {items.map((k, i) => (
+          <span key={i} className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${chip}`}>{k}</span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function BulletCard({ icon: Icon, title, items, colSpan }: { icon: any; title: string; items?: string[]; colSpan?: boolean }) {
+  if (!items?.length) return null;
+  return (
+    <div className={`rounded-lg border bg-card p-3 ${colSpan ? "md:col-span-2" : ""}`}>
+      <div className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        <Icon className="h-3.5 w-3.5" /> {title}
+      </div>
+      <ul className="list-disc space-y-1 pl-4 text-sm">
+        {items.map((s, i) => <li key={i}>{s}</li>)}
+      </ul>
+    </div>
+  );
+}
+
+function HighlightedJd({ text, keywords }: { text: string; keywords: string[] }) {
+  const nodes = useMemo(() => {
+    if (!keywords.length) return [text];
+    // Sort by length desc so longer phrases match before their substrings
+    const sorted = [...keywords].filter(k => k && k.length >= 2).sort((a, b) => b.length - a.length);
+    const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const pattern = new RegExp(`\\b(${sorted.map(escape).join("|")})\\b`, "gi");
+    const parts: (string | { hit: string })[] = [];
+    let last = 0;
+    for (const m of text.matchAll(pattern)) {
+      const idx = m.index ?? 0;
+      if (idx > last) parts.push(text.slice(last, idx));
+      parts.push({ hit: m[0] });
+      last = idx + m[0].length;
+    }
+    if (last < text.length) parts.push(text.slice(last));
+    return parts;
+  }, [text, keywords]);
+
+  return (
+    <div className="max-h-96 overflow-auto whitespace-pre-wrap rounded-lg border bg-muted/30 p-3 text-xs leading-relaxed">
+      {nodes.map((n, i) =>
+        typeof n === "string"
+          ? <span key={i}>{n}</span>
+          : <mark key={i} className="rounded bg-primary/20 px-0.5 font-medium text-foreground">{n.hit}</mark>
       )}
     </div>
   );
