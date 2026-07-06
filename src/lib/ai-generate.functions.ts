@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { callDeepseek } from "./deepseek.server";
+import { extractResumeName } from "./filenames";
 
 async function wsId(supabase: any, userId: string) {
   const { data } = await supabase.from("workspaces").select("id").eq("owner_user_id", userId).maybeSingle();
@@ -16,6 +17,13 @@ function stripFences(s: string) {
 
 function sanitizeFilenamePart(s: string) {
   return s.replace(/[^A-Za-z0-9]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 60) || "unknown";
+}
+
+function buildDocFilename(opts: { name: string; company: string; title: string; suffix: string }) {
+  const parts = [opts.name, opts.company, opts.title, opts.suffix]
+    .map(sanitizeFilenamePart)
+    .filter((s) => s && s !== "unknown");
+  return parts.join("_") + ".tex";
 }
 
 export const scoreResume = createServerFn({ method: "POST" })
@@ -97,7 +105,8 @@ export const tailorResume = createServerFn({ method: "POST" })
     });
 
     const latex = stripFences(result.content);
-    const filename = `${sanitizeFilenamePart(data.company)}_${sanitizeFilenamePart(data.title)}_Tailored_Resume.tex`;
+    const name = extractResumeName(resume.latex_source ?? "");
+    const filename = buildDocFilename({ name, company: data.company, title: data.title, suffix: "Resume" });
     return { latex, filename, cost: result.totalCost, model: result.modelName };
   });
 
@@ -134,7 +143,8 @@ export const generateCoverLetter = createServerFn({ method: "POST" })
     });
 
     const latex = stripFences(result.content);
-    const filename = `${sanitizeFilenamePart(data.company)}_${sanitizeFilenamePart(data.title)}_Cover_Letter.tex`;
+    const name = extractResumeName(resume.latex_source ?? "");
+    const filename = buildDocFilename({ name, company: data.company, title: data.title, suffix: "Cover_Letter" });
     return { latex, filename, cost: result.totalCost, model: result.modelName };
   });
 
