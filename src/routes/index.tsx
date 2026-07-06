@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Sparkles, FileText, LayoutDashboard, DollarSign } from "lucide-react";
 
@@ -5,7 +6,44 @@ import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/")({ component: Landing });
 
+const PHRASES = [
+  "tailor resumes with AI.",
+  "generate cover letters.",
+  "track every application.",
+  "autofill from any job board.",
+  "see cost per generation.",
+];
+
+function useTypewriter(words: string[], typeMs = 65, holdMs = 1400, eraseMs = 35) {
+  const [text, setText] = useState("");
+  const [i, setI] = useState(0);
+  const [phase, setPhase] = useState<"type" | "hold" | "erase">("type");
+
+  useEffect(() => {
+    const word = words[i % words.length];
+    let t: ReturnType<typeof setTimeout>;
+    if (phase === "type") {
+      if (text.length < word.length) {
+        t = setTimeout(() => setText(word.slice(0, text.length + 1)), typeMs);
+      } else {
+        t = setTimeout(() => setPhase("erase"), holdMs);
+      }
+    } else if (phase === "erase") {
+      if (text.length > 0) {
+        t = setTimeout(() => setText(word.slice(0, text.length - 1)), eraseMs);
+      } else {
+        setI((n) => n + 1);
+        setPhase("type");
+      }
+    }
+    return () => clearTimeout(t!);
+  }, [text, phase, i, words, typeMs, holdMs, eraseMs]);
+
+  return text;
+}
+
 function Landing() {
+  const typed = useTypewriter(PHRASES);
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/40">
       <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
@@ -23,8 +61,12 @@ function Landing() {
         <h1 className="max-w-3xl text-5xl font-bold tracking-tight sm:text-6xl">
           Your AI-powered<br />job search command center.
         </h1>
-        <p className="mt-6 max-w-xl text-lg text-muted-foreground">
-          Tailor LaTeX resumes with DeepSeek, generate cover letters, track every application, and see the exact cost per generation.
+        <p className="mt-6 max-w-2xl text-lg text-muted-foreground">
+          One workspace to{" "}
+          <span className="font-medium text-foreground">
+            {typed}
+            <span className="ml-0.5 inline-block w-[2px] animate-pulse bg-primary align-middle" style={{ height: "1em" }} />
+          </span>
         </p>
         <div className="mt-8 flex flex-wrap gap-3">
           <Button asChild size="lg"><Link to="/auth">Start free</Link></Button>
