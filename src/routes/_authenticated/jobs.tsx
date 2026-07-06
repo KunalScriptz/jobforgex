@@ -15,14 +15,18 @@ import {
 } from "@dnd-kit/core";
 import { SortableContext, useSortable, arrayMove, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Briefcase, FileText, Trophy, ThumbsDown, Sparkles, Trash2, CheckSquare, X } from "lucide-react";
+import { Briefcase, FileText, Trophy, ThumbsDown, Sparkles, Trash2, CheckSquare, X, Plus } from "lucide-react";
 
-import { listJobs, bulkUpdateStatus, deleteJob } from "@/lib/jobs.functions";
+import { listJobs, bulkUpdateStatus, deleteJob, createJob } from "@/lib/jobs.functions";
 import { listBoards } from "@/lib/workspace.functions";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { CompanyAutocomplete } from "@/components/company-autocomplete";
 import { JobDetailDialog } from "@/components/job-detail-dialog";
 import { CompanyLogo } from "@/components/company-logo";
 
@@ -212,6 +216,7 @@ function JobsPage() {
           <CheckSquare className="mr-1.5 h-4 w-4" />
           {selectMode ? "Exit select" : "Select"}
         </Button>
+        <AddJobDialog boards={boards} />
         <span className="text-xs text-muted-foreground">
           {selectMode ? "Tap cards to select · bulk-move below" : "Drag cards or use Select to bulk-move"}
         </span>
@@ -420,5 +425,84 @@ function JobCard({
         )}
       </div>
     </div>
+  );
+}
+function AddJobDialog({ boards }: { boards: any[] }) {
+  const qc = useQueryClient();
+  const create = useServerFn(createJob);
+  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState<any>({
+    company: "", title: "", description: "", board_id: "",
+    status: "wishlist", date_applied: "", url: "", notes: "",
+  });
+
+  // Default board on open
+  useMemo(() => {
+    if (open && !form.board_id && boards[0]?.id) setForm((f: any) => ({ ...f, board_id: boards[0].id }));
+  }, [open, boards, form.board_id]);
+
+  const submit = useMutation({
+    mutationFn: async () => {
+      const payload: any = { ...form };
+      if (!payload.date_applied) delete payload.date_applied;
+      if (!payload.url) delete payload.url;
+      if (!payload.notes) delete payload.notes;
+      return create({ data: payload } as any);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["jobs"] });
+      toast.success("Job added");
+      setOpen(false);
+      setForm({ ...form, company: "", title: "", description: "", url: "", notes: "", date_applied: "" });
+    },
+    onError: (e: any) => toast.error(String(e?.message ?? e).slice(0, 200)),
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button size="sm"><Plus className="mr-1 h-4 w-4" />Add job</Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-lg">
+        <DialogHeader><DialogTitle>Add job manually</DialogTitle></DialogHeader>
+        <form onSubmit={(e) => { e.preventDefault(); submit.mutate(); }} className="space-y-3">
+          <div>
+            <div className="mb-1 flex items-center justify-between">
+              <Label>Company</Label>
+              <span className="text-xs text-muted-foreground">Required</span>
+            </div>
+            <CompanyAutocomplete
+              value={form.company}
+              onChange={(v) => setForm({ ...form, company: v })}
+              onPick={(s) => setForm({ ...form, company: s.name, url: form.url || `https://${s.domain}` })}
+              placeholder="Start typing…"
+              required
+            />
+          </div>
+          <div><Label>Title *</Label><Input required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} /></div>
+          <div><Label>Board *</Label>
+            <Select value={form.board_id} onValueChange={(v) => setForm({ ...form, board_id: v })}>
+              <SelectTrigger><SelectValue placeholder="Select board" /></SelectTrigger>
+              <SelectContent>{boards.map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div><Label>Status</Label>
+              <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>{COLUMNS.map((c) => <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div><Label>Date applied</Label><Input type="date" value={form.date_applied} onChange={(e) => setForm({ ...form, date_applied: e.target.value })} /></div>
+          </div>
+          <div><Label>Job URL</Label><Input value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} /></div>
+          <div><Label>Description *</Label><Textarea required rows={4} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></div>
+          <div><Label>Notes</Label><Textarea rows={2} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
+          <DialogFooter>
+            <Button type="submit" disabled={submit.isPending || !form.board_id}>Add</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
