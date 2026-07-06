@@ -7,14 +7,47 @@ function slug(s: string): string {
     .slice(0, 60);
 }
 
-/** Try to pull the candidate's name out of a Jake-Gutierrez-style LaTeX resume. */
+// Words that show up inside LaTeX formatting/color macros and must never be
+// treated as part of a person's name.
+const LATEX_NOISE = new Set([
+  "color", "textcolor", "definecolor", "small", "large", "huge", "scshape",
+  "textbf", "textit", "bfseries", "itshape", "centering", "center",
+  "vspace", "hspace", "noindent", "par", "rmfamily", "sffamily",
+  "darkturquoise", "black", "white", "blue", "red", "green", "gray", "grey",
+]);
+
+function looksLikeHumanName(s: string): boolean {
+  const cleaned = s.trim();
+  if (!cleaned) return false;
+  // Reject anything with LaTeX syntax leftovers.
+  if (/[\\{}\[\]$#%&_^~<>=/*+@|`"]/.test(cleaned)) return false;
+  if (/\d/.test(cleaned)) return false;
+  const tokens = cleaned.split(/\s+/).filter(Boolean);
+  if (tokens.length < 1 || tokens.length > 5) return false;
+  for (const t of tokens) {
+    if (LATEX_NOISE.has(t.toLowerCase())) return false;
+    if (!/^[A-Za-z][A-Za-z.'\-]{0,30}$/.test(t)) return false;
+  }
+  // Require at least one uppercase letter somewhere — proper names are capitalised.
+  if (!/[A-Z]/.test(cleaned)) return false;
+  return true;
+}
+
+/** Try to pull the candidate's name out of a LaTeX resume. Returns "" if unsure. */
 export function extractResumeName(src: string): string {
-  const m1 = src.match(/\\textbf\s*\{\s*\\Huge\s+\\scshape\s+([^}]+)\}/);
-  if (m1) return m1[1].trim();
-  const m2 = src.match(/\\name\s*\{([^}]+)\}/);
-  if (m2) return m2[1].trim();
-  const m3 = src.match(/\\(?:Huge|LARGE)\s+\\?([A-Za-z][A-Za-z .'-]{2,})/);
-  if (m3) return m3[1].trim();
+  const candidates: string[] = [];
+  const push = (v: string | undefined) => { if (v) candidates.push(v.trim()); };
+
+  // \textbf{\Huge \scshape Firstname Lastname} — Jake Gutierrez template
+  for (const m of src.matchAll(/\\textbf\s*\{\s*(?:\\Huge|\\LARGE|\\Large)\s*(?:\\scshape\s*)?([^{}\\]+)\}/g)) push(m[1]);
+  // \name{...}
+  for (const m of src.matchAll(/\\name\s*\{([^{}\\]+)\}/g)) push(m[1]);
+  // \Huge Firstname Lastname (no braces)
+  for (const m of src.matchAll(/\\(?:Huge|LARGE|Large)\s+([A-Z][A-Za-z.'\- ]{2,60})/g)) push(m[1]);
+
+  for (const c of candidates) {
+    if (looksLikeHumanName(c)) return c;
+  }
   return "";
 }
 
@@ -34,8 +67,10 @@ export type ResumeNameArgs = {
 
 /** `John_Doe_Base_Resume.tex` — always ends in `_Base_Resume.<ext>`. */
 export function baseResumeFilename(a: ResumeNameArgs): string {
-  const name = slug(a.fallbackName || extractResumeName(a.latex ?? ""));
-  const role = slug(a.role || extractResumeRole(a.latex ?? ""));
+  const rawName = a.fallbackName || extractResumeName(a.latex ?? "");
+  const name = looksLikeHumanName(rawName) ? slug(rawName) : "";
+  const rawRole = a.role || extractResumeRole(a.latex ?? "");
+  const role = looksLikeHumanName(rawRole) ? slug(rawRole) : "";
   const parts = [name, role, "Base_Resume"].filter(Boolean);
   const base = parts.join("_") || "Base_Resume";
   return `${base}.${a.ext}`;
