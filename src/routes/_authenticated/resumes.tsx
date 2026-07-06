@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import { HexColorPicker } from "react-colorful";
 
 import { getBaseResume, saveBaseResume, updateResumeColors, listVersions, restoreVersion } from "@/lib/resumes.functions";
+import { baseResumeFilename } from "@/lib/filenames";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -37,27 +38,6 @@ function replaceDefineColor(src: string, name: string, tuple: string): string {
   const re = new RegExp(`(\\\\definecolor\\{${name}\\}\\{rgb\\}\\{)[^}]*(\\})`, "g");
   if (re.test(src)) return src.replace(re, `$1${tuple}$2`);
   return src;
-}
-
-// -------- name + section parsing helpers ---------------------------------
-
-/** Try to pull a candidate's display name out of the LaTeX source. */
-function extractResumeName(src: string): string {
-  // Common Jake-Gutierrez pattern: \textbf{\Huge \scshape John Doe}
-  const m1 = src.match(/\\textbf\s*\{\s*\\Huge\s+\\scshape\s+([^}]+)\}/);
-  if (m1) return m1[1].trim();
-  // \name{...} macro
-  const m2 = src.match(/\\name\s*\{([^}]+)\}/);
-  if (m2) return m2[1].trim();
-  // fallback: first Huge/LARGE text
-  const m3 = src.match(/\\(?:Huge|LARGE)\s+\\?([A-Za-z][A-Za-z .'-]{2,})/);
-  if (m3) return m3[1].trim();
-  return "";
-}
-
-function slugForFile(name: string): string {
-  const clean = name.replace(/[^A-Za-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
-  return clean || "resume";
 }
 
 type SectionBlock = { name: string; start: number; bodyStart: number; end: number };
@@ -162,8 +142,7 @@ function ResumesPage() {
     const blob = new Blob([source], { type: "application/x-tex" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    const nm = slugForFile(extractResumeName(source));
-    link.download = `${nm}_Resume.tex`;
+    link.download = baseResumeFilename({ latex: source, ext: "tex" });
     link.click();
   }
 

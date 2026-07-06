@@ -27,6 +27,19 @@ import { downloadAs, type ExportFormat } from "@/lib/export-doc";
 import { ChevronDown } from "lucide-react";
 
 import { getJob, updateJob, bulkUpdateStatus } from "@/lib/jobs.functions";
+import { deleteJobArtifact } from "@/lib/artifacts.functions";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Trash2 } from "lucide-react";
 import { AI_TOOLS_META, runAiTool, saveToolOutput } from "@/lib/ai-tools.functions";
 import { extractJobInsights } from "@/lib/insights.functions";
 import { compileArtifactPdf, getArtifactPdfUrl } from "@/lib/pdf.functions";
@@ -437,6 +450,7 @@ function DocumentCard({ art, jobId }: { art: any; jobId: string }) {
   const qc = useQueryClient();
   const compileFn = useServerFn(compileArtifactPdf);
   const urlFn = useServerFn(getArtifactPdfUrl);
+  const delFn = useServerFn(deleteJobArtifact);
   const hasLatex = art.kind === "tailored_resume" || art.kind === "cover_letter";
   const hasPdf = !!art.pdf_storage_path;
 
@@ -446,6 +460,12 @@ function DocumentCard({ art, jobId }: { art: any; jobId: string }) {
       if (r?.ok) { toast.success("PDF compiled"); qc.invalidateQueries({ queryKey: ["job", jobId] }); }
       else toast.error(String(r?.error ?? "Compile failed").slice(0, 200));
     },
+    onError: (e: any) => toast.error(String(e?.message ?? e).slice(0, 200)),
+  });
+
+  const del = useMutation({
+    mutationFn: () => delFn({ data: { artifact_id: art.id } } as any),
+    onSuccess: () => { toast.success("Document deleted"); qc.invalidateQueries({ queryKey: ["job", jobId] }); },
     onError: (e: any) => toast.error(String(e?.message ?? e).slice(0, 200)),
   });
 
@@ -529,6 +549,27 @@ function DocumentCard({ art, jobId }: { art: any; jobId: string }) {
         <Button size="sm" variant="ghost" onClick={() => { navigator.clipboard.writeText(art.latex_source ?? ""); toast.success("Copied"); }}>
           <Copy className="mr-1 h-3.5 w-3.5" /> Copy
         </Button>
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive">
+              <Trash2 className="mr-1 h-3.5 w-3.5" /> Delete
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete this document?</AlertDialogTitle>
+              <AlertDialogDescription>
+                {art.filename} will be removed along with its compiled PDF. This can't be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={() => del.mutate()} disabled={del.isPending}>
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   );
