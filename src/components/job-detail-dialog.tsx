@@ -63,19 +63,16 @@ export function JobDetailDialog({ jobId, open, onOpenChange }: {
         {/* Header with glow */}
         <div className="relative border-b bg-gradient-to-br from-primary/10 via-transparent to-transparent px-6 py-5">
           <div className="flex items-start justify-between gap-4">
-            <div className="flex min-w-0 items-start gap-3">
+            <div className="flex min-w-0 flex-1 items-start gap-3">
               {job?.company && <CompanyLogo company={job.company} size={44} />}
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <div className="mb-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
                   {job?.company ?? "—"}
                 </div>
                 <h2 className="truncate text-2xl font-bold tracking-tight">
                   {isLoading ? "Loading…" : (job?.title ?? "Job")}
                 </h2>
-              </div>
-            </div>
-            <div className="flex-1">
-              <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                <div className="mt-2 flex flex-wrap items-center gap-1.5">
                 {STATUSES.map((s) => (
                   <button
                     key={s}
@@ -87,6 +84,7 @@ export function JobDetailDialog({ jobId, open, onOpenChange }: {
                     }`}
                   >{s}</button>
                 ))}
+                </div>
               </div>
             </div>
           </div>
