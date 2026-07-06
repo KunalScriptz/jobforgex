@@ -307,7 +307,17 @@ export const saveToolOutput = createServerFn({ method: "POST" })
   }).parse(d))
   .handler(async ({ data, context }) => {
     const wsid = await wsId(context.supabase, context.userId);
-    const filename = `${data.tool_label.replace(/[^A-Za-z0-9]+/g, "_")}.txt`;
+    // Look up the job so we can build a meaningful filename with company + title.
+    const { data: job } = await context.supabase
+      .from("jobs").select("company,title").eq("id", data.job_id).maybeSingle();
+    const slug = (s: string) =>
+      s.replace(/[^A-Za-z0-9]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 60);
+    const parts = [
+      slug(data.tool_label),
+      job?.company ? slug(job.company) : "",
+      job?.title ? slug(job.title) : "",
+    ].filter(Boolean);
+    const filename = `${parts.join("__")}.txt`;
     const { data: a, error } = await context.supabase.from("job_artifacts").insert({
       workspace_id: wsid, job_id: data.job_id, kind: "ai_tool" as any,
       filename, latex_source: data.content,
