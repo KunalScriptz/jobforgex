@@ -3,9 +3,6 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { Sparkles, FileText, LayoutDashboard, DollarSign } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import screenshotKanban from "@/assets/screenshot-kanban.jpg";
-import screenshotResume from "@/assets/screenshot-resume.jpg";
-import screenshotCosts from "@/assets/screenshot-costs.jpg";
 
 export const Route = createFileRoute("/")({ component: Landing });
 
@@ -91,60 +88,10 @@ function Landing() {
           ))}
         </div>
 
-        <section className="mt-24">
-          <div className="mb-10 max-w-2xl">
-            <div className="text-xs font-semibold uppercase tracking-wider text-primary">See it in action</div>
-            <h2 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">
-              Everything you need, in one workspace.
-            </h2>
-          </div>
-
-          <div className="space-y-16">
-            {[
-              {
-                img: screenshotKanban,
-                title: "Track every application on a Kanban board.",
-                body: "Drag jobs between Wishlist → Applied → Interview → Offer → Rejected. Bulk-select to move or delete. Filter by board, year, or keyword.",
-              },
-              {
-                img: screenshotResume,
-                title: "Tailor your LaTeX resume with AI, side-by-side.",
-                body: "Paste a JD, get a rewritten LaTeX resume that preserves your template. Compile inline, download the PDF with your name in the filename.",
-                flip: true,
-              },
-              {
-                img: screenshotCosts,
-                title: "See exactly what every AI call cost you.",
-                body: "Daily spend, per-model breakdown, per-resume cost. No surprises — you're always in control of your budget.",
-              },
-            ].map((s, idx) => (
-              <div
-                key={idx}
-                className={`grid items-center gap-8 lg:grid-cols-5 ${s.flip ? "lg:[&>*:first-child]:order-2" : ""}`}
-              >
-                <div className="lg:col-span-3 overflow-hidden rounded-xl border bg-card shadow-2xl shadow-primary/10">
-                  <img
-                    src={s.img}
-                    alt={s.title}
-                    loading="lazy"
-                    width={1600}
-                    height={1024}
-                    className="w-full"
-                  />
-                </div>
-                <div className="lg:col-span-2">
-                  <h3 className="text-2xl font-semibold tracking-tight">{s.title}</h3>
-                  <p className="mt-3 text-muted-foreground">{s.body}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-20 rounded-2xl border bg-card p-10 text-center">
-            <h3 className="text-2xl font-semibold">Ready to end the copy-paste chaos?</h3>
-            <p className="mt-2 text-muted-foreground">Free to start — bring your own model key or use Lovable AI.</p>
-            <Button asChild size="lg" className="mt-6"><Link to="/auth">Get started</Link></Button>
-          </div>
+        <section className="mt-24 rounded-2xl border bg-card p-10 text-center">
+          <h3 className="text-2xl font-semibold">Ready to end the copy-paste chaos?</h3>
+          <p className="mt-2 text-muted-foreground">Free to start — bring your own model key or use Lovable AI.</p>
+          <Button asChild size="lg" className="mt-6"><Link to="/auth">Get started</Link></Button>
         </section>
       </main>
     </div>
