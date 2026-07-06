@@ -9,12 +9,15 @@
   padding: 10px 16px !important;
   font: 600 13px system-ui, -apple-system, sans-serif !important;
   box-shadow: 0 10px 30px rgba(15,23,42,.35) !important;
-  cursor: pointer !important;
+  cursor: grab !important;
   border: none !important;
   display: flex !important;
   align-items: center !important;
   gap: 8px !important;
+  touch-action: none !important;
+  user-select: none !important;
 }
+#jobforge-fab:active { cursor: grabbing !important; }
 #jobforge-fab:hover { background: #1e293b !important; }
 #jobforge-fab img { width:18px !important; height:18px !important; border-radius:4px !important; background:white !important; padding:2px !important; }
 
