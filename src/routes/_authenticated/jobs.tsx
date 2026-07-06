@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { JobDetailDialog } from "@/components/job-detail-dialog";
+import { CompanyLogo } from "@/components/company-logo";
 
 export const Route = createFileRoute("/_authenticated/jobs")({ component: JobsPage });
 
@@ -325,6 +326,7 @@ function JobCard({
             <Checkbox checked={!!selected} />
           </div>
         )}
+        <CompanyLogo company={job.company} size={26} />
         <div className="min-w-0 flex-1">
       <div className="mb-1 text-sm font-semibold leading-tight">{job.title}</div>
       <div className="text-xs text-muted-foreground">{job.company}</div>

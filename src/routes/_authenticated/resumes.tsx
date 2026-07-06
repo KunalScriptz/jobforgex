@@ -1,9 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import CodeMirror from "@uiw/react-codemirror";
+import { useEffect, useState } from "react";
 import { HexColorPicker } from "react-colorful";
 
 import { getBaseResume, saveBaseResume, updateResumeColors, listVersions, restoreVersion } from "@/lib/resumes.functions";
@@ -36,6 +36,21 @@ function replaceDefineColor(src: string, name: string, tuple: string): string {
   const re = new RegExp(`(\\\\definecolor\\{${name}\\}\\{rgb\\}\\{)[^}]*(\\})`, "g");
   if (re.test(src)) return src.replace(re, `$1${tuple}$2`);
   return src;
+}
+
+/** Watches the `dark` class on <html> and returns the matching CodeMirror theme. */
+function useIsDark(): "dark" | "light" {
+  const [dark, setDark] = useState<boolean>(() =>
+    typeof document !== "undefined" && document.documentElement.classList.contains("dark"),
+  );
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const el = document.documentElement;
+    const obs = new MutationObserver(() => setDark(el.classList.contains("dark")));
+    obs.observe(el, { attributes: true, attributeFilter: ["class"] });
+    return () => obs.disconnect();
+  }, []);
+  return dark ? "dark" : "light";
 }
 
 function ResumesPage() {
@@ -113,7 +128,7 @@ function ResumesPage() {
                 onChange={setSource}
                 height="calc(100vh - 320px)"
                 basicSetup={{ lineNumbers: true, foldGutter: true }}
-                theme="light"
+                theme={useIsDark()}
               />
             </div>
             <div className="overflow-hidden rounded-lg border bg-white" style={{ height: "calc(100vh - 280px)" }}>
