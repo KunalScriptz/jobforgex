@@ -38,8 +38,32 @@ export function extractResumeName(src: string): string {
   const candidates: string[] = [];
   const push = (v: string | undefined) => { if (v) candidates.push(v.trim()); };
 
-  // \textbf{\Huge \scshape Firstname Lastname} — Jake Gutierrez template
-  for (const m of src.matchAll(/\\textbf\s*\{\s*(?:\\Huge|\\LARGE|\\Large)\s*(?:\\scshape\s*)?([^{}\\]+)\}/g)) push(m[1]);
+  // Strip LaTeX commands (\word, optionally with [..] or {..} args) and
+  // brace-groups from a chunk, leaving raw text tokens. Used to peel away
+  // things like `\scshape \color{darkturquoise}` from the name region.
+  const stripLatex = (chunk: string): string => {
+    let prev = "";
+    let out = chunk;
+    // Remove {...} groups (non-nested is fine — repeat until stable).
+    while (out !== prev) {
+      prev = out;
+      out = out.replace(/\{[^{}]*\}/g, " ");
+    }
+    // Remove \command (optionally with a single [..] arg).
+    out = out.replace(/\\[A-Za-z@]+\*?(?:\[[^\]]*\])?/g, " ");
+    // Remove any leftover backslashes, tildes, dollars.
+    out = out.replace(/[\\$~^&%#]/g, " ");
+    return out.replace(/\s+/g, " ").trim();
+  };
+
+  // \textbf{ ... \Huge ... Firstname Lastname ... } — allow the name region
+  // to contain nested \color{...}, \scshape, etc. by matching balanced-ish
+  // content then stripping LaTeX before picking the human text.
+  for (const m of src.matchAll(/\\textbf\s*\{([^{}]*(?:\{[^{}]*\}[^{}]*)*)\}/g)) {
+    const inner = m[1];
+    if (!/\\(?:Huge|LARGE|Large)\b/.test(inner)) continue;
+    push(stripLatex(inner));
+  }
   // \name{...}
   for (const m of src.matchAll(/\\name\s*\{([^{}\\]+)\}/g)) push(m[1]);
   // \Huge Firstname Lastname (no braces)
