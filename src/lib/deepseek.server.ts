@@ -63,7 +63,15 @@ export async function callDeepseek(args: CallArgs): Promise<CallResult> {
     .maybeSingle();
   if (!provider || !provider.api_key_encrypted) throw new Error("AI provider not configured");
 
-  const apiKey = decryptApiKey(provider.api_key_encrypted as string);
+  let apiKey: string;
+  try {
+    apiKey = decryptApiKey(provider.api_key_encrypted as string).trim();
+  } catch (e: any) {
+    throw new Error(
+      `Could not decrypt saved API key (${e?.message ?? "unknown"}). ` +
+      `The encryption secret may have changed — re-enter your API key in Settings.`,
+    );
+  }
 
   const prompt: PromptDef = getPrompt(promptName as any);
   const body: any = {
@@ -76,17 +84,23 @@ export async function callDeepseek(args: CallArgs): Promise<CallResult> {
   };
   if (prompt.response_format === "json_object") body.response_format = { type: "json_object" };
 
-  const res = await fetch(`${provider.base_url.replace(/\/$/, "")}/chat/completions`, {
+  const base = (provider.base_url as string).replace(/\/$/, "");
+  const url = `${base}/chat/completions`;
+  const masked = apiKey.length > 8 ? `${apiKey.slice(0, 4)}…${apiKey.slice(-4)}` : "****";
+  console.log(`[callDeepseek] POST ${url} model=${model.name} purpose=${purpose} key=${masked}`);
+  const res = await fetch(url, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
     body: JSON.stringify(body),
   });
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(`DeepSeek error ${res.status}: ${text.slice(0, 400)}`);
+    console.log(`[callDeepseek] ← ${res.status} ${text.slice(0, 500)}`);
+    throw new Error(
+      `Provider returned HTTP ${res.status} ${res.statusText}\n` +
+      `URL: ${url}\nModel: ${model.name}\nKey: ${masked} (len ${apiKey.length})\n\n` +
+      `Body:\n${text.slice(0, 1200)}`,
+    );
   }
   const json: any = await res.json();
   const content: string = json.choices?.[0]?.message?.content ?? "";
