@@ -205,6 +205,111 @@ export type Database = {
           },
         ]
       }
+      builder_resume_versions: {
+        Row: {
+          builder_resume_id: string
+          content: Json
+          created_at: string
+          id: string
+          note: string | null
+          workspace_id: string
+        }
+        Insert: {
+          builder_resume_id: string
+          content: Json
+          created_at?: string
+          id?: string
+          note?: string | null
+          workspace_id: string
+        }
+        Update: {
+          builder_resume_id?: string
+          content?: Json
+          created_at?: string
+          id?: string
+          note?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "builder_resume_versions_builder_resume_id_fkey"
+            columns: ["builder_resume_id"]
+            isOneToOne: false
+            referencedRelation: "builder_resumes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "builder_resume_versions_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      builder_resumes: {
+        Row: {
+          content: Json
+          created_at: string
+          id: string
+          job_id: string
+          job_match: Json | null
+          latex_source: string | null
+          pdf_path: string | null
+          primary_color: string | null
+          score: Json | null
+          secondary_color: string | null
+          suggestions: Json | null
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          content?: Json
+          created_at?: string
+          id?: string
+          job_id: string
+          job_match?: Json | null
+          latex_source?: string | null
+          pdf_path?: string | null
+          primary_color?: string | null
+          score?: Json | null
+          secondary_color?: string | null
+          suggestions?: Json | null
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          content?: Json
+          created_at?: string
+          id?: string
+          job_id?: string
+          job_match?: Json | null
+          latex_source?: string | null
+          pdf_path?: string | null
+          primary_color?: string | null
+          score?: Json | null
+          secondary_color?: string | null
+          suggestions?: Json | null
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "builder_resumes_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "builder_resumes_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       extension_tokens: {
         Row: {
           created_at: string

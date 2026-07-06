@@ -7,7 +7,10 @@ type CallArgs = {
   workspaceId: string;
   userId: string;
   modelId?: string | null;
-  purpose: "resume_tailoring" | "cover_letter" | "resume_scoring" | "jd_parsing" | "ats_check" | "custom";
+  purpose:
+    | "resume_tailoring" | "cover_letter" | "resume_scoring"
+    | "jd_parsing" | "ats_check" | "custom"
+    | "builder_seed" | "builder_job_match" | "builder_score" | "builder_suggestions";
   jobId?: string | null;
   promptName: keyof ReturnType<typeof allPromptKeys>;
   vars: Record<string, string | number>;
@@ -23,6 +26,10 @@ function allPromptKeys() {
     parse_jd: 0,
     ats_checker: 0,
     extract_insights: 0,
+    builder_seed: 0,
+    builder_job_match: 0,
+    builder_score: 0,
+    builder_suggestions: 0,
   };
 }
 

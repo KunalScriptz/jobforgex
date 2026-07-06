@@ -9,6 +9,8 @@ import {
 } from "lucide-react";
 import JSZip from "jszip";
 import ReactMarkdown from "react-markdown";
+import { Link } from "@tanstack/react-router";
+import { LayoutTemplate } from "lucide-react";
 import remarkGfm from "remark-gfm";
 
 import { Checkbox } from "@/components/ui/checkbox";
@@ -419,6 +421,13 @@ function DocumentsTab({ artifacts, jobId, job }: { artifacts: any[]; jobId: stri
               {gen.isPending ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Wand2 className="mr-1 h-3.5 w-3.5" />}
               {gen.isPending ? "Generating…" : "Generate"}
             </Button>
+            <Link
+              to="/builder/$jobId"
+              params={{ jobId }}
+              className="inline-flex items-center gap-1 rounded-md border border-primary/30 bg-primary/10 px-3 py-1.5 text-sm font-medium text-primary hover:bg-primary/20"
+            >
+              <LayoutTemplate className="h-3.5 w-3.5" /> Open in Resume Builder
+            </Link>
           </div>
           {gen.isPending && (
             <div className="mt-4 border-t pt-2">

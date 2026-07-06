@@ -1,67 +1,96 @@
-# Plan
+## Resume Builder (v1)
 
-Five separate changes. Each is scoped and independent.
+New route `/_authenticated/builder/$jobId` living **alongside** the existing Generate flow. Entry points: a "Resume Builder" button on the job detail dialog + a new sidebar link. Generate stays as-is.
 
-## 1. Delete individual documents on a job
-In the job detail dialog's Documents tab, add a trash icon next to each artifact row. Confirm via `AlertDialog`, then call a new `deleteJobArtifact` server function that removes the storage object and the `job_artifacts` row. Invalidate the job query.
-
-## 2. Fix base-resume download filename
-Downloads currently use the storage UUID. Change the download flow to fetch the bytes and re-save with:
+### Layout (matches the Huntr reference)
 
 ```
-{FirstName_LastName}_{Role}_base.tex   (or .pdf)
+Left sidebar (editor)          Center                       Right sidebar (analysis)
+┌──────────────────────┐       ┌────────────────────┐       ┌─────────────────────┐
+│ AI Tailor | Editor   │       │ Suggested Edits |  │       │ Job Match | Score   │
+│ | Layout & Style     │       │ PDF Preview        │       │ | Templates         │
+├──────────────────────┤       │                    │       ├─────────────────────┤
+│ + Target Job Title   │       │   [Live PDF        │       │ Poor Alignment 10   │
+│ + Contact            │       │    rendered from   │       │ • Qualifications  0 │
+│ + About              │       │    compiled LaTeX] │       │ • Responsibilities 0│
+│ + Work Experience    │       │                    │       │ • Keywords        0 │
+│ + Education          │       │                    │       │ • Job Title    100  │
+│ + Skills / Projects  │       │                    │       │ [Run AI Tailor]     │
+│ + Certs / Links      │       │                    │       │                     │
+│ [Add Section]        │       │                    │       │                     │
+└──────────────────────┘       └────────────────────┘       └─────────────────────┘
 ```
 
-- Name: parsed from LaTeX source (existing `extractResumeName` helper).
-- Role: from workspace profile (`primary_role` / job title stored at onboarding). If missing, omit.
-- Suffix: always `_base` for the base resume.
+Top bar: `Resume Builder › Job Tailored Resumes › {Company @ Title}` breadcrumb, plus `Save as Base Resume`, `Undo`, `Download PDF`.
 
-Apply the same naming convention to the compiled PDF and to any "Download all" zip entry for the base resume. Tailored resumes keep the `{company}_{role}` naming they already use.
+### Data model (structured JSON → LaTeX)
 
-## 3. Edit an existing job
-Add an "Edit" affordance on each job card / row and inside the job detail dialog header. Reuses the existing job form component (currently used for create) in edit mode:
+New table `builder_resumes` keyed by `(workspace_id, job_id)`:
 
-- Prefills all fields from the job.
-- Calls existing `updateJob` server function.
-- Same validation as create.
+- `content jsonb` — the structured resume document (schema below)
+- `latex_source text` — last successfully compiled render (cached for preview + download)
+- `pdf_path text` — Storage path to the last compiled PDF
+- `job_match jsonb`, `score jsonb`, `suggestions jsonb` — analysis output
+- Standard `created_at / updated_at`, RLS scoped to workspace owner, GRANTs per project rules.
 
-## 4. Remove extra color palettes; keep light theme only
-- Delete the palette switcher from `theme-toggle.tsx` (or reduce it to a no-op / hide).
-- Remove `data-palette` selectors from `src/styles.css`.
-- Force `light` as the only theme (remove dark toggle too, since the extra palettes were dark-mode-only and the user says they break LaTeX rendering / text contrast).
-- Keep CSS variables clean so shadcn components still theme correctly.
+`content` schema:
+```ts
+{
+  target_title: string,
+  contact: { name, email, phone?, location?, linkedin?, github?, website? },
+  about?: string,               // Professional summary
+  work: [{ company, title, location?, start, end?, bullets: string[] }],
+  education: [{ school, degree, field?, start?, end?, details?: string[] }],
+  skills: { group: string, items: string[] }[],
+  projects: [{ name, link?, bullets: string[] }],
+  certifications: [{ name, issuer?, date? }],
+  links: [{ label, url }],
+  volunteer: [{ org, role?, start?, end?, bullets: string[] }],
+  section_order: string[]
+}
+```
 
-## 5. Chrome extension: "JobForge Autofill"
-New folder `extension/` at repo root. MV3 extension that:
+Seeding: on first open of `/builder/$jobId`, if no row exists, seed `content` by parsing the workspace's Base Resume (LaTeX) with the existing DeepSeek/OpenRouter model into this JSON shape (new server fn `seedBuilderFromBase`), then compile once.
 
-- **Content script** runs on major job portals (Greenhouse, Lever, Ashby, Workday, LinkedIn Jobs, Indeed, generic `*careers*` / `*jobs*` pages).
-- Shows a floating action button in the bottom-right. Clicking opens a small panel with:
-  - **Save Job to Board** — scrapes `{company, title, url, description}` from the page (site-specific selectors + fallbacks) and POSTs to a new public endpoint `/api/public/extension/jobs`.
-  - **Autofill Application** — reads the user's base resume fields (name, email, phone, links, experience bullets) from a new public endpoint `/api/public/extension/profile`, then fills matching form fields on the page by label / name / placeholder heuristics.
-- **Auth**: extension popup has a "Connect" button. User pastes a personal API token generated in JobForge Settings (new `extension_tokens` table). Token stored in `chrome.storage.local`, sent as `Authorization: Bearer <token>` header.
-- **Packaging**: zipped to `public/jobforge-extension.zip` via `nix run nixpkgs#zip`. Settings page gets a "Download Chrome extension" button + install instructions.
+### LaTeX rendering pipeline
 
-### Technical notes (per-piece)
+- New server-only renderer `renderBuilderLatex(content)` in `src/lib/builder-render.server.ts`. It composes the existing JobForge template (`src/config/resume-template.tex`) by injecting each section using the same custom commands (`\resumeSubheading`, `\resumeItem`, etc.) and escapes LaTeX-special characters (`% & _ # $ { } ~ ^ \`).
+- Server fn `saveBuilderContent({ jobId, content })` — validates, persists JSON, re-renders LaTeX, compiles via existing `compileLatex`, stores PDF, returns `{ pdf_url, latex_source }`.
+- Debounced autosave (~800 ms) on every field edit. PDF preview reuses `<LatexPreview>` with `downloadFilename` derived from `contact.name + company` (fixes the same random-filename bug pattern).
 
-**Backend additions**
-- Table `extension_tokens (id, user_id, token_hash, label, created_at, last_used_at)` with RLS: users see own rows. Token shown once at generation.
-- Server routes (public, verify bearer manually against hashed token):
-  - `POST /api/public/extension/jobs` — creates a job in the user's default board.
-  - `GET  /api/public/extension/profile` — returns safe autofill fields only (name, email, phone, links, current role, location). No resume LaTeX, no secrets.
-- Server fns: `createExtensionToken`, `listExtensionTokens`, `revokeExtensionToken`.
+### Right panel (all three enabled in v1)
 
-**Filename helper**
-Centralize `buildResumeFilename({ name, role, kind: 'base' | 'tailored', company?, ext })` in `src/lib/filenames.ts` and use it from resume download, PDF download, and zip export.
+- **Job Match** — server fn `analyzeJobMatch({ jobId })` uses existing `extract_insights` + a new prompt that scores four buckets (Qualifications / Responsibilities / Keywords / Job Title) 0–100 with impact tags and a `not_covered` list per bucket. Rendered as accordions matching the screenshots.
+- **Score** — server fn `analyzeResumeScore({ jobId })` returns Section Completion, Content Quality (metrics / repetitive verbs / repetitive bullets / buzzwords), Content Length. Section Completion is computed locally from `content` (no model call); Content Quality + Length go through the model.
+- **Suggested Edits** — server fn `generateSuggestions({ jobId })` returns a list of `{ id, section, title, body, tags: ['Missing Info'|'Tailor Resume'|'Stay Relevant'], patch: { path, op, value } }`. Left panel "AI Tailor" tab renders them grouped by Section/Priority with **Apply / Edit / Ignore** buttons. Apply mutates `content` via the JSON patch, saves, recompiles.
+- **Templates** tab: stub for v1 — shows current template only, "more coming soon".
 
-**Job edit form**
-Extract the current inline create form in `jobs.tsx` into `JobFormDialog` accepting `{ mode: 'create' | 'edit', initial? }`.
+Results are cached in the `builder_resumes` row and re-run on demand via "Re-analyze" (and automatically the first time a builder is opened for a job).
 
-**Theme cleanup**
-Remove `next-themes` toggle UI (keep provider set to `light`). Delete palette CSS blocks. Keep this small — don't touch component styling logic.
+### Undo
 
-### Out of scope
-- Auto-generating tailored docs from the extension (user chose "save only" previously).
-- Full WYSIWYG resume editing.
-- Publishing extension to the Chrome Web Store — user side-loads the unpacked zip.
+Every save snapshots the previous `content` into a new `builder_resume_versions` table (mirrors existing `resume_versions`). `Undo` restores the most recent snapshot. Cap at 50 per resume.
 
-Confirm and I'll build it.
+### Entry points
+
+- Sidebar: new "Resume Builder" nav link → jobs list scoped to "has base resume".
+- Job detail dialog: new primary button **Open in Builder** next to existing Generate.
+- Generate page: unchanged.
+
+### Technical notes
+
+- All server work uses `createServerFn` + `requireSupabaseAuth`; analysis calls reuse the current provider/model selection and log to `ai_cost_logs` with `purpose: 'builder_*'`.
+- Route file: `src/routes/_authenticated/builder.$jobId.tsx` (loader `ensureQueryData` on `builder_resumes` + job).
+- Reuse `LatexPreview`, `TailoringLoader`, existing color tokens; no new design tokens needed.
+- Not in v1: template switcher, layout/style editor beyond color pickers (mirrors existing Base Resume colors), drag-reorder sections (order stored, buttons only), collaborative editing, Chrome-extension push.
+
+### Files added
+- `supabase/migrations/*_builder_resumes.sql`
+- `src/routes/_authenticated/builder.$jobId.tsx`
+- `src/components/builder/{Sidebar,Editor,Preview,JobMatchPanel,ScorePanel,SuggestedEdits,SectionCard}.tsx`
+- `src/lib/builder.functions.ts`, `src/lib/builder-render.server.ts`
+- `src/config/prompts/{builder_seed,job_match,resume_score,builder_suggestions}.yaml`
+
+### Files changed
+- `src/components/job-detail-dialog.tsx` — add "Open in Builder" button
+- `src/components/app-shell.tsx` — add sidebar link
