@@ -150,7 +150,7 @@ export function JobDetailDialog({ jobId, open, onOpenChange }: {
           {tab === "company" && <CompanyTab job={job} />}
           {tab === "ai" && (
             activeToolId
-              ? <AiToolRunner jobId={jobId!} toolId={activeToolId} onBack={() => setActiveToolId(null)} />
+              ? <AiToolRunner jobId={jobId!} toolId={activeToolId} onBack={() => setActiveToolId(null)} job={job} />
               : <AiToolsGrid onPick={setActiveToolId} />
           )}
         </div>
@@ -731,7 +731,7 @@ function AiToolsGrid({ onPick }: { onPick: (id: string) => void }) {
   );
 }
 
-function AiToolRunner({ jobId, toolId, onBack }: { jobId: string; toolId: string; onBack: () => void }) {
+function AiToolRunner({ jobId, toolId, onBack, job }: { jobId: string; toolId: string; onBack: () => void; job?: any }) {
   const tool = AI_TOOLS_META.find((t) => t.id === toolId);
   const runFn = useServerFn(runAiTool);
   const saveFn = useServerFn(saveToolOutput);
@@ -753,6 +753,10 @@ function AiToolRunner({ jobId, toolId, onBack }: { jobId: string; toolId: string
 
   if (!tool) return null;
   const a = ACCENT[tool.accent] ?? ACCENT.indigo;
+  const fileLabel = (label: string) => {
+    const parts = [label, job?.company, job?.title].filter(Boolean).map((s: string) => String(s));
+    return parts.join(" — ");
+  };
 
   return (
     <div className="space-y-4">
@@ -832,13 +836,13 @@ function AiToolRunner({ jobId, toolId, onBack }: { jobId: string; toolId: string
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuLabel>Download as</DropdownMenuLabel>
-                  <DropdownMenuItem onClick={() => downloadAs("txt", result.label, result.content)}>
+                  <DropdownMenuItem onClick={() => downloadAs("txt", fileLabel(result.label), result.content)}>
                     <FileText className="mr-2 h-4 w-4" /> Plain text (.txt)
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => downloadAs("pdf", result.label, result.content)}>
+                  <DropdownMenuItem onClick={() => downloadAs("pdf", fileLabel(result.label), result.content).catch((e) => toast.error(String(e?.message ?? e).slice(0, 200)))}>
                     <FileText className="mr-2 h-4 w-4" /> PDF (.pdf)
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => downloadAs("docx", result.label, result.content).catch((e) => toast.error(String(e?.message ?? e).slice(0, 200)))}>
+                  <DropdownMenuItem onClick={() => downloadAs("docx", fileLabel(result.label), result.content).catch((e) => toast.error(String(e?.message ?? e).slice(0, 200)))}>
                     <FileText className="mr-2 h-4 w-4" /> Word (.docx)
                   </DropdownMenuItem>
                 </DropdownMenuContent>
