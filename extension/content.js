@@ -121,6 +121,55 @@
   }
 
   function guessDescription() {
+    const host = location.hostname.replace(/^www\./, "");
+    // Site-specific JD containers (strip nav, sidebars, "similar jobs", etc.)
+    const siteSelectors = {
+      "naukri.com": [
+        '.styles_JDC__dang-inner-html__h0K4t',
+        '.job-desc',
+        'section.styles_job-desc-container__txpYf',
+        '[class*="JDC__dang-inner-html"]',
+challenging',
+      ],
+      "glassdoor.": [
+        '[class*="JobDetails_jobDescription"]',
+        '.jobDescriptionContent',
+        '#JobDescriptionContainer',
+      ],
+      "linkedin.com": [
+        '.jobs-description__content .jobs-box__html-content',
+        '.jobs-description-content__text',
+        '#job-details',
+      ],
+      "indeed.com": [
+        '#jobDescriptionText',
+      ],
+    };
+    for (const key of Object.keys(siteSelectors)) {
+      if (!host.includes(key)) continue;
+      for (const sel of siteSelectors[key]) {
+        try {
+          const el = document.querySelector(sel);
+          if (el && text(el).length > 100) return text(el);
+        } catch (_) {}
+      }
+    }
+    // Structured data
+    try {
+      const scripts = document.querySelectorAll('script[type="application/ld+json"]');
+      for (const s of scripts) {
+        const parsed = JSON.parse(s.textContent || "null");
+        const arr = Array.isArray(parsed) ? parsed : [parsed];
+        for (const node of arr) {
+          if (node && node["@type"] === "JobPosting" && node.description) {
+            const tmp = document.createElement("div");
+            tmp.innerHTML = String(node.description);
+            const t = (tmp.innerText || tmp.textContent || "").trim();
+            if (t.length > 100) return t;
+          }
+        }
+      }
+    } catch (_) {}
     const candidates = [
       '[data-testid*="job-description"]',
       "#job_description",
