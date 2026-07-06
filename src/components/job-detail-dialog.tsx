@@ -315,7 +315,7 @@ function NotesTab({ job }: { job: any }) {
   );
 }
 
-function DocumentsTab({ artifacts, jobId }: { artifacts: any[]; jobId: string }) {
+function DocumentsTab({ artifacts, jobId, job }: { artifacts: any[]; jobId: string; job?: any }) {
   const urlFn = useServerFn(getArtifactPdfUrl);
   const [zipping, setZipping] = useState(false);
   if (!artifacts.length) return <Empty text="No documents yet. Use AI Tools or Generate to create them." />;
