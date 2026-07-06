@@ -15,7 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { getMyWorkspace, createWorkspace, updateOnboardingStep } from "@/lib/workspace.functions";
 import { saveProvider, testConnection } from "@/lib/ai-config.functions";
 import { saveBaseResume } from "@/lib/resumes.functions";
-import { Sparkles, CheckCircle2 } from "lucide-react";
+import { Sparkles, CheckCircle2, ArrowLeft } from "lucide-react";
 import { PdfToLatexButton } from "@/components/pdf-to-latex-button";
 
 export const Route = createFileRoute("/onboarding")({
