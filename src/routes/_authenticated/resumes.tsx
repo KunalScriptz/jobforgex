@@ -16,6 +16,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Download, Save, History, RotateCcw, LayoutList } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { LatexPreview, type LatexPreviewHandle } from "@/components/latex-preview";
+import { PdfToLatexButton } from "@/components/pdf-to-latex-button";
 
 export const Route = createFileRoute("/_authenticated/resumes")({ component: ResumesPage });
 
@@ -153,6 +154,7 @@ function ResumesPage() {
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <h1 className="text-2xl font-bold">Base resume</h1>
         <div className="ml-auto flex items-center gap-2">
+          <PdfToLatexButton onLatex={(l) => setSource(l)} />
           <ColorButton label="Primary" value={primary} onChange={(v) => applyColors({ primary: v })} />
           <ColorButton label="Accent" value={secondary} onChange={(v) => applyColors({ secondary: v })} />
           <Button variant="outline" size="sm" onClick={download}><Download className="mr-1 h-4 w-4" />.tex</Button>

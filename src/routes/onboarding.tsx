@@ -16,6 +16,7 @@ import { getMyWorkspace, createWorkspace, updateOnboardingStep } from "@/lib/wor
 import { saveProvider, testConnection } from "@/lib/ai-config.functions";
 import { saveBaseResume } from "@/lib/resumes.functions";
 import { Sparkles, CheckCircle2 } from "lucide-react";
+import { PdfToLatexButton } from "@/components/pdf-to-latex-button";
 
 export const Route = createFileRoute("/onboarding")({
   ssr: false,
@@ -215,10 +216,16 @@ function Step3({ onDone }: { onDone: () => void }) {
     <Card>
       <CardHeader>
         <CardTitle>Upload your base resume</CardTitle>
-        <CardDescription>Paste the complete LaTeX source. 1 page or many — we preserve the length.</CardDescription>
+        <CardDescription>Paste the complete LaTeX source, or import from a PDF and we'll convert it into our LaTeX template using your AI provider.</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={submit} className="space-y-4">
+          <div className="flex items-center justify-between rounded-md border border-dashed bg-muted/30 p-3">
+            <div className="text-xs text-muted-foreground">
+              Only have a PDF? Import it and we'll rewrite it into LaTeX for you.
+            </div>
+            <PdfToLatexButton onLatex={(l) => setTex(l)} />
+          </div>
           <Textarea
             className="h-80 font-mono text-xs"
             value={tex}
