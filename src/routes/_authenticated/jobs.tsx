@@ -3,16 +3,36 @@ import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, useMemo } from "react";
 import { toast } from "sonner";
+import {
+  DndContext,
+  DragEndEvent,
+  DragOverlay,
+  DragStartEvent,
+  PointerSensor,
+  useDraggable,
+  useDroppable,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import { Briefcase, FileText, Trophy, ThumbsDown, Sparkles, Trash2 } from "lucide-react";
 
 import { listJobs, bulkUpdateStatus, deleteJob } from "@/lib/jobs.functions";
 import { listBoards } from "@/lib/workspace.functions";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
 
 export const Route = createFileRoute("/_authenticated/jobs")({ component: JobsPage });
+
+type Status = "wishlist" | "applied" | "interview" | "offer" | "rejected";
+
+const COLUMNS: { id: Status; label: string; icon: any; accent: string }[] = [
+  { id: "wishlist",  label: "Wishlist",  icon: Sparkles,   accent: "text-sky-500" },
+  { id: "applied",   label: "Applied",   icon: FileText,   accent: "text-violet-500" },
+  { id: "interview", label: "Interview", icon: Briefcase,  accent: "text-amber-500" },
+  { id: "offer",     label: "Offer",     icon: Trophy,     accent: "text-emerald-500" },
+  { id: "rejected",  label: "Rejected",  icon: ThumbsDown, accent: "text-rose-500" },
+];
 
 function JobsPage() {
   const qc = useQueryClient();
@@ -21,9 +41,8 @@ function JobsPage() {
   const bulk = useServerFn(bulkUpdateStatus);
   const del = useServerFn(deleteJob);
   const [search, setSearch] = useState("");
-  const [status, setStatus] = useState<string>("all");
   const [board, setBoard] = useState<string>("all");
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [activeId, setActiveId] = useState<string | null>(null);
 
   const { data: boards = [] } = useQuery({ queryKey: ["boards"], queryFn: () => getBoards() });
   const { data: allJobs = [] } = useQuery({
@@ -31,9 +50,8 @@ function JobsPage() {
     queryFn: () => getJobs({ data: {} } as any),
   });
 
-  const rows = useMemo(() => {
+  const filtered = useMemo(() => {
     return allJobs.filter((j: any) => {
-      if (status !== "all" && j.status !== status) return false;
       if (board !== "all" && j.board_id !== board) return false;
       if (search) {
         const s = search.toLowerCase();
@@ -41,31 +59,55 @@ function JobsPage() {
       }
       return true;
     });
-  }, [allJobs, status, board, search]);
+  }, [allJobs, board, search]);
 
-  function toggle(id: string) {
-    const n = new Set(selected);
-    if (n.has(id)) n.delete(id); else n.add(id);
-    setSelected(n);
-  }
+  const byStatus = useMemo(() => {
+    const m: Record<Status, any[]> = { wishlist: [], applied: [], interview: [], offer: [], rejected: [] };
+    for (const j of filtered) (m[j.status as Status] ?? m.wishlist).push(j);
+    return m;
+  }, [filtered]);
 
-  const doBulk = useMutation({
-    mutationFn: async (s: string) => bulk({ data: { ids: Array.from(selected), status: s } } as any),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["jobs"] }); setSelected(new Set()); toast.success("Updated"); },
+  const move = useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: Status }) =>
+      bulk({ data: { ids: [id], status } } as any),
+    onMutate: async ({ id, status }) => {
+      await qc.cancelQueries({ queryKey: ["jobs", "all"] });
+      const prev = qc.getQueryData<any[]>(["jobs", "all"]);
+      qc.setQueryData<any[]>(["jobs", "all"], (old = []) =>
+        old.map((j) => (j.id === id ? { ...j, status } : j)),
+      );
+      return { prev };
+    },
+    onError: (_e, _v, ctx) => {
+      if (ctx?.prev) qc.setQueryData(["jobs", "all"], ctx.prev);
+      toast.error("Failed to move card");
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: ["jobs"] }),
   });
 
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+  const activeJob = activeId ? filtered.find((j: any) => j.id === activeId) : null;
+
+  function onDragEnd(e: DragEndEvent) {
+    setActiveId(null);
+    const over = e.over?.id as Status | undefined;
+    const id = e.active.id as string;
+    if (!over) return;
+    const job = filtered.find((j: any) => j.id === id);
+    if (!job || job.status === over) return;
+    move.mutate({ id, status: over });
+  }
+
   return (
-    <div className="p-6">
-      <h1 className="mb-4 text-2xl font-bold">Jobs</h1>
+    <div className="flex h-full flex-col p-4">
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        <Input placeholder="Search company, title, notes..." value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-xs" />
-        <Select value={status} onValueChange={setStatus}>
-          <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All statuses</SelectItem>
-            {["wishlist","applied","interview","rejected","offer"].map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-          </SelectContent>
-        </Select>
+        <h1 className="mr-4 text-2xl font-bold">Job Board</h1>
+        <Input
+          placeholder="Filter..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="max-w-xs"
+        />
         <Select value={board} onValueChange={setBoard}>
           <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
           <SelectContent>
@@ -73,49 +115,123 @@ function JobsPage() {
             {boards.map((b: any) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
           </SelectContent>
         </Select>
-        {selected.size > 0 && (
-          <div className="ml-auto flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">{selected.size} selected</span>
-            <Select onValueChange={(v) => doBulk.mutate(v)}>
-              <SelectTrigger className="w-40"><SelectValue placeholder="Move to..." /></SelectTrigger>
-              <SelectContent>
-                {["wishlist","applied","interview","rejected","offer"].map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-              </SelectContent>
-            </Select>
+        <span className="ml-auto text-xs text-muted-foreground">Drag cards between columns to change status</span>
+      </div>
+
+      <DndContext
+        sensors={sensors}
+        onDragStart={(e: DragStartEvent) => setActiveId(e.active.id as string)}
+        onDragCancel={() => setActiveId(null)}
+        onDragEnd={onDragEnd}
+      >
+        <div className="flex flex-1 gap-4 overflow-x-auto pb-4">
+          {COLUMNS.map((col) => (
+            <Column
+              key={col.id}
+              col={col}
+              jobs={byStatus[col.id]}
+              onDelete={async (id) => {
+                await del({ data: { id } } as any);
+                qc.invalidateQueries({ queryKey: ["jobs"] });
+              }}
+            />
+          ))}
+        </div>
+        <DragOverlay dropAnimation={null}>
+          {activeJob ? <JobCard job={activeJob} dragging /> : null}
+        </DragOverlay>
+      </DndContext>
+    </div>
+  );
+}
+
+function Column({
+  col,
+  jobs,
+  onDelete,
+}: {
+  col: { id: Status; label: string; icon: any; accent: string };
+  jobs: any[];
+  onDelete: (id: string) => void;
+}) {
+  const { setNodeRef, isOver } = useDroppable({ id: col.id });
+  const Icon = col.icon;
+  return (
+    <div
+      ref={setNodeRef}
+      className={`flex w-72 shrink-0 flex-col rounded-xl border bg-muted/30 transition-colors ${
+        isOver ? "border-primary bg-primary/5" : "border-border"
+      }`}
+    >
+      <div className="flex items-center justify-between border-b px-3 py-2">
+        <div className="flex items-center gap-2">
+          <Icon className={`h-4 w-4 ${col.accent}`} />
+          <span className="text-xs font-bold uppercase tracking-wider">{col.label}</span>
+        </div>
+        <span className="text-xs text-muted-foreground">{jobs.length}</span>
+      </div>
+      <div className="flex flex-1 flex-col gap-2 overflow-y-auto p-2">
+        {jobs.map((j) => (
+          <DraggableCard key={j.id} job={j} onDelete={onDelete} />
+        ))}
+        {jobs.length === 0 && (
+          <div className="rounded-md border border-dashed py-6 text-center text-xs text-muted-foreground">
+            Drop here
           </div>
         )}
       </div>
+    </div>
+  );
+}
 
-      <div className="overflow-x-auto rounded-lg border bg-card">
-        <table className="w-full text-sm">
-          <thead className="bg-muted/40 text-left text-xs uppercase text-muted-foreground">
-            <tr>
-              <th className="w-8 p-2"></th>
-              <th className="p-2">Company</th>
-              <th className="p-2">Title</th>
-              <th className="p-2">Status</th>
-              <th className="p-2">Applied</th>
-              <th className="p-2">Score</th>
-              <th className="p-2"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((j: any) => (
-              <tr key={j.id} className="border-t">
-                <td className="p-2"><Checkbox checked={selected.has(j.id)} onCheckedChange={() => toggle(j.id)} /></td>
-                <td className="p-2 font-medium">{j.company}</td>
-                <td className="p-2">{j.title}</td>
-                <td className="p-2"><Badge variant="outline">{j.status}</Badge></td>
-                <td className="p-2 text-muted-foreground">{j.date_applied ?? "—"}</td>
-                <td className="p-2">{j.resume_score ?? "—"}</td>
-                <td className="p-2 text-right">
-                  <Button size="sm" variant="ghost" onClick={async () => { await del({ data: { id: j.id } } as any); qc.invalidateQueries({ queryKey: ["jobs"] }); }}>Delete</Button>
-                </td>
-              </tr>
-            ))}
-            {rows.length === 0 && <tr><td colSpan={7} className="p-8 text-center text-muted-foreground">No jobs match your filters.</td></tr>}
-          </tbody>
-        </table>
+function DraggableCard({ job, onDelete }: { job: any; onDelete: (id: string) => void }) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: job.id });
+  return (
+    <div
+      ref={setNodeRef}
+      {...attributes}
+      {...listeners}
+      className={isDragging ? "opacity-30" : ""}
+    >
+      <JobCard job={job} onDelete={onDelete} />
+    </div>
+  );
+}
+
+function JobCard({
+  job,
+  onDelete,
+  dragging,
+}: {
+  job: any;
+  onDelete?: (id: string) => void;
+  dragging?: boolean;
+}) {
+  return (
+    <div
+      className={`group cursor-grab rounded-lg border bg-card p-3 shadow-sm transition-shadow hover:shadow-md active:cursor-grabbing ${
+        dragging ? "rotate-2 shadow-xl" : ""
+      }`}
+    >
+      <div className="mb-1 text-sm font-semibold leading-tight">{job.title}</div>
+      <div className="text-xs text-muted-foreground">{job.company}</div>
+      <div className="mt-2 flex items-center justify-between">
+        <span className="text-[10px] text-muted-foreground">
+          {job.date_applied ?? new Date(job.created_at).toLocaleDateString()}
+        </span>
+        {onDelete && (
+          <button
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(job.id);
+            }}
+            className="opacity-0 transition-opacity group-hover:opacity-100"
+            aria-label="Delete"
+          >
+            <Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />
+          </button>
+        )}
       </div>
     </div>
   );
