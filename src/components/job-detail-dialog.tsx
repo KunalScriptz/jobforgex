@@ -630,7 +630,7 @@ function CompanyTab({ job }: { job: any }) {
 
   if (!job) return null;
   const domain = job.company.toLowerCase().replace(/\b(inc|llc|ltd|corp|corporation|co|company|gmbh|plc)\b\.?/g, "").replace(/[^a-z0-9]/g, "") + ".com";
-  const website = job.url || `https://${domain}`;
+  const website = `https://${domain}`;
 
   return (
     <div className="grid gap-4 md:grid-cols-3">
