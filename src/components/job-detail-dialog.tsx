@@ -16,6 +16,7 @@ import { getJob, updateJob, bulkUpdateStatus } from "@/lib/jobs.functions";
 import { AI_TOOLS_META, runAiTool, saveToolOutput } from "@/lib/ai-tools.functions";
 import { extractJobInsights } from "@/lib/insights.functions";
 import { compileArtifactPdf, getArtifactPdfUrl } from "@/lib/pdf.functions";
+import { CompanyLogo } from "@/components/company-logo";
 
 type Status = "wishlist" | "applied" | "interview" | "offer" | "rejected";
 const STATUSES: Status[] = ["wishlist","applied","interview","offer","rejected"];
@@ -62,13 +63,18 @@ export function JobDetailDialog({ jobId, open, onOpenChange }: {
         {/* Header with glow */}
         <div className="relative border-b bg-gradient-to-br from-primary/10 via-transparent to-transparent px-6 py-5">
           <div className="flex items-start justify-between gap-4">
-            <div className="min-w-0">
-              <div className="mb-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                {job?.company ?? "—"}
+            <div className="flex min-w-0 items-start gap-3">
+              {job?.company && <CompanyLogo company={job.company} size={44} />}
+              <div className="min-w-0">
+                <div className="mb-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  {job?.company ?? "—"}
+                </div>
+                <h2 className="truncate text-2xl font-bold tracking-tight">
+                  {isLoading ? "Loading…" : (job?.title ?? "Job")}
+                </h2>
               </div>
-              <h2 className="truncate text-2xl font-bold tracking-tight">
-                {isLoading ? "Loading…" : (job?.title ?? "Job")}
-              </h2>
+            </div>
+            <div className="flex-1">
               <div className="mt-2 flex flex-wrap items-center gap-1.5">
                 {STATUSES.map((s) => (
                   <button
