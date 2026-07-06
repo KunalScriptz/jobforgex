@@ -60,7 +60,7 @@ var EngineStatus;
     EngineStatus[EngineStatus["Busy"] = 3] = "Busy";
     EngineStatus[EngineStatus["Error"] = 4] = "Error";
 })(EngineStatus = exports.EngineStatus || (exports.EngineStatus = {}));
-var ENGINE_PATH = 'swiftlatexpdftex.js';
+var ENGINE_PATH = '/swiftlatex/swiftlatexpdftex.js';
 var CompileResult = /** @class */ (function () {
     function CompileResult() {
         this.pdf = undefined;
@@ -246,3 +246,4 @@ var PdfTeXEngine = /** @class */ (function () {
     return PdfTeXEngine;
 }());
 exports.PdfTeXEngine = PdfTeXEngine;
+if (typeof window !== "undefined") { window.PdfTeXEngine = exports.PdfTeXEngine; window.SwiftLaTeXEngineStatus = exports.EngineStatus; }
