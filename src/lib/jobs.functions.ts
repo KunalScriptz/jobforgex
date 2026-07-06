@@ -110,3 +110,14 @@ export const bulkUpdateStatus = createServerFn({ method: "POST" })
     await context.supabase.from("jobs").update({ status: data.status }).in("id", data.ids);
     return { ok: true };
   });
+
+export const bulkDeleteJobs = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { ids: string[] }) => z.object({
+    ids: z.array(z.string().uuid()).min(1).max(500),
+  }).parse(d))
+  .handler(async ({ data, context }) => {
+    const id = await wsId(context.supabase, context.userId);
+    await context.supabase.from("jobs").delete().in("id", data.ids).eq("workspace_id", id);
+    return { ok: true, count: data.ids.length };
+  });
