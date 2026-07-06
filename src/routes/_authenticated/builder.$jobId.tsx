@@ -8,7 +8,6 @@ import {
   Wand2, CheckCircle2, XCircle, Loader2, FileText,
 } from "lucide-react";
 
-import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -127,8 +126,7 @@ function BuilderPage() {
   const job = jobQ.data?.job;
 
   return (
-    <AppShell>
-      <div className="flex h-screen flex-col">
+    <div className="flex h-[calc(100vh-0px)] flex-col">
         {/* Top bar */}
         <div className="flex h-12 items-center gap-3 border-b bg-card px-4 text-sm">
           <button onClick={() => navigate({ to: "/jobs" })} className="flex items-center gap-1 text-muted-foreground hover:text-foreground">
@@ -222,8 +220,7 @@ function BuilderPage() {
             </div>
           </div>
         )}
-      </div>
-    </AppShell>
+    </div>
   );
 }
 
