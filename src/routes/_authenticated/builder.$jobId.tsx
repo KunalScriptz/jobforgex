@@ -174,8 +174,8 @@ function BuilderPage() {
                     suggestions={(builderQ.data as any)?.suggestions?.suggestions ?? []}
                     onGenerate={() => sugMut.mutate()}
                     generating={sugMut.isPending}
-                    onApply={(id) => applyMut.mutate(id)}
-                    onIgnore={(id) => ignoreMut.mutate(id)}
+                    onApply={(id: string) => applyMut.mutate(id)}
+                    onIgnore={(id: string) => ignoreMut.mutate(id)}
                     applyingId={applyMut.variables as string | undefined}
                     isApplying={applyMut.isPending}
                   />
