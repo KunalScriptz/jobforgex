@@ -48,7 +48,7 @@ function ResumesPage() {
   const { data: resume } = useQuery({ queryKey: ["resume","base"], queryFn: () => getBase() });
   const { data: versions = [] } = useQuery({
     queryKey: ["resume","versions", resume?.id],
-    queryFn: () => getVersions({ data: { resume_id: resume.id } } as any),
+    queryFn: () => getVersions({ data: { resume_id: resume!.id } } as any),
     enabled: Boolean(resume?.id),
   });
 
