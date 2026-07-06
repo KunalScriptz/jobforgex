@@ -9,6 +9,9 @@ import {
 } from "lucide-react";
 import JSZip from "jszip";
 
+import { Checkbox } from "@/components/ui/checkbox";
+import { tailorResume, generateCoverLetter, saveArtifact } from "@/lib/ai-generate.functions";
+
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
