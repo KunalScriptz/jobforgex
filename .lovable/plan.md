@@ -1,39 +1,67 @@
-## Recommendation
+# Plan
 
-Move tailored resume + cover letter generation into the **job detail page** as the primary home. That is where the job description, company context, and existing documents already live, so generating docs there keeps everything in one place.
+Five separate changes. Each is scoped and independent.
 
-Keep the **Generate page** as a quick-action hub, but change it from a freeform paste form into a **saved-job picker**. You select a job from your board, choose which documents to create (resume + cover letter), and generate both in parallel.
+## 1. Delete individual documents on a job
+In the job detail dialog's Documents tab, add a trash icon next to each artifact row. Confirm via `AlertDialog`, then call a new `deleteJobArtifact` server function that removes the storage object and the `job_artifacts` row. Invalidate the job query.
 
-## Why this fits your workflow
+## 2. Fix base-resume download filename
+Downloads currently use the storage UUID. Change the download flow to fetch the bytes and re-save with:
 
-1. Chrome extension saves jobs → they land on your board.
-2. When you are ready to apply, you open the job card and generate documents right there.
-3. If you prefer a dedicated generation page, the Generate tab lets you pick any saved job and produce both documents at once (or just one).
+```
+{FirstName_LastName}_{Role}_base.tex   (or .pdf)
+```
 
-## Plan
+- Name: parsed from LaTeX source (existing `extractResumeName` helper).
+- Role: from workspace profile (`primary_role` / job title stored at onboarding). If missing, omit.
+- Suffix: always `_base` for the base resume.
 
-### 1. Add "Generate Documents" to job detail
-- New action in the job detail dialog (Documents tab or a dedicated button).
-- Pick which documents to create: Tailored Resume and/or Cover Letter.
-- Reuses existing `tailorResume` and `generateCoverLetter` server functions.
-- Generated artifacts are saved to that job automatically and appear in the Documents tab immediately.
+Apply the same naming convention to the compiled PDF and to any "Download all" zip entry for the base resume. Tailored resumes keep the `{company}_{role}` naming they already use.
 
-### 2. Refactor Generate page into a Saved-Job picker
-- Remove the freeform Company/Title/URL/JD form.
-- Replace it with a job selector (dropdown or searchable list of your saved jobs).
-- Keep the "Generate tailored resume" and "Generate cover letter" checkboxes.
-- Clicking "Generate" runs the same server functions against the selected job.
-- New artifacts are saved to that job and you are redirected to the job detail (or shown a success link).
+## 3. Edit an existing job
+Add an "Edit" affordance on each job card / row and inside the job detail dialog header. Reuses the existing job form component (currently used for create) in edit mode:
 
-### 3. Generate both at the same time
-- The existing backend already supports parallel generation.
-- Keep dual checkboxes in both locations (job detail and Generate page).
-- Both documents compile to PDF in parallel after generation.
+- Prefills all fields from the job.
+- Calls existing `updateJob` server function.
+- Same validation as create.
 
-## What stays the same
-- AI Tools tab inside job detail remains for plain-text outputs (follow-up emails, interview prep, etc.).
-- The board and drag-drop workflow does not change.
-- Resume scoring can still be triggered from wherever generation lives.
+## 4. Remove extra color palettes; keep light theme only
+- Delete the palette switcher from `theme-toggle.tsx` (or reduce it to a no-op / hide).
+- Remove `data-palette` selectors from `src/styles.css`.
+- Force `light` as the only theme (remove dark toggle too, since the extra palettes were dark-mode-only and the user says they break LaTeX rendering / text contrast).
+- Keep CSS variables clean so shadcn components still theme correctly.
 
-## What is removed
-- The "paste any JD" freeform flow on the Generate page. All generation requires a saved job, which aligns with your Chrome-extension workflow.
+## 5. Chrome extension: "JobForge Autofill"
+New folder `extension/` at repo root. MV3 extension that:
+
+- **Content script** runs on major job portals (Greenhouse, Lever, Ashby, Workday, LinkedIn Jobs, Indeed, generic `*careers*` / `*jobs*` pages).
+- Shows a floating action button in the bottom-right. Clicking opens a small panel with:
+  - **Save Job to Board** — scrapes `{company, title, url, description}` from the page (site-specific selectors + fallbacks) and POSTs to a new public endpoint `/api/public/extension/jobs`.
+  - **Autofill Application** — reads the user's base resume fields (name, email, phone, links, experience bullets) from a new public endpoint `/api/public/extension/profile`, then fills matching form fields on the page by label / name / placeholder heuristics.
+- **Auth**: extension popup has a "Connect" button. User pastes a personal API token generated in JobForge Settings (new `extension_tokens` table). Token stored in `chrome.storage.local`, sent as `Authorization: Bearer <token>` header.
+- **Packaging**: zipped to `public/jobforge-extension.zip` via `nix run nixpkgs#zip`. Settings page gets a "Download Chrome extension" button + install instructions.
+
+### Technical notes (per-piece)
+
+**Backend additions**
+- Table `extension_tokens (id, user_id, token_hash, label, created_at, last_used_at)` with RLS: users see own rows. Token shown once at generation.
+- Server routes (public, verify bearer manually against hashed token):
+  - `POST /api/public/extension/jobs` — creates a job in the user's default board.
+  - `GET  /api/public/extension/profile` — returns safe autofill fields only (name, email, phone, links, current role, location). No resume LaTeX, no secrets.
+- Server fns: `createExtensionToken`, `listExtensionTokens`, `revokeExtensionToken`.
+
+**Filename helper**
+Centralize `buildResumeFilename({ name, role, kind: 'base' | 'tailored', company?, ext })` in `src/lib/filenames.ts` and use it from resume download, PDF download, and zip export.
+
+**Job edit form**
+Extract the current inline create form in `jobs.tsx` into `JobFormDialog` accepting `{ mode: 'create' | 'edit', initial? }`.
+
+**Theme cleanup**
+Remove `next-themes` toggle UI (keep provider set to `light`). Delete palette CSS blocks. Keep this small — don't touch component styling logic.
+
+### Out of scope
+- Auto-generating tailored docs from the extension (user chose "save only" previously).
+- Full WYSIWYG resume editing.
+- Publishing extension to the Chrome Web Store — user side-loads the unpacked zip.
+
+Confirm and I'll build it.
