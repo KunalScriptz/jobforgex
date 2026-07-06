@@ -26,6 +26,7 @@ function OnboardingPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const getWs = useServerFn(getMyWorkspace);
+  const setStepFn = useServerFn(updateOnboardingStep);
   const { data: ws, isLoading } = useQuery({ queryKey: ["ws"], queryFn: () => getWs() });
   const [step, setStep] = useState(1);
 
@@ -57,7 +58,7 @@ function OnboardingPage() {
 
         {step === 1 && <Step1 onDone={(_ws) => { qc.invalidateQueries({ queryKey: ["ws"] }); setStep(2); }} />}
         {step === 2 && <Step2 onDone={async () => {
-          await useServerFn(updateOnboardingStep)({ data: { step: 3 } } as any);
+          await setStepFn({ data: { step: 3 } } as any);
           qc.invalidateQueries({ queryKey: ["ws"] }); setStep(3);
         }} />}
         {step === 3 && <Step3 onDone={async () => {
