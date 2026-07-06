@@ -4,7 +4,6 @@ import { toast } from "sonner";
 import { FileUp, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { extractPdfText } from "@/lib/pdf-extract.client";
 import { convertPdfTextToLatex } from "@/lib/resumes.functions";
 
 type Props = {
@@ -27,6 +26,7 @@ export function PdfToLatexButton({ onLatex, size = "sm", variant = "outline", la
     setBusy(true);
     const t = toast.loading("Reading PDF…");
     try {
+      const { extractPdfText } = await import("@/lib/pdf-extract.client");
       const text = await extractPdfText(file);
       toast.loading("Converting to LaTeX with your AI model…", { id: t });
       const res = await convert({ data: { text } } as any);
