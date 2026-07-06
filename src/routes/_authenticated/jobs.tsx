@@ -17,7 +17,7 @@ import { SortableContext, useSortable, arrayMove, verticalListSortingStrategy } 
 import { CSS } from "@dnd-kit/utilities";
 import { Briefcase, FileText, Trophy, ThumbsDown, Sparkles, Trash2, CheckSquare, X, Plus, Pencil } from "lucide-react";
 
-import { listJobs, bulkUpdateStatus, deleteJob, createJob, updateJob } from "@/lib/jobs.functions";
+import { listJobs, bulkUpdateStatus, bulkDeleteJobs, deleteJob, createJob, updateJob } from "@/lib/jobs.functions";
 import { listBoards } from "@/lib/workspace.functions";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -48,6 +48,7 @@ function JobsPage() {
   const getJobs = useServerFn(listJobs);
   const getBoards = useServerFn(listBoards);
   const bulk = useServerFn(bulkUpdateStatus);
+  const bulkDel = useServerFn(bulkDeleteJobs);
   const del = useServerFn(deleteJob);
   const [search, setSearch] = useState("");
   const [board, setBoard] = useState<string>("all");
@@ -134,6 +135,27 @@ function JobsPage() {
     },
     onError: (e: any) => toast.error(String(e?.message ?? e).slice(0, 200)),
   });
+
+  const bulkDelete = useMutation({
+    mutationFn: async (ids: string[]) => bulkDel({ data: { ids } } as any),
+    onSuccess: (_r, ids) => {
+      toast.success(`Deleted ${ids.length} ${ids.length === 1 ? "job" : "jobs"}`);
+      setSelected(new Set());
+      qc.invalidateQueries({ queryKey: ["jobs"] });
+    },
+    onError: (e: any) => toast.error(String(e?.message ?? e).slice(0, 200)),
+  });
+
+  function selectAllVisible() {
+    setSelected(new Set(filtered.map((j: any) => j.id)));
+  }
+  function selectColumn(status: Status) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      for (const j of byStatus[status]) next.add(j.id);
+      return next;
+    });
+  }
 
   function toggleSelect(id: string) {
     setSelected((prev) => {
@@ -239,9 +261,34 @@ function JobsPage() {
             disabled={!bulkStatus || bulkMove.isPending}
             onClick={() => bulkMove.mutate({ ids: Array.from(selected), status: bulkStatus as Status })}
           >Apply</Button>
+          <Button
+            size="sm"
+            variant="destructive"
+            disabled={bulkDelete.isPending}
+            onClick={() => {
+              if (confirm(`Delete ${selected.size} job(s)? This cannot be undone.`)) {
+                bulkDelete.mutate(Array.from(selected));
+              }
+            }}
+          >
+            <Trash2 className="mr-1 h-3.5 w-3.5" />Delete
+          </Button>
           <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>
             <X className="mr-1 h-3.5 w-3.5" />Clear
           </Button>
+        </div>
+      )}
+      {selectMode && (
+        <div className="mb-3 flex items-center gap-2 text-xs">
+          <span className="text-muted-foreground">Quick select:</span>
+          <Button size="sm" variant="outline" className="h-7" onClick={selectAllVisible}>
+            All visible ({filtered.length})
+          </Button>
+          {COLUMNS.map((c) => byStatus[c.id].length > 0 && (
+            <Button key={c.id} size="sm" variant="outline" className="h-7" onClick={() => selectColumn(c.id)}>
+              {c.label} ({byStatus[c.id].length})
+            </Button>
+          ))}
         </div>
       )}
 
