@@ -1,4 +1,4 @@
-import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
+import { createFileRoute, Outlet, redirect, isRedirect } from "@tanstack/react-router";
 
 import { supabase } from "@/integrations/supabase/client";
 import { getMyWorkspace } from "@/lib/workspace.functions";
@@ -15,7 +15,7 @@ export const Route = createFileRoute("/_authenticated")({
         const ws = await getMyWorkspace();
         if (!ws || !ws.onboarding_complete) throw redirect({ to: "/onboarding" });
       } catch (e: any) {
-        if (e?.isRedirect) throw e;
+        if (isRedirect(e)) throw e;
         // if we can't check, still allow — will error inside
       }
     }
