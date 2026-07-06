@@ -731,7 +731,7 @@ function AiToolsGrid({ onPick }: { onPick: (id: string) => void }) {
   );
 }
 
-function AiToolRunner({ jobId, toolId, onBack }: { jobId: string; toolId: string; onBack: () => void }) {
+function AiToolRunner({ jobId, toolId, onBack, job }: { jobId: string; toolId: string; onBack: () => void; job?: any }) {
   const tool = AI_TOOLS_META.find((t) => t.id === toolId);
   const runFn = useServerFn(runAiTool);
   const saveFn = useServerFn(saveToolOutput);
@@ -753,6 +753,10 @@ function AiToolRunner({ jobId, toolId, onBack }: { jobId: string; toolId: string
 
   if (!tool) return null;
   const a = ACCENT[tool.accent] ?? ACCENT.indigo;
+  const fileLabel = (label: string) => {
+    const parts = [label, job?.company, job?.title].filter(Boolean).map((s: string) => String(s));
+    return parts.join(" — ");
+  };
 
   return (
     <div className="space-y-4">
