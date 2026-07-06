@@ -230,7 +230,7 @@ function Step2({ onBack, onDone }: { onBack: () => void; onDone: () => void }) {
   );
 }
 
-function Step3({ onDone }: { onDone: () => void }) {
+function Step3({ onBack, onDone }: { onBack: () => void; onDone: () => void }) {
   const [tex, setTex] = useState("");
   const [busy, setBusy] = useState(false);
   const save = useServerFn(saveBaseResume);
