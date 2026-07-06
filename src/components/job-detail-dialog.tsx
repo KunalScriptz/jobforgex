@@ -8,6 +8,8 @@ import {
   AlertTriangle, CheckCircle2, Tag, Target, GraduationCap, Users,
 } from "lucide-react";
 import JSZip from "jszip";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 import { Checkbox } from "@/components/ui/checkbox";
 import { tailorResume, generateCoverLetter, saveArtifact } from "@/lib/ai-generate.functions";
@@ -713,6 +715,7 @@ function AiToolRunner({ jobId, toolId, onBack }: { jobId: string; toolId: string
   const qc = useQueryClient();
   const [ctx, setCtx] = useState("");
   const [result, setResult] = useState<{ content: string; label: string } | null>(null);
+  const [view, setView] = useState<"preview" | "edit">("preview");
 
   const run = useMutation({
     mutationFn: () => runFn({ data: { job_id: jobId, tool_id: toolId, context: ctx } } as any),
@@ -781,7 +784,13 @@ function AiToolRunner({ jobId, toolId, onBack }: { jobId: string; toolId: string
       {result && (
         <div className="rounded-xl border bg-card">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-2">
-            <div className="text-sm font-semibold">{result.label} <span className="ml-2 text-[10px] font-normal uppercase tracking-wider text-muted-foreground">editable</span></div>
+            <div className="flex items-center gap-3">
+              <div className="text-sm font-semibold">{result.label}</div>
+              <div className="inline-flex overflow-hidden rounded-md border text-[11px]">
+                <button onClick={() => setView("preview")} className={`px-2 py-1 ${view === "preview" ? "bg-muted font-medium" : "text-muted-foreground"}`}>Preview</button>
+                <button onClick={() => setView("edit")} className={`px-2 py-1 border-l ${view === "edit" ? "bg-muted font-medium" : "text-muted-foreground"}`}>Edit</button>
+              </div>
+            </div>
             <div className="flex flex-wrap gap-1">
               <Button size="sm" variant="ghost" onClick={() => { navigator.clipboard.writeText(result.content); toast.success("Copied"); }}>
                 <Copy className="mr-1 h-3.5 w-3.5" /> Copy
@@ -813,12 +822,18 @@ function AiToolRunner({ jobId, toolId, onBack }: { jobId: string; toolId: string
               </DropdownMenu>
             </div>
           </div>
-          <Textarea
-            value={result.content}
-            onChange={(e) => setResult({ ...result, content: e.target.value })}
-            rows={18}
-            className="min-h-[420px] max-h-[560px] rounded-none border-0 font-mono text-sm leading-relaxed focus-visible:ring-0"
-          />
+          {view === "preview" ? (
+            <div className="prose prose-sm dark:prose-invert max-w-none min-h-[420px] max-h-[560px] overflow-auto px-5 py-4 prose-headings:mt-4 prose-headings:mb-2 prose-p:my-2 prose-ul:my-2 prose-ol:my-2 prose-li:my-0.5 prose-code:rounded prose-code:bg-muted prose-code:px-1 prose-code:py-0.5 prose-code:text-[0.85em] prose-pre:bg-muted">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{result.content}</ReactMarkdown>
+            </div>
+          ) : (
+            <Textarea
+              value={result.content}
+              onChange={(e) => setResult({ ...result, content: e.target.value })}
+              rows={18}
+              className="min-h-[420px] max-h-[560px] rounded-none border-0 font-mono text-sm leading-relaxed focus-visible:ring-0"
+            />
+          )}
         </div>
       )}
     </div>
