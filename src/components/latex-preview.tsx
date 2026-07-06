@@ -55,35 +55,55 @@ export function LatexPreview({ source, debounceMs = 1200, auto = true }: Props) 
     <div className="flex h-full w-full flex-col">
       <div className="flex items-center gap-2 border-b p-2 text-xs">
         <FileText className="h-3.5 w-3.5 text-muted-foreground" />
-        <span className="font-medium text-muted-foreground">Preview (real PDF · latexonline.cc)</span>
+        <span className="font-medium text-muted-foreground">Preview (real PDF)</span>
         <span className="ml-auto flex items-center gap-2">
           {status === "compiling" && (<><Loader2 className="h-3.5 w-3.5 animate-spin" /><span>Compiling…</span></>)}
-          {status === "error" && (<><AlertTriangle className="h-3.5 w-3.5 text-red-500" /><button className="underline" onClick={() => setShowLog((v) => !v)}>{showLog ? "hide" : "show error"}</button></>)}
+          {status === "error" && (
+            <>
+              <AlertTriangle className="h-3.5 w-3.5 text-red-500" />
+              <button className="font-medium text-red-500 underline underline-offset-2" onClick={() => setShowLog((v) => !v)}>
+                {showLog ? "hide error" : "show error"}
+              </button>
+            </>
+          )}
           <button className="flex items-center gap-1 rounded border px-1.5 py-0.5 hover:bg-muted" onClick={run} disabled={status === "compiling"}>
             <RefreshCw className="h-3 w-3" />Recompile
           </button>
         </span>
       </div>
-      <div className="relative flex-1 bg-neutral-100">
+      <div className="relative flex-1 bg-neutral-100 dark:bg-neutral-900">
         {pdfUrl && (
           <iframe title="PDF preview" src={pdfUrl} className="h-full w-full border-0" />
         )}
         {!pdfUrl && status !== "error" && (
-          <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
+          <div className="flex h-full items-center justify-center text-xs text-neutral-600 dark:text-neutral-300">
             {status === "compiling" ? "Compiling first PDF…" : "Waiting for changes…"}
           </div>
         )}
         {status === "error" && !pdfUrl && (
-          <div className="flex h-full items-center justify-center p-6 text-center text-xs text-red-600">
-            Compile failed. Click "show error" for details.
+          <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
+            <AlertTriangle className="h-6 w-6 text-red-500" />
+            <div className="text-sm font-semibold text-red-500">Compile failed</div>
+            <div className="max-w-md text-xs text-neutral-600 dark:text-neutral-300">
+              {errorMsg ? firstLine(errorMsg) : "Unknown error"}
+            </div>
+            <button className="rounded border border-red-500/40 bg-red-500/10 px-2.5 py-1 text-xs font-medium text-red-500 hover:bg-red-500/20"
+              onClick={() => setShowLog(true)}>
+              Show full error
+            </button>
           </div>
         )}
         {showLog && errorMsg && (
-          <pre className="absolute inset-x-0 bottom-0 max-h-72 overflow-auto border-t bg-black/90 p-3 text-[11px] text-red-200">
+          <pre className="absolute inset-x-0 bottom-0 max-h-72 overflow-auto border-t border-red-500/30 bg-black/95 p-3 text-[11px] text-red-200">
             {errorMsg}
           </pre>
         )}
       </div>
     </div>
   );
+}
+
+function firstLine(s: string): string {
+  const line = s.split("\n").find((l) => l.trim().length > 0) ?? s;
+  return line.length > 220 ? line.slice(0, 220) + "…" : line;
 }
