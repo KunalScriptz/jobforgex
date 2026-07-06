@@ -318,6 +318,7 @@
     panel.querySelector(".close").addEventListener("click", () => { panel.remove(); panel = null; });
     panel.querySelector("#jf-save").addEventListener("click", saveJob);
     panel.querySelector("#jf-autofill").addEventListener("click", tryAutofill);
+    positionPanel();
   }
 
   function status(text, cls) {
