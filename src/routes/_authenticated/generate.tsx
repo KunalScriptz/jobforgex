@@ -16,6 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Progress } from "@/components/ui/progress";
 import { Wand2, Download, FileText, Sparkles } from "lucide-react";
 import { LatexPreview } from "@/components/latex-preview";
+import { TailoringLoader } from "@/components/tailoring-loader";
 
 export const Route = createFileRoute("/_authenticated/generate")({ component: GeneratePage });
 
@@ -160,6 +161,17 @@ function GeneratePage() {
         </Card>
 
         <div className="space-y-4">
+          {genMut.isPending && (
+            <Card>
+              <CardContent className="pt-6">
+                <TailoringLoader
+                  kind={doTailor && doCover ? "both" : doCover ? "cover_letter" : "resume"}
+                  estimatedSeconds={doTailor && doCover ? 70 : 45}
+                />
+              </CardContent>
+            </Card>
+          )}
+
           {report && (
             <Card>
               <CardHeader>
@@ -180,10 +192,10 @@ function GeneratePage() {
             </Card>
           )}
 
-          {tailored && (
+          {tailored && !genMut.isPending && (
             <ArtifactCard title="Tailored resume" filename={tailored.filename} latex={tailored.latex} onDownload={() => download(tailored.filename, tailored.latex)} />
           )}
-          {cover && (
+          {cover && !genMut.isPending && (
             <ArtifactCard title="Cover letter" filename={cover.filename} latex={cover.latex} onDownload={() => download(cover.filename, cover.latex)} />
           )}
         </div>
@@ -218,7 +230,11 @@ function ArtifactCard({ title, filename, latex, onDownload }: any) {
       </CardHeader>
       <CardContent className="space-y-2">
         <div className="h-96 overflow-hidden rounded border">
-          <LatexPreview source={latex} />
+          <LatexPreview
+            source={latex}
+            cacheKey={`generate:${filename}`}
+            downloadFilename={filename.replace(/\.tex$/i, ".pdf")}
+          />
         </div>
         <details className="rounded border bg-muted/30 text-xs">
           <summary className="cursor-pointer select-none px-2 py-1.5 text-muted-foreground">View LaTeX source</summary>
