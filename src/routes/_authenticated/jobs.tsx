@@ -14,13 +14,15 @@ import {
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
-import { Briefcase, FileText, Trophy, ThumbsDown, Sparkles, Trash2 } from "lucide-react";
+import { Briefcase, FileText, Trophy, ThumbsDown, Sparkles, Trash2, CheckSquare, X } from "lucide-react";
 
 import { listJobs, bulkUpdateStatus, deleteJob } from "@/lib/jobs.functions";
 import { listBoards } from "@/lib/workspace.functions";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { JobDetailDialog } from "@/components/job-detail-dialog";
 
 export const Route = createFileRoute("/_authenticated/jobs")({ component: JobsPage });
 
@@ -43,6 +45,10 @@ function JobsPage() {
   const [search, setSearch] = useState("");
   const [board, setBoard] = useState<string>("all");
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkStatus, setBulkStatus] = useState<Status | "">("");
 
   const { data: boards = [] } = useQuery({ queryKey: ["boards"], queryFn: () => getBoards() });
   const { data: allJobs = [] } = useQuery({
@@ -85,6 +91,26 @@ function JobsPage() {
     onSettled: () => qc.invalidateQueries({ queryKey: ["jobs"] }),
   });
 
+  const bulkMove = useMutation({
+    mutationFn: async ({ ids, status }: { ids: string[]; status: Status }) =>
+      bulk({ data: { ids, status } } as any),
+    onSuccess: (_r, v) => {
+      toast.success(`Moved ${v.ids.length} ${v.ids.length === 1 ? "job" : "jobs"} to ${v.status}`);
+      setSelected(new Set());
+      setBulkStatus("");
+      qc.invalidateQueries({ queryKey: ["jobs"] });
+    },
+    onError: (e: any) => toast.error(String(e?.message ?? e).slice(0, 200)),
+  });
+
+  function toggleSelect(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
   const activeJob = activeId ? filtered.find((j: any) => j.id === activeId) : null;
 
@@ -115,8 +141,39 @@ function JobsPage() {
             {boards.map((b: any) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
           </SelectContent>
         </Select>
-        <span className="ml-auto text-xs text-muted-foreground">Drag cards between columns to change status</span>
+        <Button
+          size="sm"
+          variant={selectMode ? "default" : "outline"}
+          onClick={() => { setSelectMode((v) => !v); setSelected(new Set()); }}
+          className="ml-auto"
+        >
+          <CheckSquare className="mr-1.5 h-4 w-4" />
+          {selectMode ? "Exit select" : "Select"}
+        </Button>
+        <span className="text-xs text-muted-foreground">
+          {selectMode ? "Tap cards to select · bulk-move below" : "Drag cards or use Select to bulk-move"}
+        </span>
       </div>
+
+      {selectMode && selected.size > 0 && (
+        <div className="mb-3 flex items-center gap-3 rounded-lg border border-primary/40 bg-primary/5 px-3 py-2 text-sm">
+          <span className="font-semibold">{selected.size} selected</span>
+          <Select value={bulkStatus} onValueChange={(v) => setBulkStatus(v as Status)}>
+            <SelectTrigger className="h-8 w-48"><SelectValue placeholder="Move to…" /></SelectTrigger>
+            <SelectContent>
+              {COLUMNS.map((c) => <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Button
+            size="sm"
+            disabled={!bulkStatus || bulkMove.isPending}
+            onClick={() => bulkMove.mutate({ ids: Array.from(selected), status: bulkStatus as Status })}
+          >Apply</Button>
+          <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>
+            <X className="mr-1 h-3.5 w-3.5" />Clear
+          </Button>
+        </div>
+      )}
 
       <DndContext
         sensors={sensors}
@@ -130,6 +187,10 @@ function JobsPage() {
               key={col.id}
               col={col}
               jobs={byStatus[col.id]}
+              selectMode={selectMode}
+              selected={selected}
+              onToggleSelect={toggleSelect}
+              onOpen={(id) => setOpenId(id)}
               onDelete={async (id) => {
                 await del({ data: { id } } as any);
                 qc.invalidateQueries({ queryKey: ["jobs"] });
@@ -141,6 +202,12 @@ function JobsPage() {
           {activeJob ? <JobCard job={activeJob} dragging /> : null}
         </DragOverlay>
       </DndContext>
+
+      <JobDetailDialog
+        jobId={openId}
+        open={!!openId}
+        onOpenChange={(v) => !v && setOpenId(null)}
+      />
     </div>
   );
 }
@@ -148,10 +215,18 @@ function JobsPage() {
 function Column({
   col,
   jobs,
+  selectMode,
+  selected,
+  onToggleSelect,
+  onOpen,
   onDelete,
 }: {
   col: { id: Status; label: string; icon: any; accent: string };
   jobs: any[];
+  selectMode: boolean;
+  selected: Set<string>;
+  onToggleSelect: (id: string) => void;
+  onOpen: (id: string) => void;
   onDelete: (id: string) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: col.id });
@@ -172,7 +247,15 @@ function Column({
       </div>
       <div className="flex flex-1 flex-col gap-2 overflow-y-auto p-2">
         {jobs.map((j) => (
-          <DraggableCard key={j.id} job={j} onDelete={onDelete} />
+          <DraggableCard
+            key={j.id}
+            job={j}
+            selectMode={selectMode}
+            selected={selected.has(j.id)}
+            onToggleSelect={onToggleSelect}
+            onOpen={onOpen}
+            onDelete={onDelete}
+          />
         ))}
         {jobs.length === 0 && (
           <div className="rounded-md border border-dashed py-6 text-center text-xs text-muted-foreground">
@@ -184,16 +267,33 @@ function Column({
   );
 }
 
-function DraggableCard({ job, onDelete }: { job: any; onDelete: (id: string) => void }) {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: job.id });
+function DraggableCard({
+  job, selectMode, selected, onToggleSelect, onOpen, onDelete,
+}: {
+  job: any;
+  selectMode: boolean;
+  selected: boolean;
+  onToggleSelect: (id: string) => void;
+  onOpen: (id: string) => void;
+  onDelete: (id: string) => void;
+}) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: job.id,
+    disabled: selectMode,
+  });
   return (
     <div
       ref={setNodeRef}
-      {...attributes}
-      {...listeners}
+      {...(selectMode ? {} : attributes)}
+      {...(selectMode ? {} : listeners)}
       className={isDragging ? "opacity-30" : ""}
+      onClick={(e) => {
+        if ((e.target as HTMLElement).closest("[data-stop]")) return;
+        if (selectMode) onToggleSelect(job.id);
+        else onOpen(job.id);
+      }}
     >
-      <JobCard job={job} onDelete={onDelete} />
+      <JobCard job={job} selectMode={selectMode} selected={selected} onDelete={onDelete} />
     </div>
   );
 }
@@ -202,25 +302,41 @@ function JobCard({
   job,
   onDelete,
   dragging,
+  selectMode,
+  selected,
 }: {
   job: any;
   onDelete?: (id: string) => void;
   dragging?: boolean;
+  selectMode?: boolean;
+  selected?: boolean;
 }) {
   return (
     <div
-      className={`group cursor-grab rounded-lg border bg-card p-3 shadow-sm transition-shadow hover:shadow-md active:cursor-grabbing ${
-        dragging ? "rotate-2 shadow-xl" : ""
+      className={`group rounded-lg border bg-card p-3 shadow-sm transition-all hover:shadow-md ${
+        selectMode ? "cursor-pointer" : "cursor-grab active:cursor-grabbing"
+      } ${dragging ? "rotate-2 shadow-xl" : ""} ${
+        selected ? "ring-2 ring-primary" : ""
       }`}
     >
+      <div className="mb-1 flex items-start gap-2">
+        {selectMode && (
+          <div data-stop className="pt-0.5">
+            <Checkbox checked={!!selected} />
+          </div>
+        )}
+        <div className="min-w-0 flex-1">
       <div className="mb-1 text-sm font-semibold leading-tight">{job.title}</div>
       <div className="text-xs text-muted-foreground">{job.company}</div>
+        </div>
+      </div>
       <div className="mt-2 flex items-center justify-between">
         <span className="text-[10px] text-muted-foreground">
           {job.date_applied ?? new Date(job.created_at).toLocaleDateString()}
         </span>
         {onDelete && (
           <button
+            data-stop
             onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => {
               e.stopPropagation();

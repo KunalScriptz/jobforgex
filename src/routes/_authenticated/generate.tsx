@@ -18,6 +18,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
 import { Wand2, Download, FileText, Sparkles } from "lucide-react";
+import { LatexPreview } from "@/components/latex-preview";
 
 export const Route = createFileRoute("/_authenticated/generate")({ component: GeneratePage });
 
@@ -211,8 +212,14 @@ function ArtifactCard({ title, filename, latex, onDownload }: any) {
         </div>
         <Button size="sm" variant="outline" onClick={onDownload}><Download className="mr-1 h-4 w-4" />.tex</Button>
       </CardHeader>
-      <CardContent>
-        <pre className="max-h-64 overflow-auto rounded bg-muted/30 p-2 text-[10px] leading-tight">{latex.slice(0, 4000)}{latex.length > 4000 ? "\n..." : ""}</pre>
+      <CardContent className="space-y-2">
+        <div className="h-96 overflow-hidden rounded border">
+          <LatexPreview source={latex} />
+        </div>
+        <details className="rounded border bg-muted/30 text-xs">
+          <summary className="cursor-pointer select-none px-2 py-1.5 text-muted-foreground">View LaTeX source</summary>
+          <pre className="max-h-64 overflow-auto p-2 text-[10px] leading-tight">{latex.slice(0, 4000)}{latex.length > 4000 ? "\n..." : ""}</pre>
+        </details>
       </CardContent>
     </Card>
   );
