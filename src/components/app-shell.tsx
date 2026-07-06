@@ -3,6 +3,7 @@ import { ListTodo, Wand2, FileText, ClipboardCheck, DollarSign, Settings, Sparkl
 import { toast } from "sonner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
+import { useEffect, useRef, useState } from "react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -24,9 +25,25 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const getWs = useServerFn(getMyWorkspace);
-  const { data: ws } = useQuery({ queryKey: ["ws"], queryFn: () => getWs() });
+  const [hasSession, setHasSession] = useState(true);
+  const signingOutRef = useRef(false);
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => setHasSession(!!data.session));
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
+      setHasSession(!!session);
+    });
+    return () => sub.subscription.unsubscribe();
+  }, []);
+  const { data: ws } = useQuery({
+    queryKey: ["ws"],
+    queryFn: () => getWs(),
+    enabled: hasSession && !signingOutRef.current,
+    retry: false,
+  });
 
   async function signOut() {
+    signingOutRef.current = true;
+    setHasSession(false);
     await qc.cancelQueries();
     qc.clear();
     await supabase.auth.signOut();
