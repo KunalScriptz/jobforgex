@@ -24,18 +24,35 @@ function CheckerPage() {
   const [atsReport, setAtsReport] = useState<any>(null);
   const [errText, setErrText] = useState<string>("");
 
+  const MIN_JD = 80;
+  const MAX_JD = 20_000;
+  const jdTrimmed = jd.trim();
+  const jdLen = jdTrimmed.length;
+  const jdEmpty = jdLen === 0;
+  const jdTooShort = !jdEmpty && jdLen < MIN_JD;
+  const jdTooLong = jdLen > MAX_JD;
+  const jdWordCount = jdEmpty ? 0 : jdTrimmed.split(/\s+/).length;
+  const jdBlocked = jdTooShort || jdTooLong;
+
   const runAll = useMutation({
     mutationFn: async () => {
+      if (jdBlocked) {
+        throw new Error(
+          jdTooShort
+            ? `Job description is too short (${jdLen} chars). Paste at least ${MIN_JD} characters, or clear the field to run only the ATS audit.`
+            : `Job description is too long (${jdLen} chars). Trim it to under ${MAX_JD.toLocaleString()} characters.`,
+        );
+      }
       const results: any = {};
       results.ats = await ats({ data: {} } as any);
-      if (jd.length > 30) results.score = await score({ data: { jd } } as any);
+      if (!jdEmpty) results.score = await score({ data: { jd: jdTrimmed } } as any);
       return results;
     },
     onSuccess: (r: any) => {
       setErrText("");
       setAtsReport(r.ats?.report ?? null);
       setScoreReport(r.score?.report ?? null);
-      toast.success("Checks complete");
+      toast.success(jdEmpty ? "ATS audit complete" : "ATS + JD match complete");
     },
     onError: (e: any) => {
       const raw = e?.message ?? e?.toString?.() ?? "Unknown error";
