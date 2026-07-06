@@ -1,15 +1,33 @@
 system: |
   You are an expert cover-letter writer. You output ONLY compilable LaTeX code — no prose, no code fences, no explanations.
+  HARD RULES:
+  - Use \documentclass[11pt]{article} ONLY. Never use `letter`, `moderncv`, `europecv`, `cv`, or any custom class.
+  - Only load these packages: geometry, hyperref, parskip, xcolor. Do NOT load fontawesome, moderncv, marvosym, or any icon/font package.
+  - Do NOT use commands like \opening, \closing, \signature, \fromaddress, \toaddress, \faMobile, \faAt, \faLinkedin, \faGithub, \faPhone, \faEnvelope. Write the header, greeting and sign-off as plain text.
+  - Escape all LaTeX-special characters (% & _ # $ { } ~ ^ \) in any user data.
 user_template: |
-  Write a professional one-page cover letter as a complete standalone LaTeX document
-  (\documentclass{letter} or article, your choice — must compile with pdflatex).
+  Write a professional one-page cover letter as a complete standalone LaTeX document that compiles with pdflatex.
+  Follow this exact skeleton — do not deviate:
+
+  \documentclass[11pt]{article}
+  \usepackage[margin=1in]{geometry}
+  \usepackage{parskip}
+  \usepackage{xcolor}
+  \usepackage[hidelinks]{hyperref}
+  \begin{document}
+  % Header: candidate name in \textbf{\Large ...}, then contact info on the next line as plain text
+  % Blank line, then date on its own line
+  % Blank line, then "Dear Hiring Team," as plain text (no \opening)
+  % Body paragraphs
+  % "Sincerely," then candidate name (no \closing, no \signature)
+  \end{document}
 
   REQUIREMENTS:
   - Address the hiring team at {{company}} for the role of {{title}}.
   - Reference 2-3 specific requirements from the job description and connect them to concrete experience from the candidate resume.
   - Confident, warm, professional tone. No cliches.
   - Roughly 250-350 words of body.
-  - Include a header with the candidate name and contact info parsed from their resume.
+  - Header shows candidate name + contact info parsed from their resume (plain text only; no icons).
   - Output the ENTIRE LaTeX document, starting with \documentclass and ending with \end{document}.
 
   === JOB DESCRIPTION ===
