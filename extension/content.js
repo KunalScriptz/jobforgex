@@ -188,9 +188,22 @@
     return (slug || "").replace(/[-_]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
   }
 
+  function cleanCompany(name) {
+    if (!name) return "";
+    let s = String(name).replace(/\s+/g, " ").trim();
+    // Naukri / Glassdoor concatenate ratings+reviews after the name, e.g.
+    // "Infosys3.549.8K Reviews" or "Google 4.5 12K Reviews".
+    s = s.replace(/\d+(\.\d+)?\s*K?\+?\s*(Ratings?|Reviews?)\s*$/i, "").trim();
+    // Strip trailing rating (e.g. "4.5", "4.5★", "3.5 stars").
+    s = s.replace(/\s*[\d.]+\s*(★|stars?)?\s*$/i, "").trim();
+    // Any leftover trailing digits glued to the name.
+    s = s.replace(/\d+(\.\d+)?$/, "").trim();
+    return s;
+  }
+
   function scrape() {
     return {
-      company: guessCompany(),
+      company: cleanCompany(guessCompany()),
       title: guessTitle(),
       url: location.href,
       description: guessDescription(),
