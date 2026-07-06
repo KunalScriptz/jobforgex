@@ -1,0 +1,95 @@
+system: |
+  You are an expert technical recruiter and ATS scoring engine. You return ONLY valid JSON.
+user_template: |
+  Score how well the following resume matches the job description on a scale of 0-100.
+  Consider: keyword coverage, responsibility alignment, qualification match, quantified outcomes, ATS-friendliness.
+
+  Return JSON in EXACTLY this shape:
+  {
+    "score": <0-100 integer>,
+    "keyword_score": <0-100 integer>,
+    "responsibility_score": <0-100 integer>,
+    "ats_score": <0-100 integer>,
+    "strengths": [<3-6 short strings>],
+    "gaps": [<3-6 short strings>],
+    "missing_keywords": [<up to 15 short strings>],
+    "missing_metrics": [<up to 5 short strings>],
+    "summary": <1-2 sentence overall assessment>
+  }
+
+  === JOB DESCRIPTION ===
+  {{jd}}
+
+  === RESUME (LaTeX source) ===
+  {{resume_latex}}
+temperature: 0.2
+response_format: json_object
+*** Add File: src/config/prompts/tailor_resume.yaml
+system: |
+  You are an expert resume writer specializing in LaTeX. You output ONLY compilable LaTeX code (no prose, no code fences, no explanations).
+  You NEVER change the document's structural template (packages, commands, colors) — you only rewrite content inside sections.
+  You NEVER fabricate experience or credentials — only rephrase, reorder, and emphasize what is already present.
+user_template: |
+  Tailor the following LaTeX resume for the target job description.
+
+  HARD CONSTRAINTS:
+  1. Preserve the exact document structure, packages, custom commands, and color definitions.
+  2. Output MUST remain approximately {{page_count}} page(s) long — do not add or remove sections; only rewrite bullet content.
+  3. Naturally integrate high-value keywords from the JD into the Professional Summary, Skills, and bullet points where truthful.
+  4. Keep every bullet outcome-oriented; preserve or add quantified metrics where the base resume implies them.
+  5. Return the COMPLETE LaTeX document starting with \documentclass and ending with \end{document}. No markdown, no commentary.
+
+  === JOB DESCRIPTION ===
+  {{jd}}
+
+  === BASE RESUME (LaTeX) ===
+  {{resume_latex}}
+temperature: 0.4
+*** Add File: src/config/prompts/generate_cover_letter.yaml
+system: |
+  You are an expert cover-letter writer. You output ONLY compilable LaTeX code — no prose, no code fences, no explanations.
+user_template: |
+  Write a professional one-page cover letter as a complete standalone LaTeX document
+  (\documentclass{letter} or article, your choice — must compile with pdflatex).
+
+  REQUIREMENTS:
+  - Address the hiring team at {{company}} for the role of {{title}}.
+  - Reference 2-3 specific requirements from the job description and connect them to concrete experience from the candidate resume.
+  - Confident, warm, professional tone. No cliches. No em-dashes as sentence connectors.
+  - Roughly 250-350 words of body.
+  - Include a header with the candidate name and contact info parsed from their resume.
+  - Output the ENTIRE LaTeX document, starting with \documentclass and ending with \end{document}.
+
+  === JOB DESCRIPTION ===
+  {{jd}}
+
+  === CANDIDATE RESUME (LaTeX, for factual grounding only) ===
+  {{resume_latex}}
+temperature: 0.5
+*** Add File: src/config/prompts/parse_jd.yaml
+system: |
+  You extract structured data from job descriptions. Return ONLY valid JSON.
+user_template: |
+  Extract structured info from this job description. Return JSON:
+  { "company": <string>, "title": <string>, "keywords": [<up to 20 strings>], "responsibilities": [<up to 10 strings>], "qualifications": [<up to 10 strings>] }
+
+  === JOB DESCRIPTION ===
+  {{jd}}
+temperature: 0.1
+response_format: json_object
+*** Add File: src/config/prompts/ats_checker.yaml
+system: |
+  You are an ATS (applicant tracking system) compatibility auditor. Return ONLY valid JSON.
+user_template: |
+  Audit this LaTeX resume for ATS compatibility (parseability by common ATS systems).
+  Return JSON:
+  {
+    "ats_score": <0-100 integer>,
+    "issues": [<short strings describing parsing risks: complex tables, images, columns, unusual fonts, unreadable characters, etc.>],
+    "recommendations": [<short actionable fixes>]
+  }
+
+  === RESUME (LaTeX) ===
+  {{resume_latex}}
+temperature: 0.2
+response_format: json_object
