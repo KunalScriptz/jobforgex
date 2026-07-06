@@ -275,7 +275,9 @@ function Step3({ onBack, onDone }: { onBack: () => void; onDone: () => void }) {
             placeholder="\documentclass[letterpaper,11pt]{article}&#10;..."
           />
           <div className="flex items-center justify-between">
-            <div className="text-xs text-muted-foreground">{tex.length.toLocaleString()} characters</div>
+            <Button type="button" variant="outline" onClick={onBack} disabled={busy}>
+              <ArrowLeft className="mr-1.5 h-4 w-4" /> Back
+            </Button>
             <Button type="submit" disabled={busy}>
               {busy ? "Saving..." : (<><CheckCircle2 className="mr-1.5 h-4 w-4" />Finish setup</>)}
             </Button>
