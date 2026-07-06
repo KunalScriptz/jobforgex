@@ -479,7 +479,7 @@ export type Database = {
         | "ats_check"
         | "custom"
       app_role: "admin" | "user"
-      artifact_kind: "tailored_resume" | "cover_letter"
+      artifact_kind: "tailored_resume" | "cover_letter" | "ai_tool" | "pdf"
       job_status: "wishlist" | "applied" | "interview" | "rejected" | "offer"
     }
     CompositeTypes: {
@@ -617,7 +617,7 @@ export const Constants = {
         "custom",
       ],
       app_role: ["admin", "user"],
-      artifact_kind: ["tailored_resume", "cover_letter"],
+      artifact_kind: ["tailored_resume", "cover_letter", "ai_tool", "pdf"],
       job_status: ["wishlist", "applied", "interview", "rejected", "offer"],
     },
   },
