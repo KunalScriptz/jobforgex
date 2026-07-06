@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Trash2, Plus, PlugZap, CheckCircle2, XCircle, AlertTriangle, Sparkles, Loader2 } from "lucide-react";
 import { Chrome, Download, Copy } from "lucide-react";
 
@@ -118,20 +119,48 @@ function ProviderCard() {
   const test = useServerFn(testConnection);
   const pingSaved = useServerFn(pingSavedModel);
   const { data: p } = useQuery({ queryKey: ["provider"], queryFn: () => get() });
+  const PRESETS: Record<string, { name: string; base_url: string; test_model: string; key_hint: string; docs: string }> = {
+    deepseek:   { name: "DeepSeek",   base_url: "https://api.deepseek.com/v1",   test_model: "deepseek-chat",              key_hint: "sk-...",   docs: "https://platform.deepseek.com/api_keys" },
+    openrouter: { name: "OpenRouter", base_url: "https://openrouter.ai/api/v1",  test_model: "openai/gpt-4o-mini",         key_hint: "sk-or-...", docs: "https://openrouter.ai/keys" },
+    custom:     { name: "Custom",     base_url: "",                              test_model: "",                            key_hint: "sk-...",   docs: "" },
+  };
+  const detectPreset = (url?: string): keyof typeof PRESETS => {
+    if (!url) return "deepseek";
+    if (url.includes("openrouter.ai")) return "openrouter";
+    if (url.includes("deepseek.com")) return "deepseek";
+    return "custom";
+  };
+  const [preset, setPreset] = useState<keyof typeof PRESETS>("deepseek");
   const [baseUrl, setBaseUrl] = useState("");
   const [apiKey, setApiKey] = useState("");
   const [model, setModel] = useState("deepseek-chat");
   const [testReply, setTestReply] = useState<string>("");
   const [testError, setTestError] = useState<string>("");
 
-  useEffect(() => { if (p) setBaseUrl(p.base_url); }, [p]);
+  useEffect(() => {
+    if (p) {
+      setBaseUrl(p.base_url);
+      const detected = detectPreset(p.base_url);
+      setPreset(detected);
+      if (detected !== "custom") setModel(PRESETS[detected].test_model);
+    }
+  }, [p]);
+
+  function applyPreset(id: keyof typeof PRESETS) {
+    setPreset(id);
+    const cfg = PRESETS[id];
+    if (id !== "custom") {
+      setBaseUrl(cfg.base_url);
+      setModel(cfg.test_model);
+    }
+  }
 
   const submit = useMutation({
     mutationFn: async () => {
       setTestReply("");
       setTestError("");
       const cleanKey = apiKey.trim();
-      await save({ data: { base_url: baseUrl.trim(), api_key: cleanKey || undefined, name: "DeepSeek" } } as any);
+      await save({ data: { base_url: baseUrl.trim(), api_key: cleanKey || undefined, name: PRESETS[preset].name } } as any);
       if (!cleanKey) return null;
       try {
         return await pingSaved({ data: { model: model.trim() } } as any);
@@ -181,10 +210,27 @@ function ProviderCard() {
         </div>
       </CardHeader>
       <CardContent className="space-y-3 pt-4">
+        <div>
+          <Label>Provider</Label>
+          <Select value={preset} onValueChange={(v) => applyPreset(v as keyof typeof PRESETS)}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="deepseek">DeepSeek</SelectItem>
+              <SelectItem value="openrouter">OpenRouter</SelectItem>
+              <SelectItem value="custom">Custom (OpenAI-compatible)</SelectItem>
+            </SelectContent>
+          </Select>
+          {preset === "openrouter" && (
+            <p className="mt-1 text-xs text-muted-foreground">
+              OpenRouter model ids look like <code>openai/gpt-4o-mini</code>, <code>anthropic/claude-3.5-sonnet</code>, <code>meta-llama/llama-3.1-70b-instruct</code>. Get a key at{" "}
+              <a href="https://openrouter.ai/keys" target="_blank" rel="noreferrer" className="underline">openrouter.ai/keys</a>.
+            </p>
+          )}
+        </div>
         <div><Label>Base URL</Label><Input value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} placeholder="https://api.deepseek.com/v1" /></div>
         <div>
           <Label>API key {p?.has_key ? <span className="text-xs text-emerald-600">✓ saved</span> : null}</Label>
-          <Input type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder={p?.has_key ? "•••••••• (leave blank to keep)" : "sk-..."} />
+          <Input type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder={p?.has_key ? "•••••••• (leave blank to keep)" : PRESETS[preset].key_hint} />
         </div>
         <div><Label>Test model</Label><Input value={model} onChange={(e) => setModel(e.target.value)} /></div>
         <div className="flex flex-wrap gap-2">
