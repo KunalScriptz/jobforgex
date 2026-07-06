@@ -15,14 +15,18 @@ import {
 } from "@dnd-kit/core";
 import { SortableContext, useSortable, arrayMove, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Briefcase, FileText, Trophy, ThumbsDown, Sparkles, Trash2, CheckSquare, X } from "lucide-react";
+import { Briefcase, FileText, Trophy, ThumbsDown, Sparkles, Trash2, CheckSquare, X, Plus } from "lucide-react";
 
-import { listJobs, bulkUpdateStatus, deleteJob } from "@/lib/jobs.functions";
+import { listJobs, bulkUpdateStatus, deleteJob, createJob } from "@/lib/jobs.functions";
 import { listBoards } from "@/lib/workspace.functions";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { CompanyAutocomplete } from "@/components/company-autocomplete";
 import { JobDetailDialog } from "@/components/job-detail-dialog";
 import { CompanyLogo } from "@/components/company-logo";
 
@@ -212,6 +216,7 @@ function JobsPage() {
           <CheckSquare className="mr-1.5 h-4 w-4" />
           {selectMode ? "Exit select" : "Select"}
         </Button>
+        <AddJobDialog boards={boards} />
         <span className="text-xs text-muted-foreground">
           {selectMode ? "Tap cards to select · bulk-move below" : "Drag cards or use Select to bulk-move"}
         </span>
