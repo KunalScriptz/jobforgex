@@ -381,9 +381,31 @@ function DocumentCard({ art, jobId }: { art: any; jobId: string }) {
             <Download className="mr-1 h-3.5 w-3.5" /> PDF
           </Button>
         )}
-        <Button size="sm" variant="outline" onClick={() => downloadText(art.filename, art.latex_source ?? "")}>
-          {"." + (art.filename?.split(".").pop() || "txt")}
-        </Button>
+        {hasLatex ? (
+          <Button size="sm" variant="outline" onClick={() => downloadText(art.filename, art.latex_source ?? "")}>
+            <Download className="mr-1 h-3.5 w-3.5" /> .tex
+          </Button>
+        ) : (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm" variant="outline">
+                <Download className="mr-1 h-3.5 w-3.5" /> Download
+                <ChevronDown className="ml-1 h-3.5 w-3.5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-48">
+              <DropdownMenuItem onClick={() => downloadAs("txt", art.filename?.replace(/\.[^.]+$/, "") ?? "document", art.latex_source ?? "")}>
+                <FileText className="mr-2 h-4 w-4" /> Plain text (.txt)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => downloadAs("pdf", art.filename?.replace(/\.[^.]+$/, "") ?? "document", art.latex_source ?? "")}>
+                <FileText className="mr-2 h-4 w-4" /> PDF (.pdf)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => downloadAs("docx", art.filename?.replace(/\.[^.]+$/, "") ?? "document", art.latex_source ?? "").catch((e) => toast.error(String(e?.message ?? e).slice(0, 200)))}>
+                <FileText className="mr-2 h-4 w-4" /> Word (.docx)
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
         {hasLatex && (
           <Button size="sm" variant="ghost" onClick={() => compile.mutate()} disabled={compile.isPending}>
             {compile.isPending
