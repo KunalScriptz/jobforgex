@@ -113,7 +113,7 @@ export function JobDetailDialog({ jobId, open, onOpenChange }: {
         <div className="flex-1 overflow-y-auto p-6">
           {tab === "insights" && <InsightsTab job={job} />}
           {tab === "notes" && <NotesTab job={job} />}
-          {tab === "documents" && <DocumentsTab artifacts={artifacts} />}
+          {tab === "documents" && <DocumentsTab artifacts={artifacts} jobId={jobId!} />}
           {tab === "company" && <CompanyTab job={job} />}
           {tab === "ai" && (
             activeToolId
@@ -297,28 +297,90 @@ function NotesTab({ job }: { job: any }) {
   );
 }
 
-function DocumentsTab({ artifacts }: { artifacts: any[] }) {
+function DocumentsTab({ artifacts, jobId }: { artifacts: any[]; jobId: string }) {
   if (!artifacts.length) return <Empty text="No documents yet. Use AI Tools or Generate to create them." />;
   return (
     <div className="grid gap-3 md:grid-cols-2">
-      {artifacts.map((a) => (
-        <div key={a.id} className="rounded-lg border bg-card p-3">
-          <div className="mb-1 flex items-center gap-2">
-            <FileText className="h-4 w-4 text-muted-foreground" />
-            <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{a.kind}</span>
-          </div>
-          <div className="mb-2 truncate font-mono text-xs">{a.filename}</div>
-          <pre className="max-h-40 overflow-auto whitespace-pre-wrap rounded bg-muted/40 p-2 text-[10px] leading-tight">
-            {String(a.latex_source).slice(0, 1200)}{a.latex_source?.length > 1200 ? "\n…" : ""}
-          </pre>
-          <div className="mt-2 flex gap-2">
-            <Button size="sm" variant="outline" onClick={() => downloadText(a.filename, a.latex_source)}>Download</Button>
-            <Button size="sm" variant="ghost" onClick={() => { navigator.clipboard.writeText(a.latex_source); toast.success("Copied"); }}>
-              <Copy className="mr-1 h-3.5 w-3.5" /> Copy
-            </Button>
-          </div>
+      {artifacts.map((a) => <DocumentCard key={a.id} art={a} jobId={jobId} />)}
+    </div>
+  );
+}
+
+function DocumentCard({ art, jobId }: { art: any; jobId: string }) {
+  const qc = useQueryClient();
+  const compileFn = useServerFn(compileArtifactPdf);
+  const urlFn = useServerFn(getArtifactPdfUrl);
+  const hasLatex = art.kind === "tailored_resume" || art.kind === "cover_letter";
+  const hasPdf = !!art.pdf_storage_path;
+
+  const compile = useMutation({
+    mutationFn: () => compileFn({ data: { artifact_id: art.id } } as any),
+    onSuccess: (r: any) => {
+      if (r?.ok) { toast.success("PDF compiled"); qc.invalidateQueries({ queryKey: ["job", jobId] }); }
+      else toast.error(String(r?.error ?? "Compile failed").slice(0, 200));
+    },
+    onError: (e: any) => toast.error(String(e?.message ?? e).slice(0, 200)),
+  });
+
+  async function downloadPdf() {
+    try {
+      const { url, filename } = await urlFn({ data: { artifact_id: art.id } } as any);
+      const link = document.createElement("a");
+      link.href = url; link.download = filename; link.target = "_blank";
+      link.click();
+    } catch (e: any) {
+      toast.error(String(e?.message ?? e).slice(0, 200));
+    }
+  }
+
+  return (
+    <div className="rounded-lg border bg-card p-3">
+      <div className="mb-1 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <FileText className="h-4 w-4 text-muted-foreground" />
+          <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            {String(art.kind).replace(/_/g, " ")}
+          </span>
         </div>
-      ))}
+        {hasPdf
+          ? <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
+              <CheckCircle2 className="h-3 w-3" /> PDF ready
+            </span>
+          : hasLatex && art.compile_error
+            ? <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-600 dark:text-amber-400">
+                <AlertTriangle className="h-3 w-3" /> Compile failed
+              </span>
+            : null}
+      </div>
+      <div className="mb-2 truncate font-mono text-xs">{art.filename}</div>
+      <pre className="max-h-32 overflow-auto whitespace-pre-wrap rounded bg-muted/40 p-2 text-[10px] leading-tight">
+        {String(art.latex_source ?? "").slice(0, 900)}{(art.latex_source?.length ?? 0) > 900 ? "\n…" : ""}
+      </pre>
+      {art.compile_error && (
+        <div className="mt-2 max-h-24 overflow-auto rounded border border-amber-500/30 bg-amber-500/5 p-2 text-[10px] text-amber-700 dark:text-amber-300">
+          {String(art.compile_error).slice(0, 500)}
+        </div>
+      )}
+      <div className="mt-2 flex flex-wrap gap-1.5">
+        {hasPdf && (
+          <Button size="sm" onClick={downloadPdf}>
+            <Download className="mr-1 h-3.5 w-3.5" /> PDF
+          </Button>
+        )}
+        <Button size="sm" variant="outline" onClick={() => downloadText(art.filename, art.latex_source ?? "")}>
+          .tex
+        </Button>
+        {hasLatex && (
+          <Button size="sm" variant="ghost" onClick={() => compile.mutate()} disabled={compile.isPending}>
+            {compile.isPending
+              ? <><Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> Compiling…</>
+              : <><RefreshCw className="mr-1 h-3.5 w-3.5" /> {hasPdf ? "Recompile" : "Compile PDF"}</>}
+          </Button>
+        )}
+        <Button size="sm" variant="ghost" onClick={() => { navigator.clipboard.writeText(art.latex_source ?? ""); toast.success("Copied"); }}>
+          <Copy className="mr-1 h-3.5 w-3.5" /> Copy
+        </Button>
+      </div>
     </div>
   );
 }
