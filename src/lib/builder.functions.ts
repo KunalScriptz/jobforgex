@@ -123,7 +123,7 @@ export const undoBuilder = createServerFn({ method: "POST" })
       .eq("builder_resume_id", row.id).order("created_at", { ascending: false }).limit(1).maybeSingle();
     if (!last) throw new Error("Nothing to undo.");
 
-    const latex = renderBuilderLatex(last.content, {
+    const latex = renderBuilderLatex(last.content as unknown as BuilderContent, {
       primary_color: row.primary_color ?? undefined,
       secondary_color: row.secondary_color ?? undefined,
     });
