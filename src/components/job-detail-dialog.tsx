@@ -4,13 +4,12 @@ import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import {
   Sparkles, ArrowLeft, Copy, Save, Loader2, MessagesSquare, Info, Wand2,
-  FileText, Building2, StickyNote, ClipboardList, Users, FolderOpen,
+  FileText, Building2, StickyNote, ClipboardList, FolderOpen,
 } from "lucide-react";
 
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
 
 import { getJob, updateJob, bulkUpdateStatus } from "@/lib/jobs.functions";
 import { AI_TOOLS_META, runAiTool, saveToolOutput } from "@/lib/ai-tools.functions";
