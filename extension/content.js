@@ -4,6 +4,10 @@
 
   const HOST_FALLBACK = "https://jobforgex.lovable.app";
 
+  // Don't inject on the JobForge app itself.
+  const selfHosts = [/(^|\.)jobforgex\.lovable\.app$/i, /(^|\.)lovable\.app$/i, /^localhost$/i];
+  if (selfHosts.some((r) => r.test(location.hostname))) return;
+
   // ---------- Scraping heuristics ---------------------------------------
 
   function text(el) { return (el && (el.innerText || el.textContent) || "").trim(); }
@@ -22,6 +26,19 @@
 
   function guessCompany() {
     const host = location.hostname.replace(/^www\./, "");
+    // Naukri-specific
+    if (host.includes("naukri.com")) {
+      const n = document.querySelector('.styles_jd-header-comp-name__MvqAI a, .jd-header-comp-name a, .comp-name, [class*="companyName"] a, [class*="comp-name"]');
+      if (n && text(n)) return text(n);
+    }
+    if (host.includes("indeed.com")) {
+      const n = document.querySelector('[data-testid="inlineHeader-companyName"] a, [data-testid="inlineHeader-companyName"], [data-company-name="true"]');
+      if (n && text(n)) return text(n);
+    }
+    if (host.includes("glassdoor.")) {
+      const n = document.querySelector('[data-test="employer-name"], [class*="EmployerProfile_employerName"]');
+      if (n && text(n)) return text(n);
+    }
     // 1. Structured data (JobPosting schema)
     try {
       const scripts = document.querySelectorAll('script[type="application/ld+json"]');
