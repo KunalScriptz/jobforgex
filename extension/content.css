@@ -1,0 +1,53 @@
+#jobforge-fab {
+  position: fixed !important;
+  bottom: 24px !important;
+  right: 24px !important;
+  z-index: 2147483647 !important;
+  background: #0f172a !important;
+  color: white !important;
+  border-radius: 999px !important;
+  padding: 10px 16px !important;
+  font: 600 13px system-ui, -apple-system, sans-serif !important;
+  box-shadow: 0 10px 30px rgba(15,23,42,.35) !important;
+  cursor: pointer !important;
+  border: none !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+#jobforge-fab:hover { background: #1e293b !important; }
+#jobforge-fab .dot { width:8px; height:8px; border-radius:999px; background:#22d3a8 !important; }
+
+#jobforge-panel {
+  position: fixed !important;
+  bottom: 78px !important;
+  right: 24px !important;
+  z-index: 2147483647 !important;
+  width: 300px !important;
+  background: white !important;
+  color: #0f172a !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 12px !important;
+  box-shadow: 0 20px 40px rgba(15,23,42,.25) !important;
+  padding: 14px !important;
+  font: 13px system-ui, -apple-system, sans-serif !important;
+}
+#jobforge-panel h3 { font-size:14px !important; margin: 0 0 10px !important; }
+#jobforge-panel .field { margin-bottom:8px !important; }
+#jobforge-panel label { font-size:10px !important; text-transform:uppercase; letter-spacing:.05em; color:#64748b !important; }
+#jobforge-panel input {
+  width:100% !important; box-sizing:border-box !important; padding:6px 8px !important;
+  border:1px solid #cbd5e1 !important; border-radius:6px !important; font-size:12px !important; margin-top:2px !important;
+  background: white !important; color:#0f172a !important;
+}
+#jobforge-panel .actions { display:flex !important; gap:6px !important; margin-top:10px !important; }
+#jobforge-panel button {
+  flex:1; padding:7px 10px !important; border-radius:6px !important; border:none !important; cursor:pointer !important;
+  background:#0f172a !important; color:white !important; font-weight:600 !important; font-size:12px !important;
+}
+#jobforge-panel button.secondary { background:transparent !important; color:#0f172a !important; border:1px solid #cbd5e1 !important; }
+#jobforge-panel .status { font-size:11px !important; margin-top:8px !important; }
+#jobforge-panel .ok { color:#059669 !important; }
+#jobforge-panel .err { color:#dc2626 !important; }
+#jobforge-panel .close { position:absolute !important; top:8px !important; right:10px !important; background:none !important; border:none !important; font-size:16px !important; color:#94a3b8 !important; cursor:pointer !important; flex:none !important; padding:0 !important; width:auto !important; }
+#jobforge-panel .close:hover { color:#0f172a !important; }

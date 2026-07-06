@@ -205,6 +205,47 @@ export type Database = {
           },
         ]
       }
+      extension_tokens: {
+        Row: {
+          created_at: string
+          id: string
+          label: string
+          last_used_at: string | null
+          token_hash: string
+          token_prefix: string
+          user_id: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          label?: string
+          last_used_at?: string | null
+          token_hash: string
+          token_prefix: string
+          user_id: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          label?: string
+          last_used_at?: string | null
+          token_hash?: string
+          token_prefix?: string
+          user_id?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "extension_tokens_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       job_artifacts: {
         Row: {
           compile_error: string | null

@@ -15,9 +15,9 @@ import {
 } from "@dnd-kit/core";
 import { SortableContext, useSortable, arrayMove, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Briefcase, FileText, Trophy, ThumbsDown, Sparkles, Trash2, CheckSquare, X, Plus } from "lucide-react";
+import { Briefcase, FileText, Trophy, ThumbsDown, Sparkles, Trash2, CheckSquare, X, Plus, Pencil } from "lucide-react";
 
-import { listJobs, bulkUpdateStatus, deleteJob, createJob } from "@/lib/jobs.functions";
+import { listJobs, bulkUpdateStatus, deleteJob, createJob, updateJob } from "@/lib/jobs.functions";
 import { listBoards } from "@/lib/workspace.functions";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -52,6 +52,7 @@ function JobsPage() {
   const [board, setBoard] = useState<string>("all");
   const [activeId, setActiveId] = useState<string | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
+  const [editJob, setEditJob] = useState<any | null>(null);
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkStatus, setBulkStatus] = useState<Status | "">("");
@@ -258,6 +259,7 @@ function JobsPage() {
               selected={selected}
               onToggleSelect={toggleSelect}
               onOpen={(id) => setOpenId(id)}
+              onEdit={(job) => setEditJob(job)}
               onDelete={async (id) => {
                 await del({ data: { id } } as any);
                 qc.invalidateQueries({ queryKey: ["jobs"] });
@@ -275,6 +277,13 @@ function JobsPage() {
         open={!!openId}
         onOpenChange={(v) => !v && setOpenId(null)}
       />
+      <JobFormDialog
+        boards={boards}
+        mode="edit"
+        job={editJob}
+        open={!!editJob}
+        onOpenChange={(v) => !v && setEditJob(null)}
+      />
     </div>
   );
 }
@@ -286,6 +295,7 @@ function Column({
   selected,
   onToggleSelect,
   onOpen,
+  onEdit,
   onDelete,
 }: {
   col: { id: Status; label: string; icon: any; accent: string };
@@ -294,6 +304,7 @@ function Column({
   selected: Set<string>;
   onToggleSelect: (id: string) => void;
   onOpen: (id: string) => void;
+  onEdit: (job: any) => void;
   onDelete: (id: string) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: col.id });
@@ -322,6 +333,7 @@ function Column({
               selected={selected.has(j.id)}
               onToggleSelect={onToggleSelect}
               onOpen={onOpen}
+              onEdit={onEdit}
               onDelete={onDelete}
             />
           ))}
@@ -337,13 +349,14 @@ function Column({
 }
 
 function SortableCard({
-  job, selectMode, selected, onToggleSelect, onOpen, onDelete,
+  job, selectMode, selected, onToggleSelect, onOpen, onEdit, onDelete,
 }: {
   job: any;
   selectMode: boolean;
   selected: boolean;
   onToggleSelect: (id: string) => void;
   onOpen: (id: string) => void;
+  onEdit: (job: any) => void;
   onDelete: (id: string) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -367,7 +380,7 @@ function SortableCard({
         else onOpen(job.id);
       }}
     >
-      <JobCard job={job} selectMode={selectMode} selected={selected} onDelete={onDelete} />
+      <JobCard job={job} selectMode={selectMode} selected={selected} onEdit={onEdit} onDelete={onDelete} />
     </div>
   );
 }
@@ -375,12 +388,14 @@ function SortableCard({
 function JobCard({
   job,
   onDelete,
+  onEdit,
   dragging,
   selectMode,
   selected,
 }: {
   job: any;
   onDelete?: (id: string) => void;
+  onEdit?: (job: any) => void;
   dragging?: boolean;
   selectMode?: boolean;
   selected?: boolean;
@@ -409,8 +424,20 @@ function JobCard({
         <span className="text-[10px] text-muted-foreground">
           {job.date_applied ?? new Date(job.created_at).toLocaleDateString()}
         </span>
-        {onDelete && (
-          <button
+        <div className="flex items-center gap-2">
+          {onEdit && (
+            <button
+              data-stop
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => { e.stopPropagation(); onEdit(job); }}
+              className="opacity-0 transition-opacity group-hover:opacity-100"
+              aria-label="Edit"
+            >
+              <Pencil className="h-3.5 w-3.5 text-muted-foreground hover:text-primary" />
+            </button>
+          )}
+          {onDelete && (
+            <button
             data-stop
             onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => {
@@ -421,25 +448,63 @@ function JobCard({
             aria-label="Delete"
           >
             <Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />
-          </button>
-        )}
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
 }
 function AddJobDialog({ boards }: { boards: any[] }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <Button size="sm" onClick={() => setOpen(true)}><Plus className="mr-1 h-4 w-4" />Add job</Button>
+      <JobFormDialog boards={boards} mode="create" open={open} onOpenChange={setOpen} />
+    </>
+  );
+}
+
+function JobFormDialog({
+  boards,
+  mode,
+  job,
+  open,
+  onOpenChange,
+}: {
+  boards: any[];
+  mode: "create" | "edit";
+  job?: any;
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+}) {
   const qc = useQueryClient();
   const create = useServerFn(createJob);
-  const [open, setOpen] = useState(false);
+  const upd = useServerFn(updateJob);
   const [form, setForm] = useState<any>({
     company: "", title: "", description: "", board_id: "",
     status: "wishlist", date_applied: "", url: "", notes: "",
   });
 
-  // Default board on open
+  // Reset/seed form when the dialog opens
   useMemo(() => {
-    if (open && !form.board_id && boards[0]?.id) setForm((f: any) => ({ ...f, board_id: boards[0].id }));
-  }, [open, boards, form.board_id]);
+    if (!open) return;
+    if (mode === "edit" && job) {
+      setForm({
+        company: job.company ?? "",
+        title: job.title ?? "",
+        description: job.description ?? "",
+        board_id: job.board_id ?? boards[0]?.id ?? "",
+        status: job.status ?? "wishlist",
+        date_applied: job.date_applied ?? "",
+        url: job.url ?? "",
+        notes: job.notes ?? "",
+      });
+    } else if (mode === "create" && !form.board_id && boards[0]?.id) {
+      setForm((f: any) => ({ ...f, board_id: boards[0].id }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, job?.id]);
 
   const submit = useMutation({
     mutationFn: async () => {
@@ -447,24 +512,25 @@ function AddJobDialog({ boards }: { boards: any[] }) {
       if (!payload.date_applied) delete payload.date_applied;
       if (!payload.url) delete payload.url;
       if (!payload.notes) delete payload.notes;
+      if (mode === "edit" && job) {
+        return upd({ data: { id: job.id, ...payload } } as any);
+      }
       return create({ data: payload } as any);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["jobs"] });
-      toast.success("Job added");
-      setOpen(false);
+      qc.invalidateQueries({ queryKey: ["job", job?.id] });
+      toast.success(mode === "edit" ? "Job updated" : "Job added");
+      onOpenChange(false);
       setForm({ ...form, company: "", title: "", description: "", url: "", notes: "", date_applied: "" });
     },
     onError: (e: any) => toast.error(String(e?.message ?? e).slice(0, 200)),
   });
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button size="sm"><Plus className="mr-1 h-4 w-4" />Add job</Button>
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
-        <DialogHeader><DialogTitle>Add job manually</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>{mode === "edit" ? "Edit job" : "Add job manually"}</DialogTitle></DialogHeader>
         <form onSubmit={(e) => { e.preventDefault(); submit.mutate(); }} className="space-y-3">
           <div>
             <div className="mb-1 flex items-center justify-between">
@@ -496,10 +562,10 @@ function AddJobDialog({ boards }: { boards: any[] }) {
             <div><Label>Date applied</Label><Input type="date" value={form.date_applied} onChange={(e) => setForm({ ...form, date_applied: e.target.value })} /></div>
           </div>
           <div><Label>Job URL</Label><Input value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} /></div>
-          <div><Label>Description *</Label><Textarea required rows={4} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></div>
+          <div><Label>Description {mode === "create" ? "*" : ""}</Label><Textarea required={mode === "create"} rows={4} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></div>
           <div><Label>Notes</Label><Textarea rows={2} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
           <DialogFooter>
-            <Button type="submit" disabled={submit.isPending || !form.board_id}>Add</Button>
+            <Button type="submit" disabled={submit.isPending || !form.board_id}>{mode === "edit" ? "Save" : "Add"}</Button>
           </DialogFooter>
         </form>
       </DialogContent>
