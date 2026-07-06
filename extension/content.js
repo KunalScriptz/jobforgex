@@ -129,7 +129,6 @@
         '.job-desc',
         'section.styles_job-desc-container__txpYf',
         '[class*="JDC__dang-inner-html"]',
-challenging',
       ],
       "glassdoor.": [
         '[class*="JobDetails_jobDescription"]',
