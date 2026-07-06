@@ -43,7 +43,7 @@ function OnboardingPage() {
     }
   }, [ws, navigate]);
 
-  if (isLoading && ws === undefined) return <FullScreenLoader />;
+  // No blocking loader — Step 1 renders instantly for new users
 
   const progress = ((step - 1) / 3) * 100;
 
