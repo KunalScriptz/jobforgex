@@ -74,7 +74,11 @@ export const saveProvider = createServerFn({ method: "POST" })
 export const testConnection = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { base_url: string; api_key: string; model: string }) =>
-    z.object({ base_url: z.string().url(), api_key: z.string().min(10), model: z.string().min(1) }).parse(d))
+    z.object({
+      base_url: z.string().url({ message: "Base URL must be a full https:// URL" }),
+      api_key: z.string().trim().min(10, { message: "API key looks too short — paste the full key (usually starts with sk-...)." }),
+      model: z.string().trim().min(1, { message: "Enter a model id, e.g. deepseek-chat" }),
+    }).parse(d))
   .handler(async ({ data }) => {
     const { pingDeepseek } = await import("./deepseek.server");
     await pingDeepseek(data.base_url.trim(), data.api_key.trim(), data.model.trim());

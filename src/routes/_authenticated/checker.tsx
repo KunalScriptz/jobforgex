@@ -38,10 +38,18 @@ function CheckerPage() {
       toast.success("Checks complete");
     },
     onError: (e: any) => {
-      const msg = e?.message ?? e?.toString?.() ?? "Unknown error";
-      const cause = e?.cause ? `\ncause: ${JSON.stringify(e.cause).slice(0, 500)}` : "";
-      setErrText(`${msg}${cause}`);
-      toast.error(msg.slice(0, 160));
+      const raw = e?.message ?? e?.toString?.() ?? "Unknown error";
+      let pretty = raw;
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          pretty = "Input validation failed:\n" +
+            parsed.map((p: any) => `• ${p.path?.join(".") || "(root)"}: ${p.message}`).join("\n");
+        }
+      } catch {}
+      const cause = e?.cause ? `\n\ncause: ${JSON.stringify(e.cause).slice(0, 500)}` : "";
+      setErrText(`${pretty}${cause}`);
+      toast.error(pretty.split("\n")[0].slice(0, 160));
     },
   });
 

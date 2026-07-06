@@ -130,11 +130,26 @@ function Step2({ onDone }: { onDone: () => void }) {
     e.preventDefault();
     setBusy(true);
     try {
-      await test({ data: { base_url: baseUrl, api_key: apiKey, model } } as any);
-      await save({ data: { base_url: baseUrl, api_key: apiKey, name: "DeepSeek" } } as any);
+      const cleanKey = apiKey.trim();
+      const cleanUrl = baseUrl.trim();
+      const cleanModel = model.trim();
+      if (cleanKey.length < 10) throw new Error("Paste your full API key (min 10 chars). It usually starts with sk-...");
+      await test({ data: { base_url: cleanUrl, api_key: cleanKey, model: cleanModel } } as any);
+      await save({ data: { base_url: cleanUrl, api_key: cleanKey, name: "DeepSeek" } } as any);
       toast.success("Connection verified");
       onDone();
-    } catch (err: any) { toast.error(err.message ?? "Test failed"); }
+    } catch (err: any) {
+      const raw = err?.message ?? String(err);
+      // Zod validation errors arrive as a JSON array — surface the first message.
+      let pretty = raw;
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed[0]?.message) pretty = parsed.map((p: any) => `• ${p.path?.join(".")}: ${p.message}`).join("\n");
+      } catch {}
+      toast.error(pretty.slice(0, 300));
+      // eslint-disable-next-line no-alert
+      console.error("[onboarding] provider test failed:", raw);
+    }
     finally { setBusy(false); }
   }
 
