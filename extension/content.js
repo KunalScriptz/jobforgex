@@ -188,9 +188,22 @@
     return (slug || "").replace(/[-_]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
   }
 
+  function cleanCompany(name) {
+    if (!name) return "";
+    let s = String(name).replace(/\s+/g, " ").trim();
+    // Naukri / Glassdoor concatenate ratings+reviews after the name, e.g.
+    // "Infosys3.549.8K Reviews" or "Google 4.5 12K Reviews".
+    s = s.replace(/\d+(\.\d+)?\s*K?\+?\s*(Ratings?|Reviews?)\s*$/i, "").trim();
+    // Strip trailing rating (e.g. "4.5", "4.5★", "3.5 stars").
+    s = s.replace(/\s*[\d.]+\s*(★|stars?)?\s*$/i, "").trim();
+    // Any leftover trailing digits glued to the name.
+    s = s.replace(/\d+(\.\d+)?$/, "").trim();
+    return s;
+  }
+
   function scrape() {
     return {
-      company: guessCompany(),
+      company: cleanCompany(guessCompany()),
       title: guessTitle(),
       url: location.href,
       description: guessDescription(),
@@ -205,11 +218,80 @@
   fab.innerHTML = `<img src="${iconUrl}" alt="" /> Save to JobForge`;
   document.documentElement.appendChild(fab);
 
+  // Restore saved position (per-site).
+  const POS_KEY = "jobforge_fab_pos_v1";
+  try {
+    const saved = JSON.parse(localStorage.getItem(POS_KEY) || "null");
+    if (saved && typeof saved.left === "number" && typeof saved.top === "number") {
+      applyPos(saved.left, saved.top);
+    }
+  } catch (_) {}
+
+  function applyPos(left, top) {
+    const maxL = Math.max(0, window.innerWidth - fab.offsetWidth - 4);
+    const maxT = Math.max(0, window.innerHeight - fab.offsetHeight - 4);
+    const l = Math.min(Math.max(0, left), maxL);
+    const t = Math.min(Math.max(0, top), maxT);
+    fab.style.left = l + "px";
+    fab.style.top = t + "px";
+    fab.style.right = "auto";
+    fab.style.bottom = "auto";
+    if (panel) positionPanel();
+  }
+
+  // Drag handling — treat as drag only if pointer moved > 5px.
+  let dragging = false;
+  let didDrag = false;
+  let startX = 0, startY = 0, startL = 0, startT = 0;
+  fab.addEventListener("pointerdown", (e) => {
+    if (e.button !== 0) return;
+    dragging = true;
+    didDrag = false;
+    const rect = fab.getBoundingClientRect();
+    startX = e.clientX; startY = e.clientY;
+    startL = rect.left; startT = rect.top;
+    fab.setPointerCapture(e.pointerId);
+  });
+  fab.addEventListener("pointermove", (e) => {
+    if (!dragging) return;
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+    if (!didDrag && Math.hypot(dx, dy) < 5) return;
+    didDrag = true;
+    applyPos(startL + dx, startT + dy);
+  });
+  fab.addEventListener("pointerup", (e) => {
+    if (!dragging) return;
+    dragging = false;
+    try { fab.releasePointerCapture(e.pointerId); } catch (_) {}
+    if (didDrag) {
+      const rect = fab.getBoundingClientRect();
+      try { localStorage.setItem(POS_KEY, JSON.stringify({ left: rect.left, top: rect.top })); } catch (_) {}
+    }
+  });
+
   let panel = null;
   fab.addEventListener("click", () => {
+    if (didDrag) { didDrag = false; return; }
     if (panel) { panel.remove(); panel = null; return; }
     openPanel();
   });
+
+  function positionPanel() {
+    if (!panel) return;
+    const rect = fab.getBoundingClientRect();
+    const panelW = 340;
+    const panelH = Math.min(window.innerHeight - 40, 520);
+    // Prefer opening above the fab; flip below if not enough room.
+    let top = rect.top - panelH - 10;
+    if (top < 10) top = rect.bottom + 10;
+    let left = rect.left + rect.width / 2 - panelW / 2;
+    left = Math.min(Math.max(8, left), window.innerWidth - panelW - 8);
+    panel.style.left = left + "px";
+    panel.style.top = top + "px";
+    panel.style.right = "auto";
+    panel.style.bottom = "auto";
+  }
 
   function openPanel() {
     const data = scrape();
@@ -236,6 +318,7 @@
     panel.querySelector(".close").addEventListener("click", () => { panel.remove(); panel = null; });
     panel.querySelector("#jf-save").addEventListener("click", saveJob);
     panel.querySelector("#jf-autofill").addEventListener("click", tryAutofill);
+    positionPanel();
   }
 
   function status(text, cls) {
