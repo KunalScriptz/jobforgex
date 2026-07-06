@@ -372,7 +372,7 @@ function DocumentCard({ art, jobId }: { art: any; jobId: string }) {
           </Button>
         )}
         <Button size="sm" variant="outline" onClick={() => downloadText(art.filename, art.latex_source ?? "")}>
-          .tex
+          {"." + (art.filename?.split(".").pop() || "txt")}
         </Button>
         {hasLatex && (
           <Button size="sm" variant="ghost" onClick={() => compile.mutate()} disabled={compile.isPending}>
