@@ -150,7 +150,7 @@ export function JobDetailDialog({ jobId, open, onOpenChange }: {
           {tab === "company" && <CompanyTab job={job} />}
           {tab === "ai" && (
             activeToolId
-              ? <AiToolRunner jobId={jobId!} toolId={activeToolId} onBack={() => setActiveToolId(null)} />
+              ? <AiToolRunner jobId={jobId!} toolId={activeToolId} onBack={() => setActiveToolId(null)} job={job} />
               : <AiToolsGrid onPick={setActiveToolId} />
           )}
         </div>
