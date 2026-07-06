@@ -51,6 +51,7 @@
         "input-otp": "^1.4.2",
         "js-yaml": "^4",
         "jspdf": "^4.2.1",
+        "jszip": "^3.10.1",
         "lucide-react": "^0.575.0",
         "react": "^19.2.0",
         "react-colorful": "^5.7.0",
