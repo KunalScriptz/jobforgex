@@ -39,7 +39,9 @@ export const saveProvider = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const wsId = await loadWorkspaceId(context.supabase, context.userId);
     const { encryptApiKey } = await import("./crypto.server");
-    const enc = encryptApiKey(data.api_key);
+    // Trim whitespace/newlines from pasted keys — a common source of 401s.
+    const cleanKey = data.api_key.trim();
+    const enc = encryptApiKey(cleanKey);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const existing = await supabaseAdmin.from("ai_providers").select("id").eq("workspace_id", wsId).maybeSingle();
@@ -84,23 +86,46 @@ export const pingSavedModel = createServerFn({ method: "POST" })
       .eq("workspace_id", wsId).eq("is_active", true)
       .order("created_at").limit(1).maybeSingle();
     if (!provider || !provider.api_key_encrypted) throw new Error("No provider saved. Enter and save your API key first.");
-    const key = decryptApiKey(provider.api_key_encrypted as string);
-
-    const res = await fetch(`${(provider.base_url as string).replace(/\/$/, "")}/chat/completions`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
-      body: JSON.stringify({
-        model: data.model,
-        temperature: 0,
-        max_tokens: 20,
-        messages: [
-          { role: "system", content: "Respond with exactly: hi model is working" },
-          { role: "user", content: "ping" },
-        ],
-      }),
-    });
+    let key: string;
+    try {
+      key = decryptApiKey(provider.api_key_encrypted as string).trim();
+    } catch (e: any) {
+      throw new Error(
+        `Could not decrypt saved API key (${e?.message ?? "unknown"}). ` +
+        `The encryption secret may have changed — re-enter and save your API key in Settings.`,
+      );
+    }
+    const base = (provider.base_url as string).replace(/\/$/, "");
+    const url = `${base}/chat/completions`;
+    const masked = key.length > 8 ? `${key.slice(0, 4)}…${key.slice(-4)}` : "****";
+    console.log(`[pingSavedModel] POST ${url} model=${data.model} key=${masked} (len=${key.length})`);
+    let res: Response;
+    try {
+      res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+        body: JSON.stringify({
+          model: data.model,
+          temperature: 0,
+          max_tokens: 20,
+          messages: [
+            { role: "system", content: "Respond with exactly: hi model is working" },
+            { role: "user", content: "ping" },
+          ],
+        }),
+      });
+    } catch (e: any) {
+      throw new Error(`Network error calling ${url}: ${e?.message ?? e}`);
+    }
     const text = await res.text();
-    if (!res.ok) throw new Error(`Provider ${res.status}: ${text.slice(0, 400)}`);
+    console.log(`[pingSavedModel] ← ${res.status} ${text.slice(0, 500)}`);
+    if (!res.ok) {
+      throw new Error(
+        `Provider returned HTTP ${res.status} ${res.statusText}\n` +
+        `URL: ${url}\nModel: ${data.model}\nKey: ${masked} (len ${key.length})\n\n` +
+        `Body:\n${text.slice(0, 1200)}`,
+      );
+    }
     let reply = "";
     try { reply = JSON.parse(text)?.choices?.[0]?.message?.content ?? ""; } catch { reply = text.slice(0, 200); }
     return { reply: reply.trim() || "(empty response)", model: data.model };
