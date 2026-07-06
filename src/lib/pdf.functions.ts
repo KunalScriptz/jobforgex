@@ -88,10 +88,10 @@ export const getArtifactPdfUrl = createServerFn({ method: "POST" })
     const { data: art } = await context.supabase
       .from("job_artifacts").select("id,pdf_storage_path,filename").eq("id", data.artifact_id).maybeSingle();
     if (!art?.pdf_storage_path) throw new Error("No PDF stored for this artifact yet.");
-    const { data: signed, error } = await context.supabase.storage
-      .from(BUCKET).createSignedUrl(art.pdf_storage_path, 60 * 10); // 10 min
-    if (error) throw new Error(error.message);
     const pdfName = (art.filename ?? "document").replace(/\.tex$/i, "") + ".pdf";
+    const { data: signed, error } = await context.supabase.storage
+      .from(BUCKET).createSignedUrl(art.pdf_storage_path, 60 * 10, { download: pdfName });
+    if (error) throw new Error(error.message);
     return { url: signed.signedUrl, filename: pdfName };
   });
 
