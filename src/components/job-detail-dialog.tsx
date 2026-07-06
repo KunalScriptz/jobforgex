@@ -463,10 +463,11 @@ function AiToolRunner({ jobId, toolId, onBack }: { jobId: string; toolId: string
   const qc = useQueryClient();
   const [ctx, setCtx] = useState("");
   const [result, setResult] = useState<{ content: string; label: string } | null>(null);
+  const [editing, setEditing] = useState(false);
 
   const run = useMutation({
     mutationFn: () => runFn({ data: { job_id: jobId, tool_id: toolId, context: ctx } } as any),
-    onSuccess: (r: any) => { setResult({ content: r.content, label: r.tool_label }); qc.invalidateQueries({ queryKey: ["costs"] }); },
+    onSuccess: (r: any) => { setResult({ content: r.content, label: r.tool_label }); setEditing(false); qc.invalidateQueries({ queryKey: ["costs"] }); },
     onError: (e: any) => toast.error(String(e?.message ?? e).slice(0, 200)),
   });
   const save = useMutation({
@@ -533,6 +534,9 @@ function AiToolRunner({ jobId, toolId, onBack }: { jobId: string; toolId: string
           <div className="flex items-center justify-between border-b px-4 py-2">
             <div className="text-sm font-semibold">{result.label}</div>
             <div className="flex gap-1">
+              <Button size="sm" variant="ghost" onClick={() => setEditing((v) => !v)}>
+                {editing ? "Done editing" : "Edit"}
+              </Button>
               <Button size="sm" variant="ghost" onClick={() => { navigator.clipboard.writeText(result.content); toast.success("Copied"); }}>
                 <Copy className="mr-1 h-3.5 w-3.5" /> Copy
               </Button>
@@ -541,9 +545,18 @@ function AiToolRunner({ jobId, toolId, onBack }: { jobId: string; toolId: string
               </Button>
             </div>
           </div>
-          <pre className="max-h-[420px] overflow-auto whitespace-pre-wrap px-4 py-3 text-sm leading-relaxed">
-            {result.content}
-          </pre>
+          {editing ? (
+            <Textarea
+              value={result.content}
+              onChange={(e) => setResult({ ...result, content: e.target.value })}
+              rows={18}
+              className="max-h-[520px] rounded-none border-0 font-mono text-sm leading-relaxed focus-visible:ring-0"
+            />
+          ) : (
+            <pre className="max-h-[420px] overflow-auto whitespace-pre-wrap px-4 py-3 text-sm leading-relaxed">
+              {result.content}
+            </pre>
+          )}
         </div>
       )}
     </div>
