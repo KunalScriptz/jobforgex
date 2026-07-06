@@ -59,14 +59,20 @@ function OnboardingPage() {
         <Progress value={progress} className="mb-6" />
 
         {step === 1 && <Step1 onDone={(_ws) => { qc.invalidateQueries({ queryKey: ["ws"] }); setStep(2); }} />}
-        {step === 2 && <Step2 onDone={async () => {
-          await setStepFn({ data: { step: 3 } } as any);
-          qc.invalidateQueries({ queryKey: ["ws"] }); setStep(3);
-        }} />}
-        {step === 3 && <Step3 onDone={async () => {
-          qc.invalidateQueries({ queryKey: ["ws"] });
-          navigate({ to: "/jobs" });
-        }} />}
+        {step === 2 && <Step2
+          onBack={() => setStep(1)}
+          onDone={async () => {
+            await setStepFn({ data: { step: 3 } } as any);
+            qc.invalidateQueries({ queryKey: ["ws"] }); setStep(3);
+          }}
+        />}
+        {step === 3 && <Step3
+          onBack={() => setStep(2)}
+          onDone={async () => {
+            qc.invalidateQueries({ queryKey: ["ws"] });
+            navigate({ to: "/jobs" });
+          }}
+        />}
       </div>
     </div>
   );
