@@ -584,9 +584,38 @@ function CompanyTab({ job }: { job: any }) {
     if (!job?.company) return;
     let cancelled = false;
     setInfo({ loading: true });
-    const title = encodeURIComponent(job.company.trim());
-    fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${title}`)
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+
+    const company = job.company.trim();
+    const cleaned = company.replace(/\b(inc|llc|ltd|corp|corporation|co|company|gmbh|plc|the)\b\.?/gi, "").trim();
+
+    async function fetchSummary(title: string) {
+      const res = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}?redirect=true`);
+      if (!res.ok) throw new Error(String(res.status));
+      const j: any = await res.json();
+      if (j.type === "disambiguation" || !(j.extract || j.description)) throw new Error("disambig");
+      return j;
+    }
+
+    async function lookup() {
+      // 1. Try the exact name, then a cleaned version
+      const candidates = Array.from(new Set([company, cleaned].filter(Boolean)));
+      for (const c of candidates) {
+        try { return await fetchSummary(c); } catch (_) { /* try next */ }
+      }
+      // 2. Fall back to Wikipedia search for the best matching page
+      const searchRes = await fetch(
+        `https://en.wikipedia.org/w/api.php?action=query&list=search&format=json&origin=*&srlimit=3&srsearch=${encodeURIComponent(cleaned || company)}`,
+      );
+      if (!searchRes.ok) throw new Error("search-failed");
+      const searchJson: any = await searchRes.json();
+      const hits: any[] = searchJson?.query?.search ?? [];
+      for (const hit of hits) {
+        try { return await fetchSummary(hit.title); } catch (_) { /* try next */ }
+      }
+      throw new Error("not-found");
+    }
+
+    lookup()
       .then((j: any) => {
         if (cancelled) return;
         setInfo({
@@ -595,7 +624,7 @@ function CompanyTab({ job }: { job: any }) {
           url: j.content_urls?.desktop?.page,
         });
       })
-      .catch(() => !cancelled && setInfo({ loading: false, error: "No public background found." }));
+      .catch(() => !cancelled && setInfo({ loading: false, error: "No public background found on Wikipedia. Try visiting the company website." }));
     return () => { cancelled = true; };
   }, [job?.company]);
 
