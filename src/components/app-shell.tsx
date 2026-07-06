@@ -37,10 +37,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen bg-muted/20">
       <aside className="flex w-56 shrink-0 flex-col border-r bg-card">
-        <div className="flex h-14 items-center gap-2 border-b px-4 font-semibold">
+        <Link
+          to="/jobs"
+          className="flex h-14 items-center gap-2 border-b px-4 font-semibold transition-colors hover:bg-muted/50"
+        >
           <Sparkles className="h-4 w-4 text-primary" />
           JobForge
-        </div>
+        </Link>
         <nav className="flex-1 space-y-1 p-2">
           {NAV.map(({ to, label, icon: Icon }) => {
             const active = location.pathname.startsWith(to);
