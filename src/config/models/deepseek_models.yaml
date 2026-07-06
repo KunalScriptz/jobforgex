@@ -1,0 +1,16 @@
+models:
+  - name: deepseek-chat
+    display_name: DeepSeek Chat
+    input_price_per_1m: 0.14
+    output_price_per_1m: 0.28
+    is_default: true
+  - name: deepseek-coder
+    display_name: DeepSeek Coder
+    input_price_per_1m: 0.14
+    output_price_per_1m: 0.28
+    is_default: false
+  - name: deepseek-reasoner
+    display_name: DeepSeek Reasoner
+    input_price_per_1m: 0.14
+    output_price_per_1m: 0.28
+    is_default: false

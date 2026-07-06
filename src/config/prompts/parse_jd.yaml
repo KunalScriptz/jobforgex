@@ -1,0 +1,10 @@
+system: |
+  You extract structured data from job descriptions. Return ONLY valid JSON.
+user_template: |
+  Extract structured info from this job description. Return JSON:
+  { "company": <string>, "title": <string>, "keywords": [<up to 20 strings>], "responsibilities": [<up to 10 strings>], "qualifications": [<up to 10 strings>] }
+
+  === JOB DESCRIPTION ===
+  {{jd}}
+temperature: 0.1
+response_format: json_object
