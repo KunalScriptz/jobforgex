@@ -6,6 +6,10 @@ import cover from "@/config/prompts/generate_cover_letter.yaml?raw";
 import parse from "@/config/prompts/parse_jd.yaml?raw";
 import ats from "@/config/prompts/ats_checker.yaml?raw";
 import insights from "@/config/prompts/extract_insights.yaml?raw";
+import builderSeed from "@/config/prompts/builder_seed.yaml?raw";
+import builderJobMatch from "@/config/prompts/builder_job_match.yaml?raw";
+import builderScore from "@/config/prompts/builder_score.yaml?raw";
+import builderSuggestions from "@/config/prompts/builder_suggestions.yaml?raw";
 import models from "@/config/models/deepseek_models.yaml?raw";
 
 export type PromptDef = {
@@ -22,6 +26,10 @@ const RAW: Record<string, string> = {
   parse_jd: parse,
   ats_checker: ats,
   extract_insights: insights,
+  builder_seed: builderSeed,
+  builder_job_match: builderJobMatch,
+  builder_score: builderScore,
+  builder_suggestions: builderSuggestions,
 };
 
 export function getPrompt(name: keyof typeof RAW): PromptDef {
