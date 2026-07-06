@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { getMyWorkspace, createWorkspace, updateOnboardingStep } from "@/lib/workspace.functions";
 import { saveProvider, testConnection } from "@/lib/ai-config.functions";
@@ -119,6 +120,12 @@ function Step2({ onDone }: { onDone: () => void }) {
   const test = useServerFn(testConnection);
   const save = useServerFn(saveProvider);
 
+  const DEFAULT_MODELS = [
+    { name: "deepseek-chat", display: "DeepSeek Chat" },
+    { name: "deepseek-coder", display: "DeepSeek Coder" },
+    { name: "deepseek-reasoner", display: "DeepSeek Reasoner" },
+  ];
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
@@ -153,7 +160,15 @@ function Step2({ onDone }: { onDone: () => void }) {
           </div>
           <div>
             <Label htmlFor="model">Default model</Label>
-            <Input id="model" value={model} onChange={(e) => setModel(e.target.value)} required />
+            <Select value={model} onValueChange={setModel}>
+              <SelectTrigger id="model"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {DEFAULT_MODELS.map((m) => (
+                  <SelectItem key={m.name} value={m.name}>{m.display} <span className="text-muted-foreground">({m.name})</span></SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="mt-1 text-xs text-muted-foreground">You can add more models later in Settings.</p>
           </div>
           <Button type="submit" disabled={busy}>{busy ? "Testing..." : "Test & save"}</Button>
         </form>
