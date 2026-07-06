@@ -422,14 +422,78 @@ function DocumentCard({ art, jobId }: { art: any; jobId: string }) {
 }
 
 function CompanyTab({ job }: { job: any }) {
+  const [info, setInfo] = useState<{ extract?: string; url?: string; loading: boolean; error?: string }>({ loading: false });
+
+  useEffect(() => {
+    if (!job?.company) return;
+    let cancelled = false;
+    setInfo({ loading: true });
+    const title = encodeURIComponent(job.company.trim());
+    fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${title}`)
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+      .then((j: any) => {
+        if (cancelled) return;
+        setInfo({
+          loading: false,
+          extract: j.extract || j.description || "",
+          url: j.content_urls?.desktop?.page,
+        });
+      })
+      .catch(() => !cancelled && setInfo({ loading: false, error: "No public background found." }));
+    return () => { cancelled = true; };
+  }, [job?.company]);
+
   if (!job) return null;
+  const domain = job.company.toLowerCase().replace(/\b(inc|llc|ltd|corp|corporation|co|company|gmbh|plc)\b\.?/g, "").replace(/[^a-z0-9]/g, "") + ".com";
+  const website = job.url || `https://${domain}`;
+
   return (
-    <div className="space-y-3">
-      <div className="rounded-lg border p-4">
-        <div className="text-xs uppercase text-muted-foreground">Company</div>
-        <div className="text-lg font-semibold">{job.company}</div>
+    <div className="grid gap-4 md:grid-cols-3">
+      <div className="space-y-4 md:col-span-2">
+        <div className="flex items-start gap-3 rounded-xl border bg-card p-4">
+          <CompanyLogo company={job.company} size={48} />
+          <div className="min-w-0 flex-1">
+            <div className="text-xl font-bold">{job.company}</div>
+            {info.loading && <div className="mt-2 text-sm text-muted-foreground">Loading background…</div>}
+            {info.extract && <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{info.extract}</p>}
+            {!info.loading && !info.extract && (
+              <p className="mt-2 text-sm text-muted-foreground">
+                {info.error ?? "No public background found."}
+              </p>
+            )}
+            <div className="mt-3 flex flex-wrap gap-2">
+              <a href={website} target="_blank" rel="noreferrer">
+                <Button size="sm">Visit website</Button>
+              </a>
+              {info.url && (
+                <a href={info.url} target="_blank" rel="noreferrer">
+                  <Button size="sm" variant="outline">Read on Wikipedia</Button>
+                </a>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+      <div className="space-y-2 rounded-xl border bg-card p-4 text-sm">
+        <div>
+          <div className="text-xs uppercase text-muted-foreground">Website</div>
+          <a href={website} target="_blank" rel="noreferrer" className="break-all text-primary underline">{domain}</a>
+        </div>
         {job.url && (
-          <a href={job.url} target="_blank" rel="noreferrer" className="text-xs text-primary underline">{job.url}</a>
+          <div>
+            <div className="text-xs uppercase text-muted-foreground">Job posting</div>
+            <a href={job.url} target="_blank" rel="noreferrer" className="break-all text-xs text-primary underline">{job.url}</a>
+          </div>
+        )}
+        <div>
+          <div className="text-xs uppercase text-muted-foreground">Role</div>
+          <div>{job.title}</div>
+        </div>
+        {job.date_applied && (
+          <div>
+            <div className="text-xs uppercase text-muted-foreground">Applied</div>
+            <div>{job.date_applied}</div>
+          </div>
         )}
       </div>
     </div>
