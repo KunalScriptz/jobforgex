@@ -23,7 +23,9 @@
   bottom: 78px !important;
   right: 24px !important;
   z-index: 2147483647 !important;
-  width: 300px !important;
+  width: 340px !important;
+  max-height: calc(100vh - 120px) !important;
+  overflow-y: auto !important;
   background: white !important;
   color: #0f172a !important;
   border: 1px solid #e2e8f0 !important;
@@ -39,6 +41,12 @@
   width:100% !important; box-sizing:border-box !important; padding:6px 8px !important;
   border:1px solid #cbd5e1 !important; border-radius:6px !important; font-size:12px !important; margin-top:2px !important;
   background: white !important; color:#0f172a !important;
+}
+#jobforge-panel textarea {
+  width:100% !important; box-sizing:border-box !important; padding:6px 8px !important;
+  border:1px solid #cbd5e1 !important; border-radius:6px !important; font-size:11px !important; margin-top:2px !important;
+  background:white !important; color:#0f172a !important; font-family: system-ui, -apple-system, sans-serif !important;
+  resize:vertical !important; min-height:80px !important;
 }
 #jobforge-panel .actions { display:flex !important; gap:6px !important; margin-top:10px !important; }
 #jobforge-panel button {
