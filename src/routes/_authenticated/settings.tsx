@@ -81,7 +81,7 @@ function ModelsCard() {
             <thead className="bg-muted/40 text-xs uppercase text-muted-foreground"><tr><th className="p-2 text-left">Name</th><th className="p-2 text-left">Display</th><th className="p-2 text-right">In $/M</th><th className="p-2 text-right">Out $/M</th><th className="p-2">Default</th><th></th></tr></thead>
             <tbody>
               {models.map((m: any) => (
-                <ModelRow key={m.id} model={m} onSave={(d) => upsert({ data: d } as any).then(() => qc.invalidateQueries({ queryKey: ["models"] }))} onDelete={() => del({ data: { id: m.id } } as any).then(() => qc.invalidateQueries({ queryKey: ["models"] }))} />
+                <ModelRow key={m.id} model={m} onSave={(d: any) => upsert({ data: d } as any).then(() => qc.invalidateQueries({ queryKey: ["models"] }))} onDelete={() => del({ data: { id: m.id } } as any).then(() => qc.invalidateQueries({ queryKey: ["models"] }))} />
               ))}
             </tbody>
           </table>
