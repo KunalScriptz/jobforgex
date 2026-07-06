@@ -12,7 +12,8 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Download, Save, History, RotateCcw } from "lucide-react";
+import { Download, Save, History, RotateCcw, LayoutList } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 import { LatexPreview } from "@/components/latex-preview";
 
 export const Route = createFileRoute("/_authenticated/resumes")({ component: ResumesPage });
@@ -36,6 +37,49 @@ function replaceDefineColor(src: string, name: string, tuple: string): string {
   const re = new RegExp(`(\\\\definecolor\\{${name}\\}\\{rgb\\}\\{)[^}]*(\\})`, "g");
   if (re.test(src)) return src.replace(re, `$1${tuple}$2`);
   return src;
+}
+
+// -------- name + section parsing helpers ---------------------------------
+
+/** Try to pull a candidate's display name out of the LaTeX source. */
+function extractResumeName(src: string): string {
+  // Common Jake-Gutierrez pattern: \textbf{\Huge \scshape John Doe}
+  const m1 = src.match(/\\textbf\s*\{\s*\\Huge\s+\\scshape\s+([^}]+)\}/);
+  if (m1) return m1[1].trim();
+  // \name{...} macro
+  const m2 = src.match(/\\name\s*\{([^}]+)\}/);
+  if (m2) return m2[1].trim();
+  // fallback: first Huge/LARGE text
+  const m3 = src.match(/\\(?:Huge|LARGE)\s+\\?([A-Za-z][A-Za-z .'-]{2,})/);
+  if (m3) return m3[1].trim();
+  return "";
+}
+
+function slugForFile(name: string): string {
+  const clean = name.replace(/[^A-Za-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+  return clean || "resume";
+}
+
+type SectionBlock = { name: string; start: number; bodyStart: number; end: number };
+
+/** Find all \section{...} blocks and the body ranges between them. */
+function parseSections(src: string): SectionBlock[] {
+  const re = /\\section\*?\s*\{([^}]+)\}/g;
+  const hits: { name: string; start: number; bodyStart: number }[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(src)) !== null) {
+    hits.push({ name: m[1].trim(), start: m.index, bodyStart: m.index + m[0].length });
+  }
+  return hits.map((h, i) => ({
+    ...h,
+    end: i + 1 < hits.length ? hits[i + 1].start : src.indexOf("\\end{document}", h.bodyStart) >= 0
+      ? src.indexOf("\\end{document}", h.bodyStart)
+      : src.length,
+  }));
+}
+
+function replaceSectionBody(src: string, block: SectionBlock, newBody: string): string {
+  return src.slice(0, block.bodyStart) + "\n" + newBody.replace(/^\n+|\n+$/g, "") + "\n" + src.slice(block.end);
 }
 
 /** Watches the `dark` class on <html> and returns the matching CodeMirror theme. */
@@ -97,7 +141,8 @@ function ResumesPage() {
     const blob = new Blob([source], { type: "application/x-tex" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = "base_resume.tex";
+    const nm = slugForFile(extractResumeName(source));
+    link.download = `${nm}_Resume.tex`;
     link.click();
   }
 
@@ -117,6 +162,7 @@ function ResumesPage() {
       <Tabs defaultValue="split" className="flex-1">
         <TabsList>
           <TabsTrigger value="split">Editor + preview</TabsTrigger>
+          <TabsTrigger value="sections"><LayoutList className="mr-1 h-4 w-4" />Sections</TabsTrigger>
           <TabsTrigger value="versions"><History className="mr-1 h-4 w-4" />Versions ({versions.length})</TabsTrigger>
         </TabsList>
         <TabsContent value="split" className="mt-4">
@@ -135,6 +181,9 @@ function ResumesPage() {
               <LatexPreview source={source} />
             </div>
           </div>
+        </TabsContent>
+        <TabsContent value="sections" className="mt-4">
+          <SectionsEditor source={source} onChange={setSource} />
         </TabsContent>
         <TabsContent value="versions" className="mt-4">
           <Card>
