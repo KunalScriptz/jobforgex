@@ -125,7 +125,7 @@ const PRESETS: Record<string, { name: string; base_url: string; test_model: stri
   custom:     { name: "Custom",     base_url: "",                              test_model: "",                            key_hint: "sk-...",   docs: "" },
 };
 
-function Step2({ onDone }: { onDone: () => void }) {
+function Step2({ onBack, onDone }: { onBack: () => void; onDone: () => void }) {
   const [preset, setPreset] = useState<keyof typeof PRESETS>("deepseek");
   const [baseUrl, setBaseUrl] = useState(PRESETS.deepseek.base_url);
   const [apiKey, setApiKey] = useState("");
