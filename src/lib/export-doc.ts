@@ -63,28 +63,64 @@ function mdToPlainText(md: string): string {
 
 async function exportPdf(content: string, filename: string) {
   const { jsPDF } = await import("jspdf");
-  const html = wrapHtml(mdToHtml(content));
-  // Render into an offscreen container jsPDF.html() can consume.
-  const holder = document.createElement("div");
-  holder.style.position = "fixed";
-  holder.style.left = "-10000px";
-  holder.style.top = "0";
-  holder.style.width = "612pt"; // letter width
-  holder.innerHTML = html;
-  document.body.appendChild(holder);
-  try {
-    const doc = new jsPDF({ unit: "pt", format: "letter" });
-    await (doc as any).html(holder, {
-      x: 54,
-      y: 54,
-      width: 504, // 612 - 2*54
-      windowWidth: 720,
-      autoPaging: "text",
-    });
-    doc.save(filename);
-  } finally {
-    holder.remove();
+  const doc = new jsPDF({ unit: "pt", format: "letter" });
+  const pageWidth = 612;
+  const pageHeight = 792;
+  const margin = 54;
+  const maxWidth = pageWidth - margin * 2;
+  let y = margin;
+
+  const ensureRoom = (needed: number) => {
+    if (y + needed > pageHeight - margin) { doc.addPage(); y = margin; }
+  };
+  const writeBlock = (text: string, opts: { size: number; bold?: boolean; indent?: number; gap?: number }) => {
+    if (!text.trim()) { y += opts.gap ?? 6; return; }
+    doc.setFont("helvetica", opts.bold ? "bold" : "normal");
+    doc.setFontSize(opts.size);
+    const indent = opts.indent ?? 0;
+    const lines = doc.splitTextToSize(text, maxWidth - indent) as string[];
+    const lineHeight = opts.size * 1.35;
+    for (const line of lines) {
+      ensureRoom(lineHeight);
+      doc.text(line, margin + indent, y);
+      y += lineHeight;
+    }
+    y += opts.gap ?? 4;
+  };
+
+  // Very small markdown renderer: headings, bullets, numbered lists, paragraphs.
+  const stripInline = (s: string) =>
+    s.replace(/\*\*(.+?)\*\*/g, "$1")
+     .replace(/\*(.+?)\*/g, "$1")
+     .replace(/_(.+?)_/g, "$1")
+     .replace(/`([^`]+)`/g, "$1")
+     .replace(/\[([^\]]+)\]\(([^)]+)\)/g, "$1 ($2)");
+
+  const rawLines = content.replace(/\r\n/g, "\n").split("\n");
+  for (let i = 0; i < rawLines.length; i++) {
+    const line = rawLines[i];
+    if (!line.trim()) { y += 6; continue; }
+    const h = /^(#{1,6})\s+(.*)$/.exec(line);
+    if (h) {
+      const level = h[1].length;
+      const size = level === 1 ? 18 : level === 2 ? 14 : 12;
+      writeBlock(stripInline(h[2]), { size, bold: true, gap: 6 });
+      continue;
+    }
+    const bullet = /^\s*[-*+]\s+(.*)$/.exec(line);
+    if (bullet) {
+      writeBlock(`• ${stripInline(bullet[1])}`, { size: 11, indent: 12, gap: 2 });
+      continue;
+    }
+    const num = /^\s*(\d+)\.\s+(.*)$/.exec(line);
+    if (num) {
+      writeBlock(`${num[1]}. ${stripInline(num[2])}`, { size: 11, indent: 12, gap: 2 });
+      continue;
+    }
+    writeBlock(stripInline(line), { size: 11, gap: 6 });
   }
+
+  doc.save(filename);
 }
 
 async function exportDocx(content: string, filename: string) {
