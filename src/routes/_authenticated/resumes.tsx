@@ -228,3 +228,50 @@ function ColorButton({ label, value, onChange }: { label: string; value: string;
   );
 }
 
+// -------- Sections editor -------------------------------------------------
+
+function SectionsEditor({ source, onChange }: { source: string; onChange: (s: string) => void }) {
+  const blocks = parseSections(source);
+  if (blocks.length === 0) {
+    return (
+      <div className="rounded-lg border bg-card p-6 text-sm text-muted-foreground">
+        No <code>\section&#123;...&#125;</code> blocks found. Add sections in the LaTeX source
+        (e.g. <code>\section&#123;Experience&#125;</code>) and they will appear here for editing.
+      </div>
+    );
+  }
+  return (
+    <div className="space-y-4">
+      <div className="text-xs text-muted-foreground">
+        Edit each section's body directly. Changes flow back into the LaTeX source and the preview.
+        For layout / macros, switch to <span className="font-medium">Editor + preview</span>.
+      </div>
+      {blocks.map((b, i) => {
+        // re-parse each render so indices stay in sync with the current source
+        const current = parseSections(source)[i];
+        const body = current ? source.slice(current.bodyStart, current.end) : "";
+        return (
+          <div key={i} className="rounded-lg border bg-card">
+            <div className="flex items-center justify-between border-b px-3 py-2">
+              <div className="text-sm font-semibold">{b.name}</div>
+              <div className="text-[10px] text-muted-foreground">
+                \section&#123;{b.name}&#125;
+              </div>
+            </div>
+            <Textarea
+              value={body}
+              onChange={(e) => {
+                const now = parseSections(source)[i];
+                if (!now) return;
+                onChange(replaceSectionBody(source, now, e.target.value));
+              }}
+              rows={Math.min(24, Math.max(6, body.split("\n").length + 1))}
+              className="rounded-none border-0 font-mono text-xs focus-visible:ring-0"
+            />
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
