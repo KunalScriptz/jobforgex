@@ -131,7 +131,7 @@ export function JobDetailDialog({ jobId, open, onOpenChange }: {
         <div className="flex-1 overflow-y-auto p-6">
           {tab === "insights" && <InsightsTab job={job} />}
           {tab === "notes" && <NotesTab job={job} />}
-          {tab === "documents" && <DocumentsTab artifacts={artifacts} jobId={jobId!} />}
+          {tab === "documents" && <DocumentsTab artifacts={artifacts} jobId={jobId!} job={job} />}
           {tab === "company" && <CompanyTab job={job} />}
           {tab === "ai" && (
             activeToolId
