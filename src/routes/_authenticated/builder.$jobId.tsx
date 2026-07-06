@@ -1,7 +1,7 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   ArrowLeft, Undo2, Save, Sparkles, ChevronDown, ChevronRight, Plus, Trash2,
@@ -126,7 +126,7 @@ function BuilderPage() {
   const job = jobQ.data?.job;
 
   return (
-    <div className="flex h-[calc(100vh-0px)] flex-col">
+    <div className="flex h-screen flex-col">
         {/* Top bar */}
         <div className="flex h-12 items-center gap-3 border-b bg-card px-4 text-sm">
           <button onClick={() => navigate({ to: "/jobs" })} className="flex items-center gap-1 text-muted-foreground hover:text-foreground">
