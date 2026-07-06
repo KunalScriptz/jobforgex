@@ -312,7 +312,7 @@ function Column({
   return (
     <div
       ref={setNodeRef}
-      className={`flex w-72 shrink-0 flex-col rounded-xl border bg-muted/30 transition-colors ${
+      className={`flex w-72 shrink-0 flex-1 lg:min-w-0 flex-col rounded-xl border bg-muted/30 transition-colors ${
         isOver ? "border-primary bg-primary/5" : "border-border"
       }`}
     >
