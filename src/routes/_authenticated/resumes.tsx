@@ -1,10 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import CodeMirror from "@uiw/react-codemirror";
-import { useEffect, useState as useReactState } from "react";
+import { useEffect, useState } from "react";
 import { HexColorPicker } from "react-colorful";
 
 import { getBaseResume, saveBaseResume, updateResumeColors, listVersions, restoreVersion } from "@/lib/resumes.functions";
@@ -114,7 +113,7 @@ function ResumesPage() {
                 onChange={setSource}
                 height="calc(100vh - 320px)"
                 basicSetup={{ lineNumbers: true, foldGutter: true }}
-                theme={useIsDark() ? "dark" : "light"}
+                theme={useIsDark()}
               />
             </div>
             <div className="overflow-hidden rounded-lg border bg-white" style={{ height: "calc(100vh - 280px)" }}>
