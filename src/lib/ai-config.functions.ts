@@ -2,8 +2,6 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { pingDeepseek } from "./deepseek.server";
-import { decryptApiKey } from "./crypto.server";
 
 async function loadWorkspaceId(supabase: any, userId: string): Promise<string> {
   const { data } = await supabase.from("workspaces").select("id").eq("owner_user_id", userId).maybeSingle();
@@ -30,38 +28,42 @@ export const getProvider = createServerFn({ method: "GET" })
 
 export const saveProvider = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { base_url: string; api_key: string; name?: string }) =>
+  .inputValidator((d: { base_url: string; api_key?: string; name?: string }) =>
     z.object({
       base_url: z.string().url().max(500),
-      api_key: z.string().min(10).max(500),
+      api_key: z.string().max(500).optional(),
       name: z.string().max(100).optional(),
     }).parse(d))
   .handler(async ({ data, context }) => {
     const wsId = await loadWorkspaceId(context.supabase, context.userId);
     const { encryptApiKey } = await import("./crypto.server");
     // Trim whitespace/newlines from pasted keys — a common source of 401s.
-    const cleanKey = data.api_key.trim();
-    const enc = encryptApiKey(cleanKey);
+    const cleanKey = data.api_key?.trim() ?? "";
+    if (cleanKey && cleanKey.length < 10) throw new Error("API key looks too short — paste the full key, then save again.");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const existing = await supabaseAdmin.from("ai_providers").select("id").eq("workspace_id", wsId).maybeSingle();
+    if (existing.error) throw new Error(`Could not load saved provider: ${existing.error.message}`);
+
+    const patch: Record<string, unknown> = {
+      base_url: data.base_url,
+      name: data.name ?? "DeepSeek",
+      is_active: true,
+    };
+    if (cleanKey) patch.api_key_encrypted = encryptApiKey(cleanKey);
+
     if (existing.data) {
-      await supabaseAdmin.from("ai_providers").update({
-        base_url: data.base_url,
-        api_key_encrypted: enc,
-        name: data.name ?? "DeepSeek",
-        is_active: true,
-      }).eq("id", existing.data.id);
+      const { error } = await supabaseAdmin.from("ai_providers").update(patch).eq("id", existing.data.id);
+      if (error) throw new Error(`Could not save provider: ${error.message}`);
     } else {
-      await supabaseAdmin.from("ai_providers").insert({
+      if (!cleanKey) throw new Error("Enter your API key before saving this provider.");
+      const { error } = await supabaseAdmin.from("ai_providers").insert({
         workspace_id: wsId,
-        base_url: data.base_url,
-        api_key_encrypted: enc,
-        name: data.name ?? "DeepSeek",
-        is_active: true,
+        ...patch,
       });
+      if (error) throw new Error(`Could not save provider: ${error.message}`);
     }
-    return { ok: true };
+    return { ok: true, key_updated: Boolean(cleanKey) };
   });
 
 export const testConnection = createServerFn({ method: "POST" })
@@ -69,7 +71,8 @@ export const testConnection = createServerFn({ method: "POST" })
   .inputValidator((d: { base_url: string; api_key: string; model: string }) =>
     z.object({ base_url: z.string().url(), api_key: z.string().min(10), model: z.string().min(1) }).parse(d))
   .handler(async ({ data }) => {
-    await pingDeepseek(data.base_url, data.api_key, data.model);
+    const { pingDeepseek } = await import("./deepseek.server");
+    await pingDeepseek(data.base_url.trim(), data.api_key.trim(), data.model.trim());
     return { ok: true };
   });
 
@@ -88,11 +91,12 @@ export const pingSavedModel = createServerFn({ method: "POST" })
     if (!provider || !provider.api_key_encrypted) throw new Error("No provider saved. Enter and save your API key first.");
     let key: string;
     try {
+      const { decryptApiKey } = await import("./crypto.server");
       key = decryptApiKey(provider.api_key_encrypted as string).trim();
     } catch (e: any) {
       throw new Error(
         `Could not decrypt saved API key (${e?.message ?? "unknown"}). ` +
-        `The encryption secret may have changed — re-enter and save your API key in Settings.`,
+        `Paste the full key and press Save & test to replace the stored key.`,
       );
     }
     const base = (provider.base_url as string).replace(/\/$/, "");
