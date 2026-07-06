@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Trash2, Plus, PlugZap } from "lucide-react";
+import { Trash2, Plus, PlugZap, CheckCircle2, XCircle, AlertTriangle, Sparkles, Loader2 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/settings")({ component: SettingsPage });
 
@@ -39,6 +39,7 @@ function ProviderCard() {
   const [apiKey, setApiKey] = useState("");
   const [model, setModel] = useState("deepseek-chat");
   const [testReply, setTestReply] = useState<string>("");
+  const [testError, setTestError] = useState<string>("");
 
   useEffect(() => { if (p) setBaseUrl(p.base_url); }, [p]);
 
@@ -48,7 +49,7 @@ function ProviderCard() {
       await save({ data: { base_url: baseUrl, api_key: apiKey || "unchanged", name: "DeepSeek" } } as any);
     },
     onSuccess: () => { toast.success("Saved"); qc.invalidateQueries({ queryKey: ["provider"] }); setApiKey(""); },
-    onError: (e: any) => toast.error(e.message),
+    onError: (e: any) => { setTestError(e?.message ?? String(e)); toast.error("Save failed — see error card"); },
   });
 
   const runTest = useMutation({
@@ -56,35 +57,88 @@ function ProviderCard() {
     onSuccess: (r: any) => {
       const reply = r?.reply ?? "";
       setTestReply(reply);
+      setTestError("");
       toast.success(`Model replied: ${reply.slice(0, 80)}`);
     },
-    onError: (e: any) => { setTestReply(""); toast.error(e.message ?? "Test failed"); },
+    onError: (e: any) => {
+      setTestReply("");
+      setTestError(e?.message ?? e?.toString?.() ?? "Unknown error");
+      toast.error("Test failed — see full error below");
+    },
   });
 
+  const status: "empty" | "saved" | "ok" | "err" =
+    testError ? "err" : testReply ? "ok" : p?.has_key ? "saved" : "empty";
+
   return (
-    <Card>
-      <CardHeader><CardTitle>AI provider</CardTitle><CardDescription>Your key is encrypted at rest. Leave blank to keep current key.</CardDescription></CardHeader>
-      <CardContent className="space-y-3">
-        <div><Label>Base URL</Label><Input value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} /></div>
-        <div><Label>API key {p?.has_key ? <span className="text-xs text-muted-foreground">(saved)</span> : null}</Label>
+    <Card className="overflow-hidden border-border/60 bg-gradient-to-br from-card via-card to-primary/5">
+      <CardHeader className="border-b border-border/60 bg-background/30 backdrop-blur">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-primary" /> AI provider
+            </CardTitle>
+            <CardDescription>Your key is encrypted at rest. Leave blank to keep current key.</CardDescription>
+          </div>
+          <StatusPill status={status} />
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3 pt-4">
+        <div><Label>Base URL</Label><Input value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} placeholder="https://api.deepseek.com/v1" /></div>
+        <div>
+          <Label>API key {p?.has_key ? <span className="text-xs text-emerald-600">✓ saved</span> : null}</Label>
           <Input type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder={p?.has_key ? "•••••••• (leave blank to keep)" : "sk-..."} />
         </div>
         <div><Label>Test model</Label><Input value={model} onChange={(e) => setModel(e.target.value)} /></div>
-        <div className="flex gap-2">
-          <Button onClick={() => submit.mutate()} disabled={submit.isPending}>Save</Button>
+        <div className="flex flex-wrap gap-2">
+          <Button onClick={() => submit.mutate()} disabled={submit.isPending}>
+            {submit.isPending && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}Save
+          </Button>
           <Button variant="secondary" onClick={() => runTest.mutate()} disabled={runTest.isPending || !p?.has_key}>
-            <PlugZap className="mr-1.5 h-4 w-4" />
+            {runTest.isPending ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <PlugZap className="mr-1.5 h-4 w-4" />}
             {runTest.isPending ? "Testing…" : "Test model"}
           </Button>
         </div>
+
         {testReply && (
-          <div className="rounded border bg-muted/40 p-2 text-sm">
-            <div className="mb-0.5 text-xs uppercase text-muted-foreground">Model reply</div>
-            <div className="font-mono">{testReply}</div>
+          <div className="animate-in fade-in slide-in-from-top-1 rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-3">
+            <div className="mb-1 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-emerald-600">
+              <CheckCircle2 className="h-3.5 w-3.5" /> Model reply
+            </div>
+            <div className="font-mono text-sm">{testReply}</div>
+          </div>
+        )}
+
+        {testError && (
+          <div className="animate-in fade-in slide-in-from-top-1 rounded-lg border border-red-500/40 bg-red-500/5 p-3">
+            <div className="mb-1 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-red-600">
+              <AlertTriangle className="h-3.5 w-3.5" /> Full server error
+            </div>
+            <pre className="max-h-72 overflow-auto whitespace-pre-wrap rounded bg-background/60 p-2 text-[11px] leading-relaxed">
+              {testError}
+            </pre>
+            <div className="mt-2 text-[11px] text-muted-foreground">
+              Tip: if this says 401/Authentication, either the key is invalid, the model id is wrong, or your saved key was encrypted with a previous secret — paste the key again and Save.
+            </div>
           </div>
         )}
       </CardContent>
     </Card>
+  );
+}
+
+function StatusPill({ status }: { status: "empty" | "saved" | "ok" | "err" }) {
+  const map = {
+    empty: { icon: AlertTriangle, text: "Not configured", cls: "border-amber-500/40 bg-amber-500/10 text-amber-600" },
+    saved: { icon: CheckCircle2,  text: "Key saved",      cls: "border-sky-500/40 bg-sky-500/10 text-sky-600" },
+    ok:    { icon: CheckCircle2,  text: "Model OK",       cls: "border-emerald-500/40 bg-emerald-500/10 text-emerald-600" },
+    err:   { icon: XCircle,       text: "Error",          cls: "border-red-500/40 bg-red-500/10 text-red-600" },
+  }[status];
+  const Icon = map.icon;
+  return (
+    <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium ${map.cls}`}>
+      <Icon className="h-3 w-3" /> {map.text}
+    </span>
   );
 }
 
