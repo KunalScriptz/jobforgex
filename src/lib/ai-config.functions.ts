@@ -45,7 +45,12 @@ export const saveProvider = createServerFn({ method: "POST" })
     const existing = await supabaseAdmin.from("ai_providers").select("id").eq("workspace_id", wsId).maybeSingle();
     if (existing.error) throw new Error(`Could not load saved provider: ${existing.error.message}`);
 
-    const patch: Record<string, unknown> = {
+    const patch: {
+      base_url: string;
+      name: string;
+      is_active: boolean;
+      api_key_encrypted?: string;
+    } = {
       base_url: data.base_url,
       name: data.name ?? "DeepSeek",
       is_active: true,
