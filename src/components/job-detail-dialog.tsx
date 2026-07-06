@@ -173,13 +173,7 @@ function InsightsTab({ job }: { job: any }) {
     onError: (e: any) => toast.error(String(e?.message ?? e).slice(0, 200)),
   });
 
-  // Auto-extract once if description is present and we have none yet
-  useEffect(() => {
-    if (!insights && job?.description && job.description.length >= 40 && !extract.isPending) {
-      extract.mutate(false);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [job?.id]);
+  // Analysis is manual — user clicks "Analyze" to run.
 
   if (!job) return null;
 
@@ -630,7 +624,7 @@ function CompanyTab({ job }: { job: any }) {
 
   if (!job) return null;
   const domain = job.company.toLowerCase().replace(/\b(inc|llc|ltd|corp|corporation|co|company|gmbh|plc)\b\.?/g, "").replace(/[^a-z0-9]/g, "") + ".com";
-  const website = job.url || `https://${domain}`;
+  const website = `https://${domain}`;
 
   return (
     <div className="grid gap-4 md:grid-cols-3">
