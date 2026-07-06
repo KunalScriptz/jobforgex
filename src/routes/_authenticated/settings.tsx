@@ -5,14 +5,14 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { getMyWorkspace, updateBudget, listBoards, createBoard, renameBoard, deleteBoard } from "@/lib/workspace.functions";
-import { getProvider, saveProvider, testConnection, listModels, upsertModel, deleteModel } from "@/lib/ai-config.functions";
+import { getProvider, saveProvider, testConnection, pingSavedModel, listModels, upsertModel, deleteModel } from "@/lib/ai-config.functions";
 
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Trash2, Plus } from "lucide-react";
+import { Trash2, Plus, PlugZap } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/settings")({ component: SettingsPage });
 
@@ -33,10 +33,12 @@ function ProviderCard() {
   const get = useServerFn(getProvider);
   const save = useServerFn(saveProvider);
   const test = useServerFn(testConnection);
+  const pingSaved = useServerFn(pingSavedModel);
   const { data: p } = useQuery({ queryKey: ["provider"], queryFn: () => get() });
   const [baseUrl, setBaseUrl] = useState("");
   const [apiKey, setApiKey] = useState("");
   const [model, setModel] = useState("deepseek-chat");
+  const [testReply, setTestReply] = useState<string>("");
 
   useEffect(() => { if (p) setBaseUrl(p.base_url); }, [p]);
 
@@ -49,6 +51,16 @@ function ProviderCard() {
     onError: (e: any) => toast.error(e.message),
   });
 
+  const runTest = useMutation({
+    mutationFn: async () => pingSaved({ data: { model } } as any),
+    onSuccess: (r: any) => {
+      const reply = r?.reply ?? "";
+      setTestReply(reply);
+      toast.success(`Model replied: ${reply.slice(0, 80)}`);
+    },
+    onError: (e: any) => { setTestReply(""); toast.error(e.message ?? "Test failed"); },
+  });
+
   return (
     <Card>
       <CardHeader><CardTitle>AI provider</CardTitle><CardDescription>Your key is encrypted at rest. Leave blank to keep current key.</CardDescription></CardHeader>
@@ -58,7 +70,19 @@ function ProviderCard() {
           <Input type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder={p?.has_key ? "•••••••• (leave blank to keep)" : "sk-..."} />
         </div>
         <div><Label>Test model</Label><Input value={model} onChange={(e) => setModel(e.target.value)} /></div>
-        <Button onClick={() => submit.mutate()} disabled={submit.isPending}>Save</Button>
+        <div className="flex gap-2">
+          <Button onClick={() => submit.mutate()} disabled={submit.isPending}>Save</Button>
+          <Button variant="secondary" onClick={() => runTest.mutate()} disabled={runTest.isPending || !p?.has_key}>
+            <PlugZap className="mr-1.5 h-4 w-4" />
+            {runTest.isPending ? "Testing…" : "Test model"}
+          </Button>
+        </div>
+        {testReply && (
+          <div className="rounded border bg-muted/40 p-2 text-sm">
+            <div className="mb-0.5 text-xs uppercase text-muted-foreground">Model reply</div>
+            <div className="font-mono">{testReply}</div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
