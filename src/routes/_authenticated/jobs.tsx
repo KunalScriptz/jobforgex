@@ -308,17 +308,19 @@ function Column({
         <span className="text-xs text-muted-foreground">{jobs.length}</span>
       </div>
       <div className="flex flex-1 flex-col gap-2 overflow-y-auto p-2">
-        {jobs.map((j) => (
-          <DraggableCard
-            key={j.id}
-            job={j}
-            selectMode={selectMode}
-            selected={selected.has(j.id)}
-            onToggleSelect={onToggleSelect}
-            onOpen={onOpen}
-            onDelete={onDelete}
-          />
-        ))}
+        <SortableContext items={jobs.map((j) => j.id)} strategy={verticalListSortingStrategy}>
+          {jobs.map((j) => (
+            <SortableCard
+              key={j.id}
+              job={j}
+              selectMode={selectMode}
+              selected={selected.has(j.id)}
+              onToggleSelect={onToggleSelect}
+              onOpen={onOpen}
+              onDelete={onDelete}
+            />
+          ))}
+        </SortableContext>
         {jobs.length === 0 && (
           <div className="rounded-md border border-dashed py-6 text-center text-xs text-muted-foreground">
             Drop here
@@ -329,7 +331,7 @@ function Column({
   );
 }
 
-function DraggableCard({
+function SortableCard({
   job, selectMode, selected, onToggleSelect, onOpen, onDelete,
 }: {
   job: any;
@@ -339,13 +341,18 @@ function DraggableCard({
   onOpen: (id: string) => void;
   onDelete: (id: string) => void;
 }) {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: job.id,
     disabled: selectMode,
   });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  } as React.CSSProperties;
   return (
     <div
       ref={setNodeRef}
+      style={style}
       {...(selectMode ? {} : attributes)}
       {...(selectMode ? {} : listeners)}
       className={isDragging ? "opacity-30" : ""}
