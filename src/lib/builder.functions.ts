@@ -97,7 +97,8 @@ export const saveBuilderContent = createServerFn({ method: "POST" })
     }
 
     const latex = renderBuilderLatex(data.content, {
-      primary_color: row.primary_color, secondary_color: row.secondary_color,
+      primary_color: row.primary_color ?? undefined,
+      secondary_color: row.secondary_color ?? undefined,
     });
     await context.supabase.from("builder_resumes")
       .update({ content: data.content, latex_source: latex })
@@ -123,7 +124,8 @@ export const undoBuilder = createServerFn({ method: "POST" })
     if (!last) throw new Error("Nothing to undo.");
 
     const latex = renderBuilderLatex(last.content, {
-      primary_color: row.primary_color, secondary_color: row.secondary_color,
+      primary_color: row.primary_color ?? undefined,
+      secondary_color: row.secondary_color ?? undefined,
     });
     await context.supabase.from("builder_resumes")
       .update({ content: last.content, latex_source: latex })
@@ -264,8 +266,9 @@ export const applySuggestion = createServerFn({ method: "POST" })
       .select("id, content, suggestions, primary_color, secondary_color")
       .eq("workspace_id", id).eq("job_id", data.job_id).maybeSingle();
     if (!row) throw new Error("Builder not found.");
+    const sugContainer: any = row.suggestions ?? {};
     const patch = data.patch
-      ?? (row.suggestions?.suggestions ?? []).find((s: any) => s.id === data.suggestion_id)?.patch;
+      ?? (sugContainer.suggestions ?? []).find((s: any) => s.id === data.suggestion_id)?.patch;
     if (!patch) throw new Error("Suggestion patch not found.");
 
     // Snapshot previous.
@@ -273,15 +276,16 @@ export const applySuggestion = createServerFn({ method: "POST" })
       builder_resume_id: row.id, workspace_id: id, content: row.content, note: `apply:${data.suggestion_id}`,
     });
 
-    const newContent = applyPatch(row.content as BuilderContent, patch);
+    const newContent = applyPatch(row.content as unknown as BuilderContent, patch);
     const latex = renderBuilderLatex(newContent, {
-      primary_color: row.primary_color, secondary_color: row.secondary_color,
+      primary_color: row.primary_color ?? undefined,
+      secondary_color: row.secondary_color ?? undefined,
     });
 
     // Remove the applied suggestion from the list.
     const remaining = {
-      ...(row.suggestions ?? {}),
-      suggestions: (row.suggestions?.suggestions ?? []).filter((s: any) => s.id !== data.suggestion_id),
+      ...sugContainer,
+      suggestions: (sugContainer.suggestions ?? []).filter((s: any) => s.id !== data.suggestion_id),
     };
     await context.supabase.from("builder_resumes")
       .update({ content: newContent, latex_source: latex, suggestions: remaining })
@@ -301,9 +305,10 @@ export const ignoreSuggestion = createServerFn({ method: "POST" })
     const { data: row } = await context.supabase.from("builder_resumes")
       .select("id, suggestions").eq("workspace_id", id).eq("job_id", data.job_id).maybeSingle();
     if (!row) throw new Error("Builder not found.");
+    const sugContainer: any = row.suggestions ?? {};
     const remaining = {
-      ...(row.suggestions ?? {}),
-      suggestions: (row.suggestions?.suggestions ?? []).filter((s: any) => s.id !== data.suggestion_id),
+      ...sugContainer,
+      suggestions: (sugContainer.suggestions ?? []).filter((s: any) => s.id !== data.suggestion_id),
     };
     await context.supabase.from("builder_resumes").update({ suggestions: remaining }).eq("id", row.id);
     return { suggestions: remaining };
