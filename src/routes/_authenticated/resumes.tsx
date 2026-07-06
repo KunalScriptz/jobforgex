@@ -38,6 +38,21 @@ function replaceDefineColor(src: string, name: string, tuple: string): string {
   return src;
 }
 
+/** Watches the `dark` class on <html> and returns the matching CodeMirror theme. */
+function useIsDark(): "dark" | "light" {
+  const [dark, setDark] = useState<boolean>(() =>
+    typeof document !== "undefined" && document.documentElement.classList.contains("dark"),
+  );
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const el = document.documentElement;
+    const obs = new MutationObserver(() => setDark(el.classList.contains("dark")));
+    obs.observe(el, { attributes: true, attributeFilter: ["class"] });
+    return () => obs.disconnect();
+  }, []);
+  return dark ? "dark" : "light";
+}
+
 function ResumesPage() {
   const qc = useQueryClient();
   const getBase = useServerFn(getBaseResume);
