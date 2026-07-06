@@ -4,6 +4,12 @@ import { Loader2, AlertTriangle, FileText, RefreshCw } from "lucide-react";
 
 import { compileLatex } from "@/lib/latex.functions";
 
+// Module-level cache — survives component unmount so navigating away and back
+// doesn't force a recompile of an unchanged source.
+type CacheEntry = { source: string; pdfUrl: string };
+const previewCache = new Map<string, CacheEntry>();
+const DEFAULT_CACHE_KEY = "__default__";
+
 function base64ToBlobUrl(b64: string): string {
   const bin = atob(b64);
   const bytes = new Uint8Array(bin.length);
@@ -12,20 +18,22 @@ function base64ToBlobUrl(b64: string): string {
 }
 
 export type LatexPreviewHandle = { compile: () => Promise<void> };
-type Props = { source: string; debounceMs?: number; auto?: boolean };
+type Props = { source: string; debounceMs?: number; auto?: boolean; cacheKey?: string; downloadFilename?: string };
 
 export const LatexPreview = forwardRef<LatexPreviewHandle, Props>(function LatexPreview(
-  { source, debounceMs = 1200, auto = true },
+  { source, debounceMs = 1200, auto = true, cacheKey, downloadFilename },
   ref,
 ) {
   const compile = useServerFn(compileLatex);
-  const [status, setStatus] = useState<"idle" | "compiling" | "ready" | "error">("idle");
-  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const key = cacheKey ?? DEFAULT_CACHE_KEY;
+  const cached = previewCache.get(key);
+  const hasCache = cached && cached.source === source;
+  const [status, setStatus] = useState<"idle" | "compiling" | "ready" | "error">(hasCache ? "ready" : "idle");
+  const [pdfUrl, setPdfUrl] = useState<string | null>(hasCache ? cached!.pdfUrl : null);
   const [errorMsg, setErrorMsg] = useState<string>("");
   const [showLog, setShowLog] = useState(false);
   const runIdRef = useRef(0);
-  const lastUrlRef = useRef<string | null>(null);
-  const lastCompiledRef = useRef<string>("");
+  const lastCompiledRef = useRef<string>(hasCache ? source : "");
 
   async function run() {
     if (!source || source.trim().length < 10) return;
@@ -37,8 +45,9 @@ export const LatexPreview = forwardRef<LatexPreviewHandle, Props>(function Latex
       const res = await compile({ data: { source } } as any);
       if (myRun !== runIdRef.current) return;
       const url = base64ToBlobUrl(res.pdf_base64);
-      if (lastUrlRef.current) URL.revokeObjectURL(lastUrlRef.current);
-      lastUrlRef.current = url;
+      const prev = previewCache.get(key);
+      if (prev && prev.pdfUrl !== url) URL.revokeObjectURL(prev.pdfUrl);
+      previewCache.set(key, { source, pdfUrl: url });
       lastCompiledRef.current = source;
       setPdfUrl(url);
       setStatus("ready");
@@ -53,14 +62,27 @@ export const LatexPreview = forwardRef<LatexPreviewHandle, Props>(function Latex
 
   useEffect(() => {
     if (!auto) return;
+    // Skip if we already have a valid cached render for this exact source.
+    if (lastCompiledRef.current === source && pdfUrl) return;
     const t = setTimeout(run, debounceMs);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [source, auto, debounceMs]);
 
-  useEffect(() => () => { if (lastUrlRef.current) URL.revokeObjectURL(lastUrlRef.current); }, []);
+  // Don't revoke on unmount — the URL lives in the module cache so we can
+  // reuse it when the component remounts (e.g., navigating tabs).
 
   const dirty = pdfUrl && source !== lastCompiledRef.current;
+
+  function downloadPdf() {
+    if (!pdfUrl) return;
+    const a = document.createElement("a");
+    a.href = pdfUrl;
+    a.download = downloadFilename || "resume.pdf";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }
 
   return (
     <div className="flex h-full w-full flex-col">
@@ -77,6 +99,11 @@ export const LatexPreview = forwardRef<LatexPreviewHandle, Props>(function Latex
                 {showLog ? "hide error" : "show error"}
               </button>
             </>
+          )}
+          {pdfUrl && downloadFilename && (
+            <button className="flex items-center gap-1 rounded border px-1.5 py-0.5 hover:bg-muted" onClick={downloadPdf}>
+              Download PDF
+            </button>
           )}
           <button className="flex items-center gap-1 rounded border px-1.5 py-0.5 hover:bg-muted" onClick={run} disabled={status === "compiling"}>
             <RefreshCw className="h-3 w-3" />Recompile
