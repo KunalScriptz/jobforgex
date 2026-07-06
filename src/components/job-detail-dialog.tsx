@@ -836,13 +836,13 @@ function AiToolRunner({ jobId, toolId, onBack, job }: { jobId: string; toolId: s
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuLabel>Download as</DropdownMenuLabel>
-                  <DropdownMenuItem onClick={() => downloadAs("txt", result.label, result.content)}>
+                  <DropdownMenuItem onClick={() => downloadAs("txt", fileLabel(result.label), result.content)}>
                     <FileText className="mr-2 h-4 w-4" /> Plain text (.txt)
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => downloadAs("pdf", result.label, result.content)}>
+                  <DropdownMenuItem onClick={() => downloadAs("pdf", fileLabel(result.label), result.content).catch((e) => toast.error(String(e?.message ?? e).slice(0, 200)))}>
                     <FileText className="mr-2 h-4 w-4" /> PDF (.pdf)
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => downloadAs("docx", result.label, result.content).catch((e) => toast.error(String(e?.message ?? e).slice(0, 200)))}>
+                  <DropdownMenuItem onClick={() => downloadAs("docx", fileLabel(result.label), result.content).catch((e) => toast.error(String(e?.message ?? e).slice(0, 200)))}>
                     <FileText className="mr-2 h-4 w-4" /> Word (.docx)
                   </DropdownMenuItem>
                 </DropdownMenuContent>
