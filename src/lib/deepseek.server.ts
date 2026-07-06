@@ -22,6 +22,7 @@ function allPromptKeys() {
     generate_cover_letter: 0,
     parse_jd: 0,
     ats_checker: 0,
+    extract_insights: 0,
   };
 }
 

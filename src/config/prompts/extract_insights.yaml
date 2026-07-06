@@ -1,0 +1,25 @@
+system: |
+  You are an expert technical recruiter and JD analyst. You return ONLY valid JSON.
+user_template: |
+  Analyze the following job description and extract structured insights. Focus on terms
+  a candidate should tailor their resume around. Return ONLY JSON in EXACTLY this shape:
+
+  {
+    "keywords": [<15-30 short strings — high-value ATS keywords, skills, tools, frameworks>],
+    "hard_skills": [<8-15 concrete technical skills>],
+    "soft_skills": [<3-8 interpersonal/leadership traits mentioned>],
+    "responsibilities": [<5-10 short bullet strings summarizing day-to-day duties>],
+    "qualifications": [<5-10 short bullet strings — education, experience, certifications>],
+    "seniority": <"intern" | "junior" | "mid" | "senior" | "staff" | "principal" | "unknown">,
+    "remote": <"remote" | "hybrid" | "onsite" | "unknown">,
+    "summary": <"1-2 sentence plain-English overview of the role">
+  }
+
+  Keywords MUST be terms that literally appear in the JD (or very close variants) so they can
+  be highlighted in the source text. Prefer nouns and noun phrases (e.g. "PyTorch", "A/B testing",
+  "distributed systems"), not full sentences.
+
+  === JOB DESCRIPTION ===
+  {{jd}}
+temperature: 0.1
+response_format: json_object

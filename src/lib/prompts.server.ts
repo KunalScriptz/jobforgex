@@ -5,6 +5,7 @@ import tailor from "@/config/prompts/tailor_resume.yaml?raw";
 import cover from "@/config/prompts/generate_cover_letter.yaml?raw";
 import parse from "@/config/prompts/parse_jd.yaml?raw";
 import ats from "@/config/prompts/ats_checker.yaml?raw";
+import insights from "@/config/prompts/extract_insights.yaml?raw";
 import models from "@/config/models/deepseek_models.yaml?raw";
 
 export type PromptDef = {
@@ -20,6 +21,7 @@ const RAW: Record<string, string> = {
   generate_cover_letter: cover,
   parse_jd: parse,
   ats_checker: ats,
+  extract_insights: insights,
 };
 
 export function getPrompt(name: keyof typeof RAW): PromptDef {
