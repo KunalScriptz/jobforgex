@@ -16,7 +16,7 @@
   gap: 8px !important;
 }
 #jobforge-fab:hover { background: #1e293b !important; }
-#jobforge-fab .dot { width:8px; height:8px; border-radius:999px; background:#22d3a8 !important; }
+#jobforge-fab img { width:18px !important; height:18px !important; border-radius:4px !important; background:white !important; padding:2px !important; }
 
 #jobforge-panel {
   position: fixed !important;

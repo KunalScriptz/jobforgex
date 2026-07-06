@@ -4,7 +4,9 @@
     <meta charset="utf-8" />
     <style>
       body { font: 13px system-ui, -apple-system, "Segoe UI", sans-serif; margin: 0; width: 300px; padding: 14px; color: #0f172a; }
-      h1 { font-size: 15px; margin: 0 0 4px; }
+      .brand { display:flex; align-items:center; gap:8px; margin-bottom:6px; }
+      .brand img { width:28px; height:28px; }
+      h1 { font-size: 15px; margin: 0; }
       p  { font-size: 12px; color: #64748b; margin: 0 0 12px; }
       label { display:block; font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:#475569; margin-bottom:4px; }
       input { width:100%; box-sizing:border-box; padding:7px 9px; border:1px solid #cbd5e1; border-radius:6px; font-size:12px; margin-bottom:10px; }
@@ -17,7 +19,7 @@
     </style>
   </head>
   <body>
-    <h1>JobForge</h1>
+    <div class="brand"><img src="icon-128.png" alt="" /><h1>JobForge</h1></div>
     <p>Connect this browser to your JobForge workspace.</p>
     <label for="host">Host</label>
     <input id="host" placeholder="https://jobforgex.lovable.app" />
