@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useImperativeHandle, useRef, useState, forwardRef } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { Loader2, AlertTriangle, FileText, RefreshCw } from "lucide-react";
 
@@ -11,9 +11,13 @@ function base64ToBlobUrl(b64: string): string {
   return URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
 }
 
+export type LatexPreviewHandle = { compile: () => Promise<void> };
 type Props = { source: string; debounceMs?: number; auto?: boolean };
 
-export function LatexPreview({ source, debounceMs = 1200, auto = true }: Props) {
+export const LatexPreview = forwardRef<LatexPreviewHandle, Props>(function LatexPreview(
+  { source, debounceMs = 1200, auto = true },
+  ref,
+) {
   const compile = useServerFn(compileLatex);
   const [status, setStatus] = useState<"idle" | "compiling" | "ready" | "error">("idle");
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
@@ -21,9 +25,11 @@ export function LatexPreview({ source, debounceMs = 1200, auto = true }: Props) 
   const [showLog, setShowLog] = useState(false);
   const runIdRef = useRef(0);
   const lastUrlRef = useRef<string | null>(null);
+  const lastCompiledRef = useRef<string>("");
 
   async function run() {
     if (!source || source.trim().length < 10) return;
+    if (source === lastCompiledRef.current && status === "ready") return; // cache hit
     const myRun = ++runIdRef.current;
     setStatus("compiling");
     setErrorMsg("");
@@ -33,6 +39,7 @@ export function LatexPreview({ source, debounceMs = 1200, auto = true }: Props) 
       const url = base64ToBlobUrl(res.pdf_base64);
       if (lastUrlRef.current) URL.revokeObjectURL(lastUrlRef.current);
       lastUrlRef.current = url;
+      lastCompiledRef.current = source;
       setPdfUrl(url);
       setStatus("ready");
     } catch (e: any) {
@@ -41,6 +48,8 @@ export function LatexPreview({ source, debounceMs = 1200, auto = true }: Props) 
       setStatus("error");
     }
   }
+
+  useImperativeHandle(ref, () => ({ compile: run }), [source]);
 
   useEffect(() => {
     if (!auto) return;
@@ -51,6 +60,8 @@ export function LatexPreview({ source, debounceMs = 1200, auto = true }: Props) 
 
   useEffect(() => () => { if (lastUrlRef.current) URL.revokeObjectURL(lastUrlRef.current); }, []);
 
+  const dirty = pdfUrl && source !== lastCompiledRef.current;
+
   return (
     <div className="flex h-full w-full flex-col">
       <div className="flex items-center gap-2 border-b p-2 text-xs">
@@ -58,6 +69,7 @@ export function LatexPreview({ source, debounceMs = 1200, auto = true }: Props) 
         <span className="font-medium text-muted-foreground">Preview (real PDF)</span>
         <span className="ml-auto flex items-center gap-2">
           {status === "compiling" && (<><Loader2 className="h-3.5 w-3.5 animate-spin" /><span>Compiling…</span></>)}
+          {status === "ready" && dirty && <span className="text-amber-500">Unsaved changes — press Save (Ctrl+S) to recompile</span>}
           {status === "error" && (
             <>
               <AlertTriangle className="h-3.5 w-3.5 text-red-500" />
@@ -77,7 +89,7 @@ export function LatexPreview({ source, debounceMs = 1200, auto = true }: Props) 
         )}
         {!pdfUrl && status !== "error" && (
           <div className="flex h-full items-center justify-center text-xs text-neutral-600 dark:text-neutral-300">
-            {status === "compiling" ? "Compiling first PDF…" : "Waiting for changes…"}
+            {status === "compiling" ? "Compiling first PDF…" : "Press Recompile or Save (Ctrl+S) to render."}
           </div>
         )}
         {status === "error" && !pdfUrl && (
@@ -101,7 +113,7 @@ export function LatexPreview({ source, debounceMs = 1200, auto = true }: Props) 
       </div>
     </div>
   );
-}
+});
 
 function firstLine(s: string): string {
   const line = s.split("\n").find((l) => l.trim().length > 0) ?? s;
