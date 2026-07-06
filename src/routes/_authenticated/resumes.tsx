@@ -178,7 +178,13 @@ function ResumesPage() {
               />
             </div>
             <div className="overflow-hidden rounded-lg border bg-white" style={{ height: "calc(100vh - 280px)" }}>
-              <LatexPreview ref={previewRef} source={source} auto={false} />
+              <LatexPreview
+                ref={previewRef}
+                source={source}
+                auto={false}
+                cacheKey={`base-resume-${resume.id}`}
+                downloadFilename={baseResumeFilename({ latex: source, ext: "pdf" })}
+              />
             </div>
           </div>
         </TabsContent>
@@ -188,7 +194,13 @@ function ResumesPage() {
               <SectionsEditor source={source} onChange={setSource} />
             </div>
             <div className="overflow-hidden rounded-lg border bg-white" style={{ height: "calc(100vh - 220px)" }}>
-              <LatexPreview ref={sectionsPreviewRef} source={source} auto={false} />
+              <LatexPreview
+                ref={sectionsPreviewRef}
+                source={source}
+                auto={false}
+                cacheKey={`base-resume-${resume.id}`}
+                downloadFilename={baseResumeFilename({ latex: source, ext: "pdf" })}
+              />
             </div>
           </div>
         </TabsContent>
