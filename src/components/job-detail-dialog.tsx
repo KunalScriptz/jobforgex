@@ -173,13 +173,7 @@ function InsightsTab({ job }: { job: any }) {
     onError: (e: any) => toast.error(String(e?.message ?? e).slice(0, 200)),
   });
 
-  // Auto-extract once if description is present and we have none yet
-  useEffect(() => {
-    if (!insights && job?.description && job.description.length >= 40 && !extract.isPending) {
-      extract.mutate(false);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [job?.id]);
+  // Analysis is manual — user clicks "Analyze" to run.
 
   if (!job) return null;
 
