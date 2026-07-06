@@ -15,7 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { getMyWorkspace, createWorkspace, updateOnboardingStep } from "@/lib/workspace.functions";
 import { saveProvider, testConnection } from "@/lib/ai-config.functions";
 import { saveBaseResume } from "@/lib/resumes.functions";
-import { Sparkles, CheckCircle2 } from "lucide-react";
+import { Sparkles, CheckCircle2, ArrowLeft } from "lucide-react";
 import { PdfToLatexButton } from "@/components/pdf-to-latex-button";
 
 export const Route = createFileRoute("/onboarding")({
@@ -59,14 +59,20 @@ function OnboardingPage() {
         <Progress value={progress} className="mb-6" />
 
         {step === 1 && <Step1 onDone={(_ws) => { qc.invalidateQueries({ queryKey: ["ws"] }); setStep(2); }} />}
-        {step === 2 && <Step2 onDone={async () => {
-          await setStepFn({ data: { step: 3 } } as any);
-          qc.invalidateQueries({ queryKey: ["ws"] }); setStep(3);
-        }} />}
-        {step === 3 && <Step3 onDone={async () => {
-          qc.invalidateQueries({ queryKey: ["ws"] });
-          navigate({ to: "/jobs" });
-        }} />}
+        {step === 2 && <Step2
+          onBack={() => setStep(1)}
+          onDone={async () => {
+            await setStepFn({ data: { step: 3 } } as any);
+            qc.invalidateQueries({ queryKey: ["ws"] }); setStep(3);
+          }}
+        />}
+        {step === 3 && <Step3
+          onBack={() => setStep(2)}
+          onDone={async () => {
+            qc.invalidateQueries({ queryKey: ["ws"] });
+            navigate({ to: "/jobs" });
+          }}
+        />}
       </div>
     </div>
   );
@@ -119,7 +125,7 @@ const PRESETS: Record<string, { name: string; base_url: string; test_model: stri
   custom:     { name: "Custom",     base_url: "",                              test_model: "",                            key_hint: "sk-...",   docs: "" },
 };
 
-function Step2({ onDone }: { onDone: () => void }) {
+function Step2({ onBack, onDone }: { onBack: () => void; onDone: () => void }) {
   const [preset, setPreset] = useState<keyof typeof PRESETS>("deepseek");
   const [baseUrl, setBaseUrl] = useState(PRESETS.deepseek.base_url);
   const [apiKey, setApiKey] = useState("");
@@ -217,14 +223,19 @@ function Step2({ onDone }: { onDone: () => void }) {
             )}
             <p className="mt-1 text-xs text-muted-foreground">You can add more models later in Settings.</p>
           </div>
-          <Button type="submit" disabled={busy}>{busy ? "Testing..." : "Test & save"}</Button>
+          <div className="flex items-center gap-3">
+            <Button type="button" variant="outline" onClick={onBack} disabled={busy}>
+              <ArrowLeft className="mr-1.5 h-4 w-4" /> Back
+            </Button>
+            <Button type="submit" disabled={busy}>{busy ? "Testing..." : "Test & save"}</Button>
+          </div>
         </form>
       </CardContent>
     </Card>
   );
 }
 
-function Step3({ onDone }: { onDone: () => void }) {
+function Step3({ onBack, onDone }: { onBack: () => void; onDone: () => void }) {
   const [tex, setTex] = useState("");
   const [busy, setBusy] = useState(false);
   const save = useServerFn(saveBaseResume);
@@ -264,7 +275,9 @@ function Step3({ onDone }: { onDone: () => void }) {
             placeholder="\documentclass[letterpaper,11pt]{article}&#10;..."
           />
           <div className="flex items-center justify-between">
-            <div className="text-xs text-muted-foreground">{tex.length.toLocaleString()} characters</div>
+            <Button type="button" variant="outline" onClick={onBack} disabled={busy}>
+              <ArrowLeft className="mr-1.5 h-4 w-4" /> Back
+            </Button>
             <Button type="submit" disabled={busy}>
               {busy ? "Saving..." : (<><CheckCircle2 className="mr-1.5 h-4 w-4" />Finish setup</>)}
             </Button>
