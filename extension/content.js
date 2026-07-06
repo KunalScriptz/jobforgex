@@ -46,11 +46,29 @@
         }
       }
     } catch (_) {}
+    // LinkedIn-specific selectors (run before generic meta because og:site_name = "LinkedIn")
+    if (host.includes("linkedin.com")) {
+      const liSelectors = [
+        '.job-details-jobs-unified-top-card__company-name a',
+        '.job-details-jobs-unified-top-card__company-name',
+        '.jobs-unified-top-card__company-name a',
+        '.jobs-unified-top-card__company-name',
+        '.topcard__org-name-link',
+        '.topcard__flavor a',
+        'a[data-tracking-control-name*="topcard-org-name"]',
+        'a[href*="/company/"]',
+      ];
+      for (const sel of liSelectors) {
+        const el = document.querySelector(sel);
+        const n = el && text(el);
+        if (n && n.length < 100 && !/linkedin/i.test(n)) return n;
+      }
+    }
     // 2. Common meta tags
     const metaCompany =
       pickMeta("twitter:data1") ||
       document.querySelector('meta[name="twitter:label1"][content*="ompany"]')?.nextElementSibling?.getAttribute("content");
-    if (metaCompany && !/salary|location/i.test(metaCompany)) return metaCompany.trim();
+    if (metaCompany && !/salary|location|linkedin/i.test(metaCompany)) return metaCompany.trim();
     // Greenhouse: job-boards.greenhouse.io/<slug>/jobs/<id>
     if (host.includes("greenhouse.io")) {
       const gh = document.querySelector('.company-name, [class*="company"]');
@@ -138,6 +156,7 @@
       <div class="field"><label>Company</label><input id="jf-company" /></div>
       <div class="field"><label>Title</label><input id="jf-title" /></div>
       <div class="field"><label>URL</label><input id="jf-url" /></div>
+      <div class="field"><label>Job description (preview)</label><textarea id="jf-desc" rows="6"></textarea></div>
       <div class="actions">
         <button id="jf-save">Save to board</button>
         <button id="jf-autofill" class="secondary" title="Coming soon">Autofill</button>
@@ -148,6 +167,7 @@
     panel.querySelector("#jf-company").value = data.company;
     panel.querySelector("#jf-title").value = data.title;
     panel.querySelector("#jf-url").value = data.url;
+    panel.querySelector("#jf-desc").value = data.description || "";
     panel.querySelector(".close").addEventListener("click", () => { panel.remove(); panel = null; });
     panel.querySelector("#jf-save").addEventListener("click", saveJob);
     panel.querySelector("#jf-autofill").addEventListener("click", tryAutofill);
@@ -163,7 +183,7 @@
       company: panel.querySelector("#jf-company").value.trim(),
       title: panel.querySelector("#jf-title").value.trim(),
       url: panel.querySelector("#jf-url").value.trim(),
-      description: scrape().description,
+      description: panel.querySelector("#jf-desc").value.trim() || scrape().description,
     };
     if (!payload.company || !payload.title) { status("Company and title required.", "err"); return; }
     status("Saving…");
