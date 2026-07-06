@@ -113,19 +113,35 @@ function Step1({ onDone }: { onDone: (ws: any) => void }) {
   );
 }
 
+const PRESETS: Record<string, { name: string; base_url: string; test_model: string; key_hint: string; docs: string }> = {
+  deepseek:   { name: "DeepSeek",   base_url: "https://api.deepseek.com/v1",   test_model: "deepseek-chat",              key_hint: "sk-...",   docs: "https://platform.deepseek.com/api_keys" },
+  openrouter: { name: "OpenRouter", base_url: "https://openrouter.ai/api/v1",  test_model: "openai/gpt-4o-mini",         key_hint: "sk-or-...", docs: "https://openrouter.ai/keys" },
+  custom:     { name: "Custom",     base_url: "",                              test_model: "",                            key_hint: "sk-...",   docs: "" },
+};
+
 function Step2({ onDone }: { onDone: () => void }) {
-  const [baseUrl, setBaseUrl] = useState("https://api.deepseek.com/v1");
+  const [preset, setPreset] = useState<keyof typeof PRESETS>("deepseek");
+  const [baseUrl, setBaseUrl] = useState(PRESETS.deepseek.base_url);
   const [apiKey, setApiKey] = useState("");
-  const [model, setModel] = useState("deepseek-chat");
+  const [model, setModel] = useState(PRESETS.deepseek.test_model);
   const [busy, setBusy] = useState(false);
   const test = useServerFn(testConnection);
   const save = useServerFn(saveProvider);
 
-  const DEFAULT_MODELS = [
+  const DEEPSEEK_MODELS = [
     { name: "deepseek-chat", display: "DeepSeek Chat" },
     { name: "deepseek-coder", display: "DeepSeek Coder" },
     { name: "deepseek-reasoner", display: "DeepSeek Reasoner" },
   ];
+
+  function applyPreset(id: keyof typeof PRESETS) {
+    setPreset(id);
+    const cfg = PRESETS[id];
+    if (id !== "custom") {
+      setBaseUrl(cfg.base_url);
+      setModel(cfg.test_model);
+    }
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -136,19 +152,17 @@ function Step2({ onDone }: { onDone: () => void }) {
       const cleanModel = model.trim();
       if (cleanKey.length < 10) throw new Error("Paste your full API key (min 10 chars). It usually starts with sk-...");
       await test({ data: { base_url: cleanUrl, api_key: cleanKey, model: cleanModel } } as any);
-      await save({ data: { base_url: cleanUrl, api_key: cleanKey, name: "DeepSeek" } } as any);
+      await save({ data: { base_url: cleanUrl, api_key: cleanKey, name: PRESETS[preset].name } } as any);
       toast.success("Connection verified");
       onDone();
     } catch (err: any) {
       const raw = err?.message ?? String(err);
-      // Zod validation errors arrive as a JSON array — surface the first message.
       let pretty = raw;
       try {
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed) && parsed[0]?.message) pretty = parsed.map((p: any) => `• ${p.path?.join(".")}: ${p.message}`).join("\n");
       } catch {}
       toast.error(pretty.slice(0, 300));
-      // eslint-disable-next-line no-alert
       console.error("[onboarding] provider test failed:", raw);
     }
     finally { setBusy(false); }
@@ -164,7 +178,20 @@ function Step2({ onDone }: { onDone: () => void }) {
         <form onSubmit={submit} className="space-y-4">
           <div>
             <Label>Provider</Label>
-            <Input value="OpenAI Compatible" disabled />
+            <Select value={preset} onValueChange={(v) => applyPreset(v as keyof typeof PRESETS)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="deepseek">DeepSeek</SelectItem>
+                <SelectItem value="openrouter">OpenRouter</SelectItem>
+                <SelectItem value="custom">Custom (OpenAI-compatible)</SelectItem>
+              </SelectContent>
+            </Select>
+            {preset === "openrouter" && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                OpenRouter model ids look like <code>openai/gpt-4o-mini</code>. Get a key at{" "}
+                <a href="https://openrouter.ai/keys" target="_blank" rel="noreferrer" className="underline">openrouter.ai/keys</a>.
+              </p>
+            )}
           </div>
           <div>
             <Label htmlFor="url">API base URL</Label>
@@ -172,18 +199,22 @@ function Step2({ onDone }: { onDone: () => void }) {
           </div>
           <div>
             <Label htmlFor="key">API key</Label>
-            <Input id="key" type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} required minLength={10} placeholder="sk-..." />
+            <Input id="key" type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} required minLength={10} placeholder={PRESETS[preset].key_hint} />
           </div>
           <div>
             <Label htmlFor="model">Default model</Label>
-            <Select value={model} onValueChange={setModel}>
-              <SelectTrigger id="model"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {DEFAULT_MODELS.map((m) => (
-                  <SelectItem key={m.name} value={m.name}>{m.display} <span className="text-muted-foreground">({m.name})</span></SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {preset === "deepseek" ? (
+              <Select value={model} onValueChange={setModel}>
+                <SelectTrigger id="model"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {DEEPSEEK_MODELS.map((m) => (
+                    <SelectItem key={m.name} value={m.name}>{m.display} <span className="text-muted-foreground">({m.name})</span></SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <Input id="model" value={model} onChange={(e) => setModel(e.target.value)} placeholder={preset === "openrouter" ? "openai/gpt-4o-mini" : "model-id"} required />
+            )}
             <p className="mt-1 text-xs text-muted-foreground">You can add more models later in Settings.</p>
           </div>
           <Button type="submit" disabled={busy}>{busy ? "Testing..." : "Test & save"}</Button>
