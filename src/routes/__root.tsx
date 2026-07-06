@@ -86,6 +86,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:description", content: "Track jobs, tailor LaTeX resumes with AI, generate cover letters, and monitor your DeepSeek cost — all in one workspace." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:title", content: "JobForge — AI-powered job search command center" },
+      { name: "twitter:description", content: "Track jobs, tailor LaTeX resumes with AI, generate cover letters, and monitor your DeepSeek cost — all in one workspace." },
+      { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/817ddb74-6581-4114-a968-93816e25fa11" },
+      { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/817ddb74-6581-4114-a968-93816e25fa11" },
     ],
     links: [
       {
