@@ -22,7 +22,7 @@ function AuthPage() {
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
-      if (data.user) navigate({ to: "/dashboard" });
+      if (data.user) navigate({ to: "/jobs" });
     });
   }, [navigate]);
 
@@ -81,7 +81,7 @@ function AuthForm({ mode, busy, setBusy }: { mode: "signin" | "signup"; busy: bo
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         toast.success("Signed in");
-        navigate({ to: "/dashboard" });
+        navigate({ to: "/jobs" });
       }
     } catch (err: any) {
       toast.error(err.message ?? "Authentication failed");
