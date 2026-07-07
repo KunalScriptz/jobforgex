@@ -91,7 +91,7 @@ export function JobDetailDialog({ jobId, open, onOpenChange }: {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl h-[85vh] p-0 gap-0 overflow-hidden">
+      <DialogContent className="w-[calc(100vw-2rem)] max-w-5xl h-[85vh] p-0 gap-0 overflow-hidden">
         {/* Header with glow */}
         <div className="relative border-b bg-gradient-to-br from-primary/10 via-transparent to-transparent px-6 py-5">
           <div className="flex items-start justify-between gap-4">
@@ -101,7 +101,7 @@ export function JobDetailDialog({ jobId, open, onOpenChange }: {
                 <div className="mb-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
                   {job?.company ?? "—"}
                 </div>
-                <h2 className="truncate text-2xl font-bold tracking-tight">
+                <h2 className="line-clamp-2 break-words text-2xl font-bold tracking-tight" title={job?.title}>
                   {isLoading ? "Loading…" : (job?.title ?? "Job")}
                 </h2>
                 <div className="mt-2 flex flex-wrap items-center gap-1.5">
