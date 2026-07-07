@@ -451,7 +451,7 @@ function JobCard({
 }) {
   return (
     <div
-      className={`group rounded-lg border bg-card p-3 shadow-sm transition-all hover:border-primary/50 hover:bg-accent hover:shadow-md ${
+      className={`group rounded-lg border bg-card p-3 shadow-sm transition-all hover:border-primary/50 hover:bg-accent hover:text-accent-foreground hover:shadow-md ${
         selectMode ? "cursor-pointer" : "cursor-grab active:cursor-grabbing"
       } ${dragging ? "rotate-2 shadow-xl" : ""} ${
         selected ? "ring-2 ring-primary" : ""
