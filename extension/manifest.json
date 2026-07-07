@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "JobForge Autofill",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Save jobs to your JobForge board with one click from any job posting.",
   "permissions": ["storage", "activeTab", "scripting"],
   "host_permissions": ["<all_urls>"],
@@ -43,8 +43,17 @@
         "*://*.weworkremotely.com/*",
         "*://*.otta.com/*",
         "*://*.ycombinator.com/*",
+        "*://*.jobstreet.com/*",
+        "*://*.jobstreet.com.my/*",
+        "*://*.jobstreet.com.sg/*",
+        "*://*.jobstreet.com.ph/*",
+        "*://*.jobstreet.co.id/*",
+        "*://*.seek.com.au/*",
+        "*://*.seek.co.nz/*",
         "*://*/careers/*",
-        "*://*/jobs/*"
+        "*://*/jobs/*",
+        "*://*/*-jobs*/*",
+        "*://*/job/*"
       ],
       "js": ["content.js"],
       "css": ["content.css"],
