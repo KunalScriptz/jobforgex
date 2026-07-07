@@ -293,24 +293,29 @@
   fab.innerHTML = `<img src="${iconUrl}" alt="" /> Save to JobForge`;
   document.documentElement.appendChild(fab);
 
-  // Restore saved position (per-site).
+  // Default position: bottom-right. Restore per-site override if present.
   const POS_KEY = "jobforge_fab_pos_v1";
-  try {
-    const saved = JSON.parse(localStorage.getItem(POS_KEY) || "null");
+  requestAnimationFrame(() => {
+    let saved = null;
+    try { saved = JSON.parse(localStorage.getItem(POS_KEY) || "null"); } catch (_) {}
     if (saved && typeof saved.left === "number" && typeof saved.top === "number") {
       applyPos(saved.left, saved.top);
+    } else {
+      applyPos(window.innerWidth - fab.offsetWidth - 24, window.innerHeight - fab.offsetHeight - 24);
     }
-  } catch (_) {}
+  });
 
   function applyPos(left, top) {
     const maxL = Math.max(0, window.innerWidth - fab.offsetWidth - 4);
     const maxT = Math.max(0, window.innerHeight - fab.offsetHeight - 4);
     const l = Math.min(Math.max(0, left), maxL);
     const t = Math.min(Math.max(0, top), maxT);
-    fab.style.left = l + "px";
-    fab.style.top = t + "px";
-    fab.style.right = "auto";
-    fab.style.bottom = "auto";
+    // Use setProperty with 'important' so we override the !important defaults
+    // (inline styles otherwise lose to stylesheet !important rules).
+    fab.style.setProperty("left", l + "px", "important");
+    fab.style.setProperty("top", t + "px", "important");
+    fab.style.setProperty("right", "auto", "important");
+    fab.style.setProperty("bottom", "auto", "important");
     if (panel) positionPanel();
   }
 
