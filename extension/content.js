@@ -147,6 +147,13 @@
       "indeed.com": [
         '#jobDescriptionText',
       ],
+      "jobstreet.": [
+        '[data-automation="jobAdDetails"]',
+        '[data-automation="jobDescription"]',
+      ],
+      "seek.co": [
+        '[data-automation="jobAdDetails"]',
+      ],
     };
     for (const key of Object.keys(siteSelectors)) {
       if (!host.includes(key)) continue;
@@ -242,6 +249,8 @@
       "greenhouse.io": ['.location', '.job__location', '[class*="location"]'],
       "lever.co":      ['.location', '.posting-categories .location', '[class*="location"]'],
       "ashbyhq.com":   ['[class*="location"]'],
+      "jobstreet.":    ['[data-automation="job-detail-location"]', '[data-automation="job-location"]'],
+      "seek.co":       ['[data-automation="job-detail-location"]'],
     };
     for (const key of Object.keys(siteSelectors)) {
       if (!host.includes(key)) continue;
