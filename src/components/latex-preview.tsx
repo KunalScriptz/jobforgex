@@ -85,10 +85,10 @@ export const LatexPreview = forwardRef<LatexPreviewHandle, Props>(function Latex
   }
 
   return (
-    <div className="flex h-full w-full flex-col">
-      <div className="flex items-center gap-2 border-b p-2 text-xs">
+    <div className="flex h-full w-full flex-col bg-background text-foreground">
+      <div className="flex items-center gap-2 border-b bg-card p-2 text-xs text-foreground">
         <FileText className="h-3.5 w-3.5 text-muted-foreground" />
-        <span className="font-medium text-muted-foreground">Preview (real PDF)</span>
+        <span className="font-medium text-foreground">Preview (real PDF)</span>
         <span className="ml-auto flex items-center gap-2">
           {status === "compiling" && (<><Loader2 className="h-3.5 w-3.5 animate-spin" /><span>Compiling…</span></>)}
           {status === "ready" && dirty && <span className="text-amber-500">Unsaved changes — press Save (Ctrl+S) to recompile</span>}

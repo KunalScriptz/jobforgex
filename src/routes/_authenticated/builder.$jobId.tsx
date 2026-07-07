@@ -183,7 +183,7 @@ function BuilderPage() {
             </div>
 
             {/* CENTER */}
-            <div className="flex flex-col bg-neutral-100 dark:bg-neutral-900">
+            <div className="flex flex-col bg-muted">
               <LatexPreview
                 source={latex}
                 cacheKey={`builder:${jobId}`}
