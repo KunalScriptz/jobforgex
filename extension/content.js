@@ -39,6 +39,10 @@
       const n = document.querySelector('[data-test="employer-name"], [class*="EmployerProfile_employerName"]');
       if (n && text(n)) return text(n);
     }
+    if (host.includes("jobstreet.") || host.includes("seek.co")) {
+      const n = document.querySelector('[data-automation="advertiser-name"], [data-automation="job-detail-company"]');
+      if (n && text(n)) return text(n);
+    }
     // 1. Structured data (JobPosting schema)
     try {
       const scripts = document.querySelectorAll('script[type="application/ld+json"]');
@@ -143,6 +147,13 @@
       "indeed.com": [
         '#jobDescriptionText',
       ],
+      "jobstreet.": [
+        '[data-automation="jobAdDetails"]',
+        '[data-automation="jobDescription"]',
+      ],
+      "seek.co": [
+        '[data-automation="jobAdDetails"]',
+      ],
     };
     for (const key of Object.keys(siteSelectors)) {
       if (!host.includes(key)) continue;
@@ -238,6 +249,8 @@
       "greenhouse.io": ['.location', '.job__location', '[class*="location"]'],
       "lever.co":      ['.location', '.posting-categories .location', '[class*="location"]'],
       "ashbyhq.com":   ['[class*="location"]'],
+      "jobstreet.":    ['[data-automation="job-detail-location"]', '[data-automation="job-location"]'],
+      "seek.co":       ['[data-automation="job-detail-location"]'],
     };
     for (const key of Object.keys(siteSelectors)) {
       if (!host.includes(key)) continue;
