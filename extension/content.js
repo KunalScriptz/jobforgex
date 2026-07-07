@@ -428,11 +428,30 @@
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
           body: JSON.stringify(payload),
         });
-        if (res.ok) status("Saved to your board!", "ok");
+        if (res.ok) {
+          showSavedScreen(host, "Wishlist");
+        }
         else if (res.status === 401) status("Token rejected — reconnect.", "err");
         else status(`Save failed (${res.status})`, "err");
       } catch (e) { status(e.message, "err"); }
     });
+  }
+
+  function showSavedScreen(host, listName) {
+    if (!panel) return;
+    panel.innerHTML = `
+      <button class="close" title="Close">×</button>
+      <div style="text-align:center; padding: 18px 8px 8px;">
+        <div style="font-size:12px; color:#64748b; margin-bottom:6px;">Your job was saved to</div>
+        <div style="font-size:26px; font-weight:800; color:#0f172a; margin-bottom:14px;">${listName}</div>
+        <a id="jf-open" href="${host}/jobs" target="_blank"
+           style="display:inline-block; background:#0f172a; color:white; text-decoration:none;
+                  padding:9px 18px; border-radius:999px; font-weight:600; font-size:12px;">
+          Open in JobForge
+        </a>
+      </div>
+    `;
+    panel.querySelector(".close").addEventListener("click", () => { panel.remove(); panel = null; });
   }
 
   // Basic label/name-based autofill — populates common application fields
