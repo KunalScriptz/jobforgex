@@ -91,7 +91,7 @@ export function JobDetailDialog({ jobId, open, onOpenChange }: {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex w-[calc(100vw-2rem)] max-w-5xl h-[85vh] flex-col p-0 gap-0 overflow-hidden">
+      <DialogContent className="!flex w-[calc(100vw-2rem)] max-w-5xl h-[85vh] flex-col p-0 gap-0 overflow-hidden">
         {/* Header with glow */}
         <div className="relative border-b bg-gradient-to-br from-primary/10 via-transparent to-transparent px-6 py-5">
           <div className="flex items-start justify-between gap-4">
