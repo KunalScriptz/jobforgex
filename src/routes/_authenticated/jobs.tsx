@@ -85,7 +85,7 @@ function JobsPage() {
       if (board !== "all" && j.board_id !== board) return false;
       if (search) {
         const s = search.toLowerCase();
-        if (!(j.company + j.title + (j.description ?? "") + (j.notes ?? "")).toLowerCase().includes(s)) return false;
+        if (!(j.company + j.title + (j.description ?? "") + (j.notes ?? "") + (j.location ?? "")).toLowerCase().includes(s)) return false;
       }
       return true;
     });
@@ -532,7 +532,7 @@ function JobFormDialog({
   const upd = useServerFn(updateJob);
   const [form, setForm] = useState<any>({
     company: "", title: "", description: "", board_id: "",
-    status: "wishlist", date_applied: "", url: "", notes: "",
+    status: "wishlist", date_applied: "", url: "", notes: "", location: "",
   });
 
   // Reset/seed form when the dialog opens
@@ -548,6 +548,7 @@ function JobFormDialog({
         date_applied: job.date_applied ?? "",
         url: job.url ?? "",
         notes: job.notes ?? "",
+        location: job.location ?? "",
       });
     } else if (mode === "create" && !form.board_id && boards[0]?.id) {
       setForm((f: any) => ({ ...f, board_id: boards[0].id }));
@@ -561,6 +562,7 @@ function JobFormDialog({
       if (!payload.date_applied) delete payload.date_applied;
       if (!payload.url) delete payload.url;
       if (!payload.notes) delete payload.notes;
+      if (!payload.location) delete payload.location;
       if (mode === "edit" && job) {
         return upd({ data: { id: job.id, ...payload } } as any);
       }
@@ -611,6 +613,7 @@ function JobFormDialog({
             <div><Label>Date applied</Label><Input type="date" value={form.date_applied} onChange={(e) => setForm({ ...form, date_applied: e.target.value })} /></div>
           </div>
           <div><Label>Job URL</Label><Input value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} /></div>
+          <div><Label>Location</Label><Input placeholder="e.g. Remote · Bengaluru, IN" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} /></div>
           <div><Label>Description {mode === "create" ? "*" : ""}</Label><Textarea required={mode === "create"} rows={4} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></div>
           <div><Label>Notes</Label><Textarea rows={2} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
           <DialogFooter>
