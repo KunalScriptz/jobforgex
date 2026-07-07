@@ -184,6 +184,80 @@
     return text(document.body).slice(0, 20000);
   }
 
+  function guessLocation() {
+    const host = location.hostname.replace(/^www\./, "");
+    // 1. Structured data (JobPosting.jobLocation)
+    try {
+      const scripts = document.querySelectorAll('script[type="application/ld+json"]');
+      for (const s of scripts) {
+        const parsed = JSON.parse(s.textContent || "null");
+        const arr = Array.isArray(parsed) ? parsed : [parsed];
+        const nodes = [];
+        for (const n of arr) {
+          if (!n) continue;
+          nodes.push(n);
+          if (Array.isArray(n["@graph"])) nodes.push(...n["@graph"]);
+        }
+        for (const n of nodes) {
+          if (n && n["@type"] === "JobPosting") {
+            if (n.jobLocationType && /telecommute|remote/i.test(String(n.jobLocationType))) return "Remote";
+            const locs = Array.isArray(n.jobLocation) ? n.jobLocation : (n.jobLocation ? [n.jobLocation] : []);
+            for (const loc of locs) {
+              if (typeof loc === "string" && loc.trim()) return loc.trim();
+              const a = loc && loc.address;
+              if (a) {
+                if (typeof a === "string") return a.trim();
+                const parts = [a.addressLocality, a.addressRegion, a.addressCountry].filter(Boolean);
+                if (parts.length) return parts.join(", ");
+              }
+            }
+          }
+        }
+      }
+    } catch (_) {}
+    // 2. Site-specific selectors
+    const siteSelectors = {
+      "linkedin.com": [
+        '.job-details-jobs-unified-top-card__primary-description-container .tvm__text',
+        '.jobs-unified-top-card__bullet',
+        '.topcard__flavor--bullet',
+      ],
+      "indeed.com": [
+        '[data-testid="inlineHeader-companyLocation"]',
+        '[data-testid="jobsearch-JobInfoHeader-companyLocation"]',
+      ],
+      "glassdoor.": [
+        '[data-test="location"]',
+        '[class*="JobDetails_location"]',
+      ],
+      "naukri.com": [
+        '.styles_jhc__location__W_pVs a',
+        '.loc a',
+        '[class*="location"] a',
+      ],
+      "greenhouse.io": ['.location', '.job__location', '[class*="location"]'],
+      "lever.co":      ['.location', '.posting-categories .location', '[class*="location"]'],
+      "ashbyhq.com":   ['[class*="location"]'],
+    };
+    for (const key of Object.keys(siteSelectors)) {
+      if (!host.includes(key)) continue;
+      for (const sel of siteSelectors[key]) {
+        try {
+          const el = document.querySelector(sel);
+          const v = el && text(el);
+          if (v && v.length < 120) return v.replace(/\s+/g, " ").trim();
+        } catch (_) {}
+      }
+    }
+    // 3. Generic attribute/class hints
+    const generic = document.querySelector('[data-testid*="location" i], [class*="jobLocation" i], [class*="job-location" i]');
+    if (generic && text(generic)) {
+      const v = text(generic).replace(/\s+/g, " ").trim();
+      if (v.length < 120) return v;
+    }
+    return "";
+  }
+
   function prettify(slug) {
     return (slug || "").replace(/[-_]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
   }
@@ -207,6 +281,7 @@
       title: guessTitle(),
       url: location.href,
       description: guessDescription(),
+      location: guessLocation(),
     };
   }
 
@@ -302,6 +377,7 @@
       <h3>Save this job</h3>
       <div class="field"><label>Company</label><input id="jf-company" /></div>
       <div class="field"><label>Title</label><input id="jf-title" /></div>
+      <div class="field"><label>Location</label><input id="jf-location" placeholder="e.g. Remote · Bengaluru, IN" /></div>
       <div class="field"><label>URL</label><input id="jf-url" /></div>
       <div class="field"><label>Job description (preview)</label><textarea id="jf-desc" rows="6"></textarea></div>
       <div class="actions">
@@ -313,6 +389,7 @@
     document.documentElement.appendChild(panel);
     panel.querySelector("#jf-company").value = data.company;
     panel.querySelector("#jf-title").value = data.title;
+    panel.querySelector("#jf-location").value = data.location || "";
     panel.querySelector("#jf-url").value = data.url;
     panel.querySelector("#jf-desc").value = data.description || "";
     panel.querySelector(".close").addEventListener("click", () => { panel.remove(); panel = null; });
@@ -330,6 +407,7 @@
     const payload = {
       company: panel.querySelector("#jf-company").value.trim(),
       title: panel.querySelector("#jf-title").value.trim(),
+      location: panel.querySelector("#jf-location").value.trim(),
       url: panel.querySelector("#jf-url").value.trim(),
       description: panel.querySelector("#jf-desc").value.trim() || scrape().description,
     };
