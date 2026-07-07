@@ -17,6 +17,31 @@
   }
 
   function guessTitle() {
+    const host = location.hostname.replace(/^www\./, "");
+    // Site-specific title selectors (JobStreet/SEEK expose the true job title
+    // via data-automation; the page h1 is the search-results heading).
+    if (host.includes("jobstreet.") || host.includes("seek.co")) {
+      const el = document.querySelector('[data-automation="job-detail-title"], [data-automation="jobTitle"]');
+      const v = el && text(el);
+      if (v) return v;
+    }
+    // Structured data (JobPosting.title)
+    try {
+      const scripts = document.querySelectorAll('script[type="application/ld+json"]');
+      for (const s of scripts) {
+        const parsed = JSON.parse(s.textContent || "null");
+        const arr = Array.isArray(parsed) ? parsed : [parsed];
+        const nodes = [];
+        for (const n of arr) {
+          if (!n) continue;
+          nodes.push(n);
+          if (Array.isArray(n["@graph"])) nodes.push(...n["@graph"]);
+        }
+        for (const n of nodes) {
+          if (n && n["@type"] === "JobPosting" && n.title) return String(n.title).trim();
+        }
+      }
+    } catch (_) {}
     return (
       text(document.querySelector("h1")) ||
       pickMeta("og:title") ||
