@@ -26,7 +26,7 @@ export const listJobs = createServerFn({ method: "GET" })
     if (data.status) q = q.eq("status", data.status);
     if (data.search) {
       const s = data.search.replace(/,/g, " ");
-      q = q.or(`company.ilike.%${s}%,title.ilike.%${s}%,notes.ilike.%${s}%`);
+      q = q.or(`company.ilike.%${s}%,title.ilike.%${s}%,notes.ilike.%${s}%,location.ilike.%${s}%`);
     }
     const { data: rows } = await q.order("created_at", { ascending: false });
     return rows ?? [];
@@ -51,6 +51,7 @@ export const createJob = createServerFn({ method: "POST" })
     description: z.string().max(100000).optional(),
     url: z.string().max(1000).optional().nullable(),
     notes: z.string().max(5000).optional().nullable(),
+    location: z.string().max(200).optional().nullable(),
     status: StatusEnum.optional(),
     date_applied: z.string().optional().nullable(),
     resume_score: z.number().int().optional().nullable(),
@@ -65,6 +66,7 @@ export const createJob = createServerFn({ method: "POST" })
       description: data.description ?? "",
       url: data.url ?? null,
       notes: data.notes ?? null,
+      location: data.location ?? null,
       status: data.status ?? "wishlist",
       date_applied: data.date_applied ?? null,
       resume_score: data.resume_score ?? null,
@@ -82,6 +84,7 @@ export const updateJob = createServerFn({ method: "POST" })
     description: z.string().optional(),
     url: z.string().nullable().optional(),
     notes: z.string().nullable().optional(),
+    location: z.string().max(200).nullable().optional(),
     status: StatusEnum.optional(),
     date_applied: z.string().nullable().optional(),
     board_id: z.string().uuid().optional(),
