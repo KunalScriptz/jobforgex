@@ -367,6 +367,8 @@ function JobsPage() {
 function Column({
   col,
   jobs,
+  sortMode,
+  onSortChange,
   selectMode,
   selected,
   onToggleSelect,
@@ -376,6 +378,8 @@ function Column({
 }: {
   col: { id: Status; label: string; icon: any; accent: string };
   jobs: any[];
+  sortMode: "manual" | "newest" | "oldest" | "az" | "za";
+  onSortChange: (m: "manual" | "newest" | "oldest" | "az" | "za") => void;
   selectMode: boolean;
   selected: Set<string>;
   onToggleSelect: (id: string) => void;
@@ -397,7 +401,21 @@ function Column({
           <Icon className={`h-4 w-4 ${col.accent}`} />
           <span className="text-xs font-bold uppercase tracking-wider">{col.label}</span>
         </div>
-        <span className="text-xs text-muted-foreground">{jobs.length}</span>
+        <div className="flex items-center gap-1.5">
+          <Select value={sortMode} onValueChange={(v) => onSortChange(v as any)}>
+            <SelectTrigger className="h-6 w-[110px] px-1.5 text-[10px]" aria-label="Sort column">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="manual">Manual</SelectItem>
+              <SelectItem value="newest">Newest first</SelectItem>
+              <SelectItem value="oldest">Oldest first</SelectItem>
+              <SelectItem value="az">Company A–Z</SelectItem>
+              <SelectItem value="za">Company Z–A</SelectItem>
+            </SelectContent>
+          </Select>
+          <span className="text-xs text-muted-foreground">{jobs.length}</span>
+        </div>
       </div>
       <div className="flex flex-1 flex-col gap-2 overflow-y-auto p-2">
         <SortableContext items={jobs.map((j) => j.id)} strategy={verticalListSortingStrategy}>
