@@ -6,6 +6,7 @@ const bodySchema = z.object({
   title: z.string().min(1).max(200),
   url: z.string().max(1000).optional(),
   description: z.string().max(100000).optional(),
+  location: z.string().max(200).optional(),
 });
 
 async function sha256Hex(input: string): Promise<string> {
@@ -69,6 +70,7 @@ export const Route = createFileRoute("/api/public/extension/jobs")({
           title: parsed.data.title,
           url: parsed.data.url ?? null,
           description: parsed.data.description ?? "",
+          location: parsed.data.location ?? null,
           status: "wishlist",
         }).select("id").single();
         if (error) return json({ error: error.message }, { status: 500 });
