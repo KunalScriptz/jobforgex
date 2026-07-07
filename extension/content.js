@@ -367,10 +367,10 @@
     if (top < 10) top = rect.bottom + 10;
     let left = rect.left + rect.width / 2 - panelW / 2;
     left = Math.min(Math.max(8, left), window.innerWidth - panelW - 8);
-    panel.style.left = left + "px";
-    panel.style.top = top + "px";
-    panel.style.right = "auto";
-    panel.style.bottom = "auto";
+    panel.style.setProperty("left", left + "px", "important");
+    panel.style.setProperty("top", top + "px", "important");
+    panel.style.setProperty("right", "auto", "important");
+    panel.style.setProperty("bottom", "auto", "important");
   }
 
   function openPanel() {
