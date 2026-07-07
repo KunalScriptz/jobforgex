@@ -411,6 +411,7 @@ export type Database = {
           description: string
           id: string
           insights: Json | null
+          location: string | null
           notes: string | null
           resume_score: number | null
           status: Database["public"]["Enums"]["job_status"]
@@ -427,6 +428,7 @@ export type Database = {
           description?: string
           id?: string
           insights?: Json | null
+          location?: string | null
           notes?: string | null
           resume_score?: number | null
           status?: Database["public"]["Enums"]["job_status"]
@@ -443,6 +445,7 @@ export type Database = {
           description?: string
           id?: string
           insights?: Json | null
+          location?: string | null
           notes?: string | null
           resume_score?: number | null
           status?: Database["public"]["Enums"]["job_status"]
