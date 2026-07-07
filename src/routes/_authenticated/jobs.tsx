@@ -467,6 +467,7 @@ function JobCard({
         <div className="min-w-0 flex-1">
       <div className="mb-1 text-sm font-semibold leading-tight">{job.title}</div>
       <div className="text-xs text-muted-foreground">{job.company}</div>
+      {job.location && <div className="text-[11px] text-muted-foreground/80">{job.location}</div>}
         </div>
       </div>
       <div className="mt-2 flex items-center justify-between">
