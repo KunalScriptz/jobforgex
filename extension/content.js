@@ -293,24 +293,29 @@
   fab.innerHTML = `<img src="${iconUrl}" alt="" /> Save to JobForge`;
   document.documentElement.appendChild(fab);
 
-  // Restore saved position (per-site).
+  // Default position: bottom-right. Restore per-site override if present.
   const POS_KEY = "jobforge_fab_pos_v1";
-  try {
-    const saved = JSON.parse(localStorage.getItem(POS_KEY) || "null");
+  requestAnimationFrame(() => {
+    let saved = null;
+    try { saved = JSON.parse(localStorage.getItem(POS_KEY) || "null"); } catch (_) {}
     if (saved && typeof saved.left === "number" && typeof saved.top === "number") {
       applyPos(saved.left, saved.top);
+    } else {
+      applyPos(window.innerWidth - fab.offsetWidth - 24, window.innerHeight - fab.offsetHeight - 24);
     }
-  } catch (_) {}
+  });
 
   function applyPos(left, top) {
     const maxL = Math.max(0, window.innerWidth - fab.offsetWidth - 4);
     const maxT = Math.max(0, window.innerHeight - fab.offsetHeight - 4);
     const l = Math.min(Math.max(0, left), maxL);
     const t = Math.min(Math.max(0, top), maxT);
-    fab.style.left = l + "px";
-    fab.style.top = t + "px";
-    fab.style.right = "auto";
-    fab.style.bottom = "auto";
+    // Use setProperty with 'important' so we override the !important defaults
+    // (inline styles otherwise lose to stylesheet !important rules).
+    fab.style.setProperty("left", l + "px", "important");
+    fab.style.setProperty("top", t + "px", "important");
+    fab.style.setProperty("right", "auto", "important");
+    fab.style.setProperty("bottom", "auto", "important");
     if (panel) positionPanel();
   }
 
@@ -362,10 +367,10 @@
     if (top < 10) top = rect.bottom + 10;
     let left = rect.left + rect.width / 2 - panelW / 2;
     left = Math.min(Math.max(8, left), window.innerWidth - panelW - 8);
-    panel.style.left = left + "px";
-    panel.style.top = top + "px";
-    panel.style.right = "auto";
-    panel.style.bottom = "auto";
+    panel.style.setProperty("left", left + "px", "important");
+    panel.style.setProperty("top", top + "px", "important");
+    panel.style.setProperty("right", "auto", "important");
+    panel.style.setProperty("bottom", "auto", "important");
   }
 
   function openPanel() {
@@ -423,11 +428,30 @@
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
           body: JSON.stringify(payload),
         });
-        if (res.ok) status("Saved to your board!", "ok");
+        if (res.ok) {
+          showSavedScreen(host, "Wishlist");
+        }
         else if (res.status === 401) status("Token rejected — reconnect.", "err");
         else status(`Save failed (${res.status})`, "err");
       } catch (e) { status(e.message, "err"); }
     });
+  }
+
+  function showSavedScreen(host, listName) {
+    if (!panel) return;
+    panel.innerHTML = `
+      <button class="close" title="Close">×</button>
+      <div style="text-align:center; padding: 18px 8px 8px;">
+        <div style="font-size:12px; color:#64748b; margin-bottom:6px;">Your job was saved to</div>
+        <div style="font-size:26px; font-weight:800; color:#0f172a; margin-bottom:14px;">${listName}</div>
+        <a id="jf-open" href="${host}/jobs" target="_blank"
+           style="display:inline-block; background:#0f172a; color:white; text-decoration:none;
+                  padding:9px 18px; border-radius:999px; font-weight:600; font-size:12px;">
+          Open in JobForge
+        </a>
+      </div>
+    `;
+    panel.querySelector(".close").addEventListener("click", () => { panel.remove(); panel = null; });
   }
 
   // Basic label/name-based autofill — populates common application fields
@@ -435,4 +459,57 @@
   function tryAutofill() {
     status("Autofill coming soon — profile fields are being built.", "err");
   }
+
+  // ---------- Version check --------------------------------------------
+  // Once per 6 hours, hit /extension-version.json. If newer, show a
+  // top-right toast with a one-click "Download update" link.
+  async function checkForUpdate() {
+    try {
+      const LAST = "jobforge_version_check_v1";
+      const now = Date.now();
+      const last = Number(localStorage.getItem(LAST) || 0);
+      if (now - last < 6 * 60 * 60 * 1000) return;
+      localStorage.setItem(LAST, String(now));
+      const cfg = await new Promise((r) => chrome.storage.local.get(["host"], r));
+      const host = (cfg.host || HOST_FALLBACK).replace(/\/$/, "");
+      const res = await fetch(`${host}/extension-version.json`, { cache: "no-store" });
+      if (!res.ok) return;
+      const info = await res.json();
+      const current = chrome.runtime.getManifest().version;
+      if (!info.version || info.version === current) return;
+      if (cmpVersion(info.version, current) <= 0) return;
+      showUpdateToast(info.version, info.download || `${host}/jobforge-extension.zip`);
+    } catch (_) {}
+  }
+  function cmpVersion(a, b) {
+    const pa = String(a).split(".").map((n) => parseInt(n, 10) || 0);
+    const pb = String(b).split(".").map((n) => parseInt(n, 10) || 0);
+    for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+      if ((pa[i] || 0) > (pb[i] || 0)) return 1;
+      if ((pa[i] || 0) < (pb[i] || 0)) return -1;
+    }
+    return 0;
+  }
+  function showUpdateToast(version, downloadUrl) {
+    const t = document.createElement("div");
+    t.id = "jobforge-update-toast";
+    Object.assign(t.style, {
+      position: "fixed", top: "16px", right: "16px", zIndex: "2147483647",
+      background: "#0f172a", color: "white", padding: "12px 14px", borderRadius: "10px",
+      boxShadow: "0 10px 30px rgba(15,23,42,.35)", font: "13px system-ui, -apple-system, sans-serif",
+      maxWidth: "300px", display: "flex", flexDirection: "column", gap: "8px",
+    });
+    t.innerHTML = `
+      <div style="font-weight:600;">JobForge update available</div>
+      <div style="font-size:12px; opacity:.85;">Version ${version} is ready. Download and drag the new folder onto chrome://extensions.</div>
+      <div style="display:flex; gap:6px;">
+        <a href="${downloadUrl}" target="_blank" style="flex:1; text-align:center; background:white; color:#0f172a; text-decoration:none; padding:6px 10px; border-radius:6px; font-weight:600; font-size:12px;">Download</a>
+        <button id="jf-upd-dismiss" style="background:transparent; color:white; border:1px solid rgba(255,255,255,.3); padding:6px 10px; border-radius:6px; cursor:pointer; font-size:12px;">Later</button>
+      </div>
+    `;
+    document.documentElement.appendChild(t);
+    t.querySelector("#jf-upd-dismiss").addEventListener("click", () => t.remove());
+    setTimeout(() => t.remove(), 20000);
+  }
+  checkForUpdate();
 })();
