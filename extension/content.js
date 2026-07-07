@@ -39,6 +39,10 @@
       const n = document.querySelector('[data-test="employer-name"], [class*="EmployerProfile_employerName"]');
       if (n && text(n)) return text(n);
     }
+    if (host.includes("jobstreet.") || host.includes("seek.co")) {
+      const n = document.querySelector('[data-automation="advertiser-name"], [data-automation="job-detail-company"]');
+      if (n && text(n)) return text(n);
+    }
     // 1. Structured data (JobPosting schema)
     try {
       const scripts = document.querySelectorAll('script[type="application/ld+json"]');
