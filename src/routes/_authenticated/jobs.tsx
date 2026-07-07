@@ -59,6 +59,20 @@ function JobsPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkStatus, setBulkStatus] = useState<Status | "">("");
 
+  // Per-column sort mode (persisted). "manual" keeps drag order; others override.
+  type SortMode = "manual" | "newest" | "oldest" | "az" | "za";
+  const SORT_KEY = "jobforgex:columnSort:v1";
+  const [sortMap, setSortMap] = useState<Record<Status, SortMode>>(() => {
+    const def: Record<Status, SortMode> = { wishlist: "manual", applied: "manual", interview: "manual", offer: "manual", rejected: "manual" };
+    if (typeof window === "undefined") return def;
+    try { return { ...def, ...(JSON.parse(localStorage.getItem(SORT_KEY) || "") || {}) }; } catch { return def; }
+  });
+  function setColumnSort(status: Status, mode: SortMode) {
+    const next = { ...sortMap, [status]: mode };
+    setSortMap(next);
+    try { localStorage.setItem(SORT_KEY, JSON.stringify(next)); } catch {}
+  }
+
   // Per-column order override, persisted per workspace/browser.
   const ORDER_KEY = "jobforgex:columnOrder:v1";
   const [orderMap, setOrderMap] = useState<Record<Status, string[]>>(() => {
@@ -96,6 +110,17 @@ function JobsPage() {
     for (const j of filtered) (m[j.status as Status] ?? m.wishlist).push(j);
     // Apply saved order per column: known ids first (in saved order), then new ids by created_at.
     (Object.keys(m) as Status[]).forEach((s) => {
+      const mode = sortMap[s] ?? "manual";
+      if (mode !== "manual") {
+        const arr = [...m[s]];
+        const t = (j: any) => new Date(j.created_at ?? j.updated_at ?? 0).getTime();
+        if (mode === "newest") arr.sort((a, b) => t(b) - t(a));
+        else if (mode === "oldest") arr.sort((a, b) => t(a) - t(b));
+        else if (mode === "az") arr.sort((a, b) => String(a.company ?? "").localeCompare(String(b.company ?? "")));
+        else if (mode === "za") arr.sort((a, b) => String(b.company ?? "").localeCompare(String(a.company ?? "")));
+        m[s] = arr;
+        return;
+      }
       const saved = orderMap[s] ?? [];
       const byId = new Map(m[s].map((j) => [j.id, j]));
       const ordered: any[] = [];
@@ -104,7 +129,7 @@ function JobsPage() {
       m[s] = ordered;
     });
     return m;
-  }, [filtered, orderMap]);
+  }, [filtered, orderMap, sortMap]);
 
   const move = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: Status }) =>
@@ -304,6 +329,8 @@ function JobsPage() {
               key={col.id}
               col={col}
               jobs={byStatus[col.id]}
+              sortMode={sortMap[col.id] ?? "manual"}
+              onSortChange={(m) => setColumnSort(col.id, m)}
               selectMode={selectMode}
               selected={selected}
               onToggleSelect={toggleSelect}
@@ -340,6 +367,8 @@ function JobsPage() {
 function Column({
   col,
   jobs,
+  sortMode,
+  onSortChange,
   selectMode,
   selected,
   onToggleSelect,
@@ -349,6 +378,8 @@ function Column({
 }: {
   col: { id: Status; label: string; icon: any; accent: string };
   jobs: any[];
+  sortMode: "manual" | "newest" | "oldest" | "az" | "za";
+  onSortChange: (m: "manual" | "newest" | "oldest" | "az" | "za") => void;
   selectMode: boolean;
   selected: Set<string>;
   onToggleSelect: (id: string) => void;
@@ -370,7 +401,21 @@ function Column({
           <Icon className={`h-4 w-4 ${col.accent}`} />
           <span className="text-xs font-bold uppercase tracking-wider">{col.label}</span>
         </div>
-        <span className="text-xs text-muted-foreground">{jobs.length}</span>
+        <div className="flex items-center gap-1.5">
+          <Select value={sortMode} onValueChange={(v) => onSortChange(v as any)}>
+            <SelectTrigger className="h-6 w-[110px] px-1.5 text-[10px]" aria-label="Sort column">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="manual">Manual</SelectItem>
+              <SelectItem value="newest">Newest first</SelectItem>
+              <SelectItem value="oldest">Oldest first</SelectItem>
+              <SelectItem value="az">Company A–Z</SelectItem>
+              <SelectItem value="za">Company Z–A</SelectItem>
+            </SelectContent>
+          </Select>
+          <span className="text-xs text-muted-foreground">{jobs.length}</span>
+        </div>
       </div>
       <div className="flex flex-1 flex-col gap-2 overflow-y-auto p-2">
         <SortableContext items={jobs.map((j) => j.id)} strategy={verticalListSortingStrategy}>
