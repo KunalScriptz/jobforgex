@@ -7,7 +7,7 @@ user_template: |
 
   HARD CONSTRAINTS:
   1. Preserve the exact document structure, packages, custom commands, and color definitions.
-  2. Output MUST remain approximately {{page_count}} page(s) long — do not add or remove sections; only rewrite bullet content.
+  2. Output MUST fit within {{page_count}} page(s) — NEVER overflow to an extra page. If the base resume is 1 page, the tailored resume MUST also be exactly 1 page. To stay within the page limit: keep the same number of bullets per role (do not add bullets), keep bullet length similar to or shorter than the original (never longer), and do not add or remove sections. Only rewrite bullet content in place.
   3. Naturally integrate high-value keywords from the JD into the Professional Summary, Skills, and bullet points where truthful.
   4. Keep every bullet outcome-oriented; preserve or add quantified metrics where the base resume implies them.
   5. Return the COMPLETE LaTeX document starting with \documentclass and ending with \end{document}. No markdown, no commentary.
