@@ -85,6 +85,7 @@ export async function callDeepseek(args: CallArgs): Promise<CallResult> {
   const body: any = {
     model: model.name,
     temperature: overrideTemperature ?? prompt.temperature ?? 0.3,
+    max_tokens: 8192,
     messages: [
       { role: "system", content: prompt.system },
       { role: "user", content: renderPrompt(prompt.user_template, vars) },
