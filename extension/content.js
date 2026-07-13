@@ -166,9 +166,13 @@
       ],
       "linkedin.com": [
         '#job-details',
+        'article.jobs-description__container .jobs-description-content__text',
+        '.jobs-description-content__text--stretch',
         '.jobs-description__content .jobs-box__html-content',
         '.jobs-description-content__text',
         'article.jobs-description__container',
+        '.jobs-description',
+        '.jobs-box__html-content',
       ],
       "indeed.com": [
         '#jobDescriptionText',
