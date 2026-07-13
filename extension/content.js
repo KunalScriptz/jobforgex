@@ -165,9 +165,10 @@
         '#JobDescriptionContainer',
       ],
       "linkedin.com": [
+        '#job-details',
         '.jobs-description__content .jobs-box__html-content',
         '.jobs-description-content__text',
-        '#job-details',
+        'article.jobs-description__container',
       ],
       "indeed.com": [
         '#jobDescriptionText',
@@ -188,6 +189,10 @@
           if (el && text(el).length > 100) return text(el);
         } catch (_) {}
       }
+      // Site recognised but no JD panel is currently rendered
+      // (e.g. LinkedIn search-results view with no job selected).
+      // Do NOT fall back to <main>/<body> — that dumps the whole page.
+      if (host.includes("linkedin.com")) return "";
     }
     // Structured data
     try {
@@ -222,6 +227,19 @@
 
   function guessLocation() {
     const host = location.hostname.replace(/^www\./, "");
+    function cleanLocText(v) {
+      if (!v) return "";
+      let s = String(v).replace(/\s+/g, " ").trim();
+      // LinkedIn primary-description looks like:
+      //   "Singapore, Singapore · Reposted 4 hours ago · Over 100 people clicked apply"
+      // Take the first bullet-separated chunk that actually looks like a location.
+      const parts = s.split(/[·•|]/).map((p) => p.trim()).filter(Boolean);
+      const bad = /(ago|applicant|apply|promoted|reposted|early|viewed|actively|hiring|posted|full[-\s]?time|part[-\s]?time|contract|internship|hybrid|on[-\s]?site|remote only)/i;
+      for (const p of parts) {
+        if (!bad.test(p) && p.length <= 80 && /[A-Za-z]/.test(p)) return p;
+      }
+      return parts[0] || s;
+    }
     // 1. Structured data (JobPosting.jobLocation)
     try {
       const scripts = document.querySelectorAll('script[type="application/ld+json"]');
@@ -283,14 +301,17 @@
         try {
           const el = document.querySelector(sel);
           const v = el && text(el);
-          if (v && v.length < 120) return v.replace(/\s+/g, " ").trim();
+          if (v) {
+            const cleaned = cleanLocText(v);
+            if (cleaned && cleaned.length < 120) return cleaned;
+          }
         } catch (_) {}
       }
     }
     // 3. Generic attribute/class hints
     const generic = document.querySelector('[data-testid*="location" i], [class*="jobLocation" i], [class*="job-location" i]');
     if (generic && text(generic)) {
-      const v = text(generic).replace(/\s+/g, " ").trim();
+      const v = cleanLocText(text(generic));
       if (v.length < 120) return v;
     }
     return "";
