@@ -585,14 +585,49 @@
     panel.querySelector("#jf-location").value = data.location || "";
     panel.querySelector("#jf-url").value = data.url;
     panel.querySelector("#jf-desc").value = data.description || "";
-    // Populate location suggestions from prior saves in this browser.
+    // Populate location suggestions: prior saves + a seeded list of common
+    // job locations so suggestions show up even on first use / when the
+    // scraper failed to detect a location. The <datalist> filters as the
+    // user types.
+    const SEED_LOCATIONS = [
+      "Remote", "Remote, India", "Remote, US", "Remote, EU", "Hybrid",
+      "Bengaluru, IN", "Bangalore, IN", "Hyderabad, IN", "Chennai, IN",
+      "Mumbai, IN", "Pune, IN", "Delhi, IN", "Gurgaon, IN", "Noida, IN",
+      "Kolkata, IN", "Ahmedabad, IN", "Kochi, IN",
+      "Singapore", "Kuala Lumpur, MY", "Penang, MY", "Johor Bahru, MY",
+      "Jakarta, ID", "Manila, PH", "Bangkok, TH", "Ho Chi Minh City, VN",
+      "Hong Kong", "Tokyo, JP", "Seoul, KR", "Shanghai, CN", "Beijing, CN",
+      "Sydney, AU", "Melbourne, AU",
+      "London, UK", "Manchester, UK", "Dublin, IE",
+      "Berlin, DE", "Munich, DE", "Amsterdam, NL", "Paris, FR",
+      "Zurich, CH", "Stockholm, SE", "Madrid, ES", "Barcelona, ES",
+      "New York, NY", "San Francisco, CA", "Seattle, WA", "Austin, TX",
+      "Boston, MA", "Chicago, IL", "Los Angeles, CA", "Denver, CO",
+      "Toronto, CA", "Vancouver, CA",
+      "Dubai, AE", "Abu Dhabi, AE", "Riyadh, SA", "Tel Aviv, IL",
+    ];
+    const renderLocationOptions = (values) => {
+      const dl = panel.querySelector("#jf-location-list");
+      if (!dl) return;
+      const seen = new Set();
+      const merged = [];
+      for (const v of values) {
+        const s = String(v || "").trim();
+        const k = s.toLowerCase();
+        if (s && !seen.has(k)) { seen.add(k); merged.push(s); }
+      }
+      dl.innerHTML = merged
+        .map((v) => `<option value="${v.replace(/"/g, "&quot;")}"></option>`)
+        .join("");
+    };
     try {
       chrome.storage.local.get(["jf_recent_locations"], (r) => {
         const list = Array.isArray(r.jf_recent_locations) ? r.jf_recent_locations : [];
-        const dl = panel.querySelector("#jf-location-list");
-        if (dl) dl.innerHTML = list.map((v) => `<option value="${String(v).replace(/"/g, "&quot;")}"></option>`).join("");
+        renderLocationOptions([...list, ...SEED_LOCATIONS]);
       });
-    } catch (_) {}
+    } catch (_) {
+      renderLocationOptions(SEED_LOCATIONS);
+    }
     panel.querySelector(".close").addEventListener("click", () => { panel.remove(); panel = null; });
     panel.querySelector("#jf-save").addEventListener("click", saveJob);
     panel.querySelector("#jf-autofill").addEventListener("click", tryAutofill);
