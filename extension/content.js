@@ -507,6 +507,16 @@
         });
         if (res.ok) {
           showSavedScreen(host, "Wishlist");
+          // Remember this location for future suggestions.
+          if (payload.location) {
+            try {
+              chrome.storage.local.get(["jf_recent_locations"], (r) => {
+                const prev = Array.isArray(r.jf_recent_locations) ? r.jf_recent_locations : [];
+                const next = [payload.location, ...prev.filter((v) => v !== payload.location)].slice(0, 25);
+                chrome.storage.local.set({ jf_recent_locations: next });
+              });
+            } catch (_) {}
+          }
         }
         else if (res.status === 401) status("Token rejected — reconnect.", "err");
         else status(`Save failed (${res.status})`, "err");
