@@ -166,9 +166,13 @@
       ],
       "linkedin.com": [
         '#job-details',
+        'article.jobs-description__container .jobs-description-content__text',
+        '.jobs-description-content__text--stretch',
         '.jobs-description__content .jobs-box__html-content',
         '.jobs-description-content__text',
         'article.jobs-description__container',
+        '.jobs-description',
+        '.jobs-box__html-content',
       ],
       "indeed.com": [
         '#jobDescriptionText',
@@ -272,9 +276,14 @@
     // 2. Site-specific selectors
     const siteSelectors = {
       "linkedin.com": [
+        '.job-details-jobs-unified-top-card__primary-description-container',
+        '.job-details-jobs-unified-top-card__tertiary-description-container',
         '.job-details-jobs-unified-top-card__primary-description-container .tvm__text',
         '.jobs-unified-top-card__bullet',
+        '.jobs-unified-top-card__primary-description',
+        '.jobs-unified-top-card__subtitle-primary-grouping .jobs-unified-top-card__bullet',
         '.topcard__flavor--bullet',
+        '.topcard__flavor.topcard__flavor--bullet',
       ],
       "indeed.com": [
         '[data-testid="inlineHeader-companyLocation"]',
@@ -439,10 +448,11 @@
     panel.innerHTML = `
       <button class="close" title="Close">×</button>
       <h3>Save this job</h3>
-      <div class="field"><label>Company</label><input id="jf-company" /></div>
-      <div class="field"><label>Title</label><input id="jf-title" /></div>
-      <div class="field"><label>Location</label><input id="jf-location" placeholder="e.g. Remote · Bengaluru, IN" /></div>
-      <div class="field"><label>URL</label><input id="jf-url" /></div>
+      <div class="field"><label>Company</label><input id="jf-company" name="jf-company" autocomplete="on" /></div>
+      <div class="field"><label>Title</label><input id="jf-title" name="jf-title" autocomplete="on" /></div>
+      <div class="field"><label>Location</label><input id="jf-location" name="jf-location" autocomplete="on" list="jf-location-list" placeholder="e.g. Remote · Bengaluru, IN" /></div>
+      <datalist id="jf-location-list"></datalist>
+      <div class="field"><label>URL</label><input id="jf-url" name="jf-url" /></div>
       <div class="field"><label>Job description (preview)</label><textarea id="jf-desc" rows="6"></textarea></div>
       <div class="actions">
         <button id="jf-save">Save to board</button>
@@ -456,6 +466,14 @@
     panel.querySelector("#jf-location").value = data.location || "";
     panel.querySelector("#jf-url").value = data.url;
     panel.querySelector("#jf-desc").value = data.description || "";
+    // Populate location suggestions from prior saves in this browser.
+    try {
+      chrome.storage.local.get(["jf_recent_locations"], (r) => {
+        const list = Array.isArray(r.jf_recent_locations) ? r.jf_recent_locations : [];
+        const dl = panel.querySelector("#jf-location-list");
+        if (dl) dl.innerHTML = list.map((v) => `<option value="${String(v).replace(/"/g, "&quot;")}"></option>`).join("");
+      });
+    } catch (_) {}
     panel.querySelector(".close").addEventListener("click", () => { panel.remove(); panel = null; });
     panel.querySelector("#jf-save").addEventListener("click", saveJob);
     panel.querySelector("#jf-autofill").addEventListener("click", tryAutofill);
@@ -489,6 +507,16 @@
         });
         if (res.ok) {
           showSavedScreen(host, "Wishlist");
+          // Remember this location for future suggestions.
+          if (payload.location) {
+            try {
+              chrome.storage.local.get(["jf_recent_locations"], (r) => {
+                const prev = Array.isArray(r.jf_recent_locations) ? r.jf_recent_locations : [];
+                const next = [payload.location, ...prev.filter((v) => v !== payload.location)].slice(0, 25);
+                chrome.storage.local.set({ jf_recent_locations: next });
+              });
+            } catch (_) {}
+          }
         }
         else if (res.status === 401) status("Token rejected — reconnect.", "err");
         else status(`Save failed (${res.status})`, "err");
