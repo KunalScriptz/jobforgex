@@ -151,6 +151,58 @@
 
   function guessDescription() {
     const host = location.hostname.replace(/^www\./, "");
+
+    function cleanDescriptionText(value) {
+      let s = String(value || "")
+        .replace(/\r/g, "\n")
+        .replace(/[ \t]+/g, " ")
+        .replace(/\n[ \t]+/g, "\n")
+        .replace(/[ \t]+\n/g, "\n")
+        .replace(/\n{3,}/g, "\n\n")
+        .trim();
+      s = s.replace(/^About the job\s*/i, "").trim();
+      s = s.replace(/\b(?:Show more|Show less|See more|See less)\b\s*$/i, "").trim();
+      return s;
+    }
+
+    function goodDescription(value) {
+      const s = cleanDescriptionText(value);
+      if (s.length < 120) return "";
+      // If this is the LinkedIn results/sidebar shell, it contains these list
+      // markers before the real job text. Reject it instead of saving junk.
+      if (/99\+ results/i.test(s) || /How promoted jobs are ranked/i.test(s) || /Selected,\s+/i.test(s)) return "";
+      return s;
+    }
+
+    function findLinkedInAboutText() {
+      // LinkedIn changes wrapper classes frequently. The stable visible anchor
+      // is the "About the job" heading; choose the smallest container around it
+      // that contains enough text, not the whole page/results list.
+      const candidates = [];
+      const nodes = Array.from(document.querySelectorAll("section, article, div"));
+      for (const el of nodes) {
+        const t = text(el);
+        if (!/\bAbout the job\b/i.test(t) || t.length < 120) continue;
+        const cleaned = goodDescription(t);
+        if (!cleaned) continue;
+        candidates.push({ el, cleaned, len: t.length });
+      }
+      candidates.sort((a, b) => a.len - b.len);
+      return candidates[0]?.cleaned || "";
+    }
+
+    function tryExpandLinkedInDescription() {
+      const buttons = Array.from(document.querySelectorAll("button, span[role='button']"));
+      for (const btn of buttons) {
+        const label = `${btn.getAttribute("aria-label") || ""} ${text(btn)}`;
+        if (/show more|see more|more description/i.test(label)) {
+          try { btn.click(); } catch (_) {}
+        }
+      }
+    }
+
+    if (host.includes("linkedin.com")) tryExpandLinkedInDescription();
+
     // Site-specific JD containers (strip nav, sidebars, "similar jobs", etc.)
     const siteSelectors = {
       "naukri.com": [
@@ -166,6 +218,9 @@
       ],
       "linkedin.com": [
         '#job-details',
+        '.jobs-description__content',
+        '.show-more-less-html__markup',
+        '.description__text',
         'article.jobs-description__container .jobs-description-content__text',
         '.jobs-description-content__text--stretch',
         '.jobs-description__content .jobs-box__html-content',
@@ -190,13 +245,14 @@
       for (const sel of siteSelectors[key]) {
         try {
           const el = document.querySelector(sel);
-          if (el && text(el).length > 100) return text(el);
+          const v = el && goodDescription(text(el));
+          if (v) return v;
         } catch (_) {}
       }
       // Site recognised but no JD panel is currently rendered
       // (e.g. LinkedIn search-results view with no job selected).
       // Do NOT fall back to <main>/<body> — that dumps the whole page.
-      if (host.includes("linkedin.com")) return "";
+      if (host.includes("linkedin.com")) return findLinkedInAboutText();
     }
     // Structured data
     try {
@@ -209,7 +265,8 @@
             const tmp = document.createElement("div");
             tmp.innerHTML = String(node.description);
             const t = (tmp.innerText || tmp.textContent || "").trim();
-            if (t.length > 100) return t;
+              const cleaned = goodDescription(t);
+              if (cleaned) return cleaned;
           }
         }
       }
@@ -224,7 +281,10 @@
     ];
     for (const sel of candidates) {
       const el = document.querySelector(sel);
-      if (el && text(el).length > 200) return text(el);
+      if (el) {
+        const v = goodDescription(text(el));
+        if (v) return v;
+      }
     }
     return text(document.body).slice(0, 20000);
   }
@@ -234,15 +294,74 @@
     function cleanLocText(v) {
       if (!v) return "";
       let s = String(v).replace(/\s+/g, " ").trim();
+      s = s.replace(/\b(?:Hybrid|On-site|Onsite|Remote|Full-time|Part-time|Contract|Internship)\b\s*$/i, "").trim();
+      s = s.replace(/\s*\((?:Hybrid|On-site|Onsite|Remote)\)\s*$/i, "").trim();
       // LinkedIn primary-description looks like:
       //   "Singapore, Singapore · Reposted 4 hours ago · Over 100 people clicked apply"
       // Take the first bullet-separated chunk that actually looks like a location.
       const parts = s.split(/[·•|]/).map((p) => p.trim()).filter(Boolean);
-      const bad = /(ago|applicant|apply|promoted|reposted|early|viewed|actively|hiring|posted|full[-\s]?time|part[-\s]?time|contract|internship|hybrid|on[-\s]?site|remote only)/i;
+      const bad = /(ago|applicant|apply|promoted|reposted|early|viewed|actively|hiring|posted|school alumni|works here|response insights|full[-\s]?time|part[-\s]?time|contract|internship|hybrid|on[-\s]?site|remote only)/i;
       for (const p of parts) {
-        if (!bad.test(p) && p.length <= 80 && /[A-Za-z]/.test(p)) return p;
+        const cleaned = p
+          .replace(/\s+(?:\d+\s+)?(?:minutes?|hours?|days?|weeks?|months?)\s+ago\b.*$/i, "")
+          .replace(/\s+reposted\b.*$/i, "")
+          .replace(/\s+\d+\s+applicants?\b.*$/i, "")
+          .replace(/\s+over\s+\d+\s+people\b.*$/i, "")
+          .replace(/\s+promoted\b.*$/i, "")
+          .replace(/\s+no response insights\b.*$/i, "")
+          .replace(/\s*\((?:Hybrid|On-site|Onsite|Remote)\)\s*$/i, "")
+          .trim();
+        if (cleaned && !bad.test(cleaned) && cleaned.length <= 80 && /[A-Za-z]/.test(cleaned)) return cleaned;
       }
       return parts[0] || s;
+    }
+    function looksLikeLocation(v) {
+      const s = cleanLocText(v);
+      if (!s || s.length > 80) return "";
+      if (/^(hybrid|on[-\s]?site|onsite|remote|full[-\s]?time|part[-\s]?time|contract|internship)$/i.test(s)) return "";
+      if (/(applicant|apply|ago|reposted|promoted|school alumni|works here|response insights|job poster|hiring team|premium|match details|tailor my resume)/i.test(s)) return "";
+      // City/country formats, regions, or "Remote" with a country are OK.
+      if (/,/.test(s) || /\b(remote|singapore|malaysia|india|indonesia|philippines|australia|new zealand|united states|united kingdom|canada|germany|france|netherlands|uae|dubai|bay area)\b/i.test(s)) return s;
+      return "";
+    }
+    function linkedInLocationFromTopCard() {
+      const topCard = document.querySelector(
+        '.job-details-jobs-unified-top-card, .jobs-unified-top-card, .top-card-layout, .jobs-search__job-details--container'
+      );
+      const roots = topCard ? [topCard] : [document];
+      const selectors = [
+        '.job-details-jobs-unified-top-card__primary-description-container span',
+        '.job-details-jobs-unified-top-card__tertiary-description-container span',
+        '.job-details-jobs-unified-top-card__bullet',
+        '.jobs-unified-top-card__primary-description span',
+        '.jobs-unified-top-card__subtitle-primary-grouping span',
+        '.jobs-unified-top-card__bullet',
+        '.topcard__flavor--bullet',
+        '.topcard__flavor.topcard__flavor--bullet',
+        '[class*="primary-description"] span',
+        '[class*="tertiary-description"] span',
+      ];
+      for (const root of roots) {
+        for (const sel of selectors) {
+          for (const el of Array.from(root.querySelectorAll(sel))) {
+            const v = looksLikeLocation(text(el));
+            if (v) return v;
+          }
+        }
+        // Last LinkedIn fallback: inspect short visible chunks near the selected
+        // top card. This catches text nodes whose wrapper class changed.
+        for (const el of Array.from(root.querySelectorAll("span, div"))) {
+          const raw = text(el);
+          if (!raw || raw.length > 180) continue;
+          const v = looksLikeLocation(raw);
+          if (v) return v;
+        }
+      }
+      return "";
+    }
+    if (host.includes("linkedin.com")) {
+      const liLoc = linkedInLocationFromTopCard();
+      if (liLoc) return liLoc;
     }
     // 1. Structured data (JobPosting.jobLocation)
     try {
