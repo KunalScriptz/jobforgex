@@ -14,7 +14,7 @@ import { LayoutTemplate } from "lucide-react";
 import remarkGfm from "remark-gfm";
 
 import { Checkbox } from "@/components/ui/checkbox";
-import { tailorResume, generateCoverLetter, saveArtifact } from "@/lib/ai-generate.functions";
+import { tailorResume, generateCoverLetter, saveArtifact, chatWithArtifact } from "@/lib/ai-generate.functions";
 import { TailoringLoader } from "@/components/tailoring-loader";
 
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -44,7 +44,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Trash2 } from "lucide-react";
+import { Trash2, MessageSquare, Send } from "lucide-react";
 import { AI_TOOLS_META, runAiTool, saveToolOutput } from "@/lib/ai-tools.functions";
 import { extractJobInsights } from "@/lib/insights.functions";
 import { compileArtifactPdf, getArtifactPdfUrl } from "@/lib/pdf.functions";
