@@ -165,9 +165,10 @@
         '#JobDescriptionContainer',
       ],
       "linkedin.com": [
+        '#job-details',
         '.jobs-description__content .jobs-box__html-content',
         '.jobs-description-content__text',
-        '#job-details',
+        'article.jobs-description__container',
       ],
       "indeed.com": [
         '#jobDescriptionText',
@@ -188,6 +189,10 @@
           if (el && text(el).length > 100) return text(el);
         } catch (_) {}
       }
+      // Site recognised but no JD panel is currently rendered
+      // (e.g. LinkedIn search-results view with no job selected).
+      // Do NOT fall back to <main>/<body> — that dumps the whole page.
+      if (host.includes("linkedin.com")) return "";
     }
     // Structured data
     try {
