@@ -272,9 +272,14 @@
     // 2. Site-specific selectors
     const siteSelectors = {
       "linkedin.com": [
+        '.job-details-jobs-unified-top-card__primary-description-container',
+        '.job-details-jobs-unified-top-card__tertiary-description-container',
         '.job-details-jobs-unified-top-card__primary-description-container .tvm__text',
         '.jobs-unified-top-card__bullet',
+        '.jobs-unified-top-card__primary-description',
+        '.jobs-unified-top-card__subtitle-primary-grouping .jobs-unified-top-card__bullet',
         '.topcard__flavor--bullet',
+        '.topcard__flavor.topcard__flavor--bullet',
       ],
       "indeed.com": [
         '[data-testid="inlineHeader-companyLocation"]',
