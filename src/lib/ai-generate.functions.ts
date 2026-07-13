@@ -219,3 +219,125 @@ export const runAtsCheck = createServerFn({ method: "POST" })
     if (!parsed) parsed = { ats_score: 0, issues: [], recommendations: [] };
     return { report: parsed, cost: result.totalCost, model: result.modelName };
   });
+
+/**
+ * Ask a question about a generated resume artifact, OR request an edit
+ * (e.g. "remove PyTorch bullets"). Returns { mode: "answer" | "modify",
+ * answer, latex? }. When mode === "modify" the caller persists the new LaTeX
+ * back onto the artifact and recompiles.
+ */
+export const chatWithArtifact = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: any) => z.object({
+    artifact_id: z.string().uuid(),
+    question: z.string().min(1).max(4000),
+    model_id: z.string().uuid().optional().nullable(),
+  }).parse(d))
+  .handler(async ({ data, context }) => {
+    const id = await wsId(context.supabase, context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: art } = await context.supabase
+      .from("job_artifacts").select("*").eq("id", data.artifact_id).maybeSingle();
+    if (!art) throw new Error("Artifact not found");
+    if (!art.latex_source) throw new Error("Artifact has no LaTeX source.");
+
+    let jd = "";
+    if (art.job_id) {
+      const { data: job } = await context.supabase
+        .from("jobs").select("description").eq("id", art.job_id).maybeSingle();
+      jd = job?.description ?? "";
+    }
+
+    const { decryptApiKey } = await import("./crypto.server");
+
+    // Resolve model + provider (same pattern as callDeepseek)
+    let model: any = null;
+    if (data.model_id) {
+      const { data: m } = await context.supabase.from("ai_models").select("*").eq("id", data.model_id).eq("workspace_id", id).maybeSingle();
+      model = m;
+    }
+    if (!model) {
+      const { data: m } = await context.supabase.from("ai_models").select("*").eq("workspace_id", id).eq("is_default", true).maybeSingle();
+      model = m;
+    }
+    if (!model) throw new Error("No AI model configured.");
+
+    const { data: provider } = await supabaseAdmin
+      .from("ai_providers").select("*")
+      .eq("workspace_id", id).eq("is_active", true).order("created_at").limit(1).maybeSingle();
+    if (!provider?.api_key_encrypted) throw new Error("AI provider not configured.");
+    const apiKey = decryptApiKey(provider.api_key_encrypted as string).trim();
+
+    const system = [
+      "You help a candidate work with a LaTeX resume they've already tailored for a job.",
+      "The user will ask a question about the resume OR ask you to modify it.",
+      "Return ONLY a JSON object of the form:",
+      '  {"mode":"answer","answer":"<markdown answer, may be multi-paragraph>"}',
+      "  OR",
+      '  {"mode":"modify","answer":"<1-2 sentence summary of what you changed>","latex":"<complete new LaTeX document>"}',
+      "",
+      "Rules for mode=answer: When the user asks an interview/application-style question",
+      "(e.g. 'Share examples of internal tools you've built and their impact'),",
+      "draft a strong first-person answer grounded ONLY in facts already in the resume/JD.",
+      "Do NOT invent projects, metrics, employers, or dates.",
+      "",
+      "Rules for mode=modify: Preserve the document's structural template",
+      "(packages, custom commands, colors). Do NOT change the page count.",
+      "Return the COMPLETE LaTeX starting with \\documentclass and ending with \\end{document}.",
+      "Never fabricate experience; only rewrite/remove/reorder existing content.",
+    ].join("\n");
+
+    const userMsg =
+      (jd ? `=== JOB DESCRIPTION ===\n${jd}\n\n` : "") +
+      `=== CURRENT RESUME (LaTeX) ===\n${art.latex_source}\n\n` +
+      `=== USER REQUEST ===\n${data.question}`;
+
+    const url = `${(provider.base_url as string).replace(/\/$/, "")}/chat/completions`;
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        model: model.name,
+        temperature: 0.3,
+        max_tokens: 8192,
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: system },
+          { role: "user", content: userMsg },
+        ],
+      }),
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`Provider HTTP ${res.status}: ${text.slice(0, 500)}`);
+    }
+    const json: any = await res.json();
+    const content: string = json.choices?.[0]?.message?.content ?? "";
+    let parsed: any = null;
+    try { parsed = JSON.parse(content); }
+    catch { const m = content.match(/\{[\s\S]*\}/); if (m) try { parsed = JSON.parse(m[0]); } catch {} }
+    if (!parsed || !parsed.mode) parsed = { mode: "answer", answer: content || "(no response)" };
+
+    // Log cost
+    const inTok: number = json.usage?.prompt_tokens ?? 0;
+    const outTok: number = json.usage?.completion_tokens ?? 0;
+    const inCost = (inTok / 1_000_000) * Number(model.input_price_per_1m);
+    const outCost = (outTok / 1_000_000) * Number(model.output_price_per_1m);
+    await supabaseAdmin.from("ai_cost_logs").insert({
+      workspace_id: id, user_id: context.userId, job_id: art.job_id ?? null,
+      model_id: model.id, model_name: model.display_name,
+      input_tokens: inTok, output_tokens: outTok, total_tokens: inTok + outTok,
+      input_cost: inCost, output_cost: outCost, total_cost: inCost + outCost,
+      purpose: "custom",
+    });
+
+    if (parsed.mode === "modify" && typeof parsed.latex === "string" && parsed.latex.includes("\\documentclass")) {
+      const clean = stripFences(parsed.latex);
+      await context.supabase.from("job_artifacts")
+        .update({ latex_source: clean, pdf_storage_path: null, compile_error: null })
+        .eq("id", art.id);
+      return { mode: "modify", answer: parsed.answer ?? "Resume updated.", updated: true };
+    }
+    return { mode: "answer", answer: parsed.answer ?? "(no response)", updated: false };
+  });

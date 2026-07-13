@@ -14,7 +14,7 @@ import { LayoutTemplate } from "lucide-react";
 import remarkGfm from "remark-gfm";
 
 import { Checkbox } from "@/components/ui/checkbox";
-import { tailorResume, generateCoverLetter, saveArtifact } from "@/lib/ai-generate.functions";
+import { tailorResume, generateCoverLetter, saveArtifact, chatWithArtifact } from "@/lib/ai-generate.functions";
 import { TailoringLoader } from "@/components/tailoring-loader";
 
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -44,7 +44,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Trash2 } from "lucide-react";
+import { Trash2, MessageSquare, Send } from "lucide-react";
 import { AI_TOOLS_META, runAiTool, saveToolOutput } from "@/lib/ai-tools.functions";
 import { extractJobInsights } from "@/lib/insights.functions";
 import { compileArtifactPdf, getArtifactPdfUrl } from "@/lib/pdf.functions";
@@ -465,8 +465,12 @@ function DocumentCard({ art, jobId }: { art: any; jobId: string }) {
   const compileFn = useServerFn(compileArtifactPdf);
   const urlFn = useServerFn(getArtifactPdfUrl);
   const delFn = useServerFn(deleteJobArtifact);
+  const chatFn = useServerFn(chatWithArtifact);
   const hasLatex = art.kind === "tailored_resume" || art.kind === "cover_letter";
   const hasPdf = !!art.pdf_storage_path;
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatInput, setChatInput] = useState("");
+  const [chatLog, setChatLog] = useState<Array<{ role: "user" | "assistant"; text: string; updated?: boolean }>>([]);
 
   const compile = useMutation({
     mutationFn: () => compileFn({ data: { artifact_id: art.id } } as any),
@@ -482,6 +486,30 @@ function DocumentCard({ art, jobId }: { art: any; jobId: string }) {
     onSuccess: () => { toast.success("Document deleted"); qc.invalidateQueries({ queryKey: ["job", jobId] }); },
     onError: (e: any) => toast.error(String(e?.message ?? e).slice(0, 200)),
   });
+
+  const chat = useMutation({
+    mutationFn: async (question: string) =>
+      chatFn({ data: { artifact_id: art.id, question } } as any) as Promise<{ mode: string; answer: string; updated: boolean }>,
+    onSuccess: async (r) => {
+      setChatLog((l) => [...l, { role: "assistant", text: r.answer, updated: r.updated }]);
+      if (r.updated) {
+        toast.success("Resume updated — recompiling PDF…");
+        qc.invalidateQueries({ queryKey: ["job", jobId] });
+        try { await compileFn({ data: { artifact_id: art.id } } as any); }
+        catch (e: any) { toast.error(String(e?.message ?? e).slice(0, 200)); }
+        qc.invalidateQueries({ queryKey: ["job", jobId] });
+      }
+    },
+    onError: (e: any) => toast.error(String(e?.message ?? e).slice(0, 200)),
+  });
+
+  function sendChat() {
+    const q = chatInput.trim();
+    if (!q || chat.isPending) return;
+    setChatLog((l) => [...l, { role: "user", text: q }]);
+    setChatInput("");
+    chat.mutate(q);
+  }
 
   async function downloadPdf() {
     try {
@@ -584,7 +612,60 @@ function DocumentCard({ art, jobId }: { art: any; jobId: string }) {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+        {hasLatex && (
+          <Button size="sm" variant="ghost" onClick={() => setChatOpen((v) => !v)}>
+            <MessageSquare className="mr-1 h-3.5 w-3.5" /> {chatOpen ? "Hide AI" : "Ask AI"}
+          </Button>
+        )}
       </div>
+      {hasLatex && chatOpen && (
+        <div className="mt-3 rounded-md border bg-muted/30 p-2">
+          <div className="mb-2 text-[10px] uppercase tracking-wide text-muted-foreground">
+            Ask a question about this resume, or tell the AI to edit it (e.g. "remove PyTorch bullets").
+          </div>
+          {chatLog.length > 0 && (
+            <div className="mb-2 max-h-64 space-y-2 overflow-auto">
+              {chatLog.map((m, i) => (
+                <div
+                  key={i}
+                  className={
+                    m.role === "user"
+                      ? "rounded-md bg-primary/10 p-2 text-xs"
+                      : "rounded-md bg-card p-2 text-xs border"
+                  }
+                >
+                  <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    {m.role === "user" ? "You" : m.updated ? "Assistant · resume updated" : "Assistant"}
+                  </div>
+                  <div className="prose prose-xs max-w-none whitespace-pre-wrap dark:prose-invert">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.text}</ReactMarkdown>
+                  </div>
+                </div>
+              ))}
+              {chat.isPending && (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Loader2 className="h-3 w-3 animate-spin" /> Thinking…
+                </div>
+              )}
+            </div>
+          )}
+          <div className="flex items-end gap-2">
+            <Textarea
+              value={chatInput}
+              onChange={(e) => setChatInput(e.target.value)}
+              rows={2}
+              placeholder="Ask a question or request a change…"
+              className="min-h-[52px] text-xs"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); sendChat(); }
+              }}
+            />
+            <Button size="sm" onClick={sendChat} disabled={chat.isPending || !chatInput.trim()}>
+              {chat.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
