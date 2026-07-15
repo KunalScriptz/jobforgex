@@ -45,6 +45,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Trash2, MessageSquare, Send } from "lucide-react";
+import { Eye } from "lucide-react";
 import { AI_TOOLS_META, runAiTool, saveToolOutput } from "@/lib/ai-tools.functions";
 import { extractJobInsights } from "@/lib/insights.functions";
 import { compileArtifactPdf, getArtifactPdfUrl } from "@/lib/pdf.functions";
