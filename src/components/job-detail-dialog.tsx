@@ -472,6 +472,8 @@ function DocumentCard({ art, jobId }: { art: any; jobId: string }) {
   const [chatOpen, setChatOpen] = useState(false);
   const [chatInput, setChatInput] = useState("");
   const [chatLog, setChatLog] = useState<Array<{ role: "user" | "assistant"; text: string; updated?: boolean }>>([]);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
 
   const compile = useMutation({
     mutationFn: () => compileFn({ data: { artifact_id: art.id } } as any),
@@ -523,6 +525,18 @@ function DocumentCard({ art, jobId }: { art: any; jobId: string }) {
     }
   }
 
+  async function openPreview() {
+    setPreviewLoading(true);
+    try {
+      const { url } = await urlFn({ data: { artifact_id: art.id } } as any);
+      setPreviewUrl(url);
+    } catch (e: any) {
+      toast.error(String(e?.message ?? e).slice(0, 200));
+    } finally {
+      setPreviewLoading(false);
+    }
+  }
+
   return (
     <div className="rounded-lg border bg-card p-3">
       <div className="mb-1 flex items-center justify-between gap-2">
@@ -552,6 +566,13 @@ function DocumentCard({ art, jobId }: { art: any; jobId: string }) {
         </div>
       )}
       <div className="mt-2 flex flex-wrap gap-1.5">
+        {hasPdf && (
+          <Button size="sm" variant="secondary" onClick={openPreview} disabled={previewLoading}>
+            {previewLoading
+              ? <><Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> Loading…</>
+              : <><Eye className="mr-1 h-3.5 w-3.5" /> Preview</>}
+          </Button>
+        )}
         {hasPdf && (
           <Button size="sm" onClick={downloadPdf}>
             <Download className="mr-1 h-3.5 w-3.5" /> PDF
