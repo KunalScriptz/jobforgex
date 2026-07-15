@@ -82,15 +82,19 @@ export const compileArtifactPdf = createServerFn({ method: "POST" })
 /** Return a short-lived signed URL for downloading the artifact's PDF. */
 export const getArtifactPdfUrl = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { artifact_id: string }) =>
-    z.object({ artifact_id: z.string().uuid() }).parse(d))
+  .inputValidator((d: { artifact_id: string; inline?: boolean }) =>
+    z.object({ artifact_id: z.string().uuid(), inline: z.boolean().optional() }).parse(d))
   .handler(async ({ data, context }) => {
     const { data: art } = await context.supabase
       .from("job_artifacts").select("id,pdf_storage_path,filename").eq("id", data.artifact_id).maybeSingle();
     if (!art?.pdf_storage_path) throw new Error("No PDF stored for this artifact yet.");
     const pdfName = (art.filename ?? "document").replace(/\.tex$/i, "") + ".pdf";
     const { data: signed, error } = await context.supabase.storage
-      .from(BUCKET).createSignedUrl(art.pdf_storage_path, 60 * 10, { download: pdfName });
+      .from(BUCKET).createSignedUrl(
+        art.pdf_storage_path,
+        60 * 10,
+        data.inline ? undefined : { download: pdfName },
+      );
     if (error) throw new Error(error.message);
     return { url: signed.signedUrl, filename: pdfName };
   });
