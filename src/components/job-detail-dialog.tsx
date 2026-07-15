@@ -528,7 +528,7 @@ function DocumentCard({ art, jobId }: { art: any; jobId: string }) {
   async function openPreview() {
     setPreviewLoading(true);
     try {
-      const { url } = await urlFn({ data: { artifact_id: art.id } } as any);
+      const { url } = await urlFn({ data: { artifact_id: art.id, inline: true } } as any);
       setPreviewUrl(url);
     } catch (e: any) {
       toast.error(String(e?.message ?? e).slice(0, 200));
@@ -689,8 +689,8 @@ function DocumentCard({ art, jobId }: { art: any; jobId: string }) {
         </div>
       )}
       <Dialog open={!!previewUrl} onOpenChange={(o) => { if (!o) setPreviewUrl(null); }}>
-        <DialogContent className="max-w-5xl h-[85vh] p-0 overflow-hidden">
-          <div className="flex items-center justify-between border-b px-4 py-2">
+        <DialogContent className="!flex w-[calc(100vw-2rem)] max-w-5xl h-[90vh] flex-col p-0 gap-0 overflow-hidden">
+          <div className="flex items-center justify-between border-b px-4 py-2 shrink-0">
             <div className="truncate text-sm font-medium">{art.filename?.replace(/\.tex$/i, ".pdf")}</div>
             <div className="flex gap-2">
               <Button size="sm" variant="outline" onClick={downloadPdf}>
@@ -699,7 +699,11 @@ function DocumentCard({ art, jobId }: { art: any; jobId: string }) {
             </div>
           </div>
           {previewUrl && (
-            <iframe src={previewUrl} title="PDF preview" className="h-full w-full bg-muted" />
+            <iframe
+              src={`${previewUrl}#toolbar=1&view=FitH`}
+              title="PDF preview"
+              className="flex-1 w-full bg-muted"
+            />
           )}
         </DialogContent>
       </Dialog>
