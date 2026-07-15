@@ -688,6 +688,21 @@ function DocumentCard({ art, jobId }: { art: any; jobId: string }) {
           </div>
         </div>
       )}
+      <Dialog open={!!previewUrl} onOpenChange={(o) => { if (!o) setPreviewUrl(null); }}>
+        <DialogContent className="max-w-5xl h-[85vh] p-0 overflow-hidden">
+          <div className="flex items-center justify-between border-b px-4 py-2">
+            <div className="truncate text-sm font-medium">{art.filename?.replace(/\.tex$/i, ".pdf")}</div>
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" onClick={downloadPdf}>
+                <Download className="mr-1 h-3.5 w-3.5" /> Download
+              </Button>
+            </div>
+          </div>
+          {previewUrl && (
+            <iframe src={previewUrl} title="PDF preview" className="h-full w-full bg-muted" />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
