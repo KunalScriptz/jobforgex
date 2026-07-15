@@ -45,6 +45,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Trash2, MessageSquare, Send } from "lucide-react";
+import { Eye } from "lucide-react";
 import { AI_TOOLS_META, runAiTool, saveToolOutput } from "@/lib/ai-tools.functions";
 import { extractJobInsights } from "@/lib/insights.functions";
 import { compileArtifactPdf, getArtifactPdfUrl } from "@/lib/pdf.functions";
@@ -471,6 +472,8 @@ function DocumentCard({ art, jobId }: { art: any; jobId: string }) {
   const [chatOpen, setChatOpen] = useState(false);
   const [chatInput, setChatInput] = useState("");
   const [chatLog, setChatLog] = useState<Array<{ role: "user" | "assistant"; text: string; updated?: boolean }>>([]);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
 
   const compile = useMutation({
     mutationFn: () => compileFn({ data: { artifact_id: art.id } } as any),
@@ -522,6 +525,18 @@ function DocumentCard({ art, jobId }: { art: any; jobId: string }) {
     }
   }
 
+  async function openPreview() {
+    setPreviewLoading(true);
+    try {
+      const { url } = await urlFn({ data: { artifact_id: art.id } } as any);
+      setPreviewUrl(url);
+    } catch (e: any) {
+      toast.error(String(e?.message ?? e).slice(0, 200));
+    } finally {
+      setPreviewLoading(false);
+    }
+  }
+
   return (
     <div className="rounded-lg border bg-card p-3">
       <div className="mb-1 flex items-center justify-between gap-2">
@@ -551,6 +566,13 @@ function DocumentCard({ art, jobId }: { art: any; jobId: string }) {
         </div>
       )}
       <div className="mt-2 flex flex-wrap gap-1.5">
+        {hasPdf && (
+          <Button size="sm" variant="secondary" onClick={openPreview} disabled={previewLoading}>
+            {previewLoading
+              ? <><Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> Loading…</>
+              : <><Eye className="mr-1 h-3.5 w-3.5" /> Preview</>}
+          </Button>
+        )}
         {hasPdf && (
           <Button size="sm" onClick={downloadPdf}>
             <Download className="mr-1 h-3.5 w-3.5" /> PDF
@@ -666,6 +688,21 @@ function DocumentCard({ art, jobId }: { art: any; jobId: string }) {
           </div>
         </div>
       )}
+      <Dialog open={!!previewUrl} onOpenChange={(o) => { if (!o) setPreviewUrl(null); }}>
+        <DialogContent className="max-w-5xl h-[85vh] p-0 overflow-hidden">
+          <div className="flex items-center justify-between border-b px-4 py-2">
+            <div className="truncate text-sm font-medium">{art.filename?.replace(/\.tex$/i, ".pdf")}</div>
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" onClick={downloadPdf}>
+                <Download className="mr-1 h-3.5 w-3.5" /> Download
+              </Button>
+            </div>
+          </div>
+          {previewUrl && (
+            <iframe src={previewUrl} title="PDF preview" className="h-full w-full bg-muted" />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
