@@ -690,7 +690,7 @@ function DocumentCard({ art, jobId }: { art: any; jobId: string }) {
       )}
       <Dialog open={!!previewUrl} onOpenChange={(o) => { if (!o) setPreviewUrl(null); }}>
         <DialogContent className="!flex w-[calc(100vw-2rem)] max-w-5xl h-[90vh] flex-col p-0 gap-0 overflow-hidden">
-          <div className="flex items-center justify-between border-b px-4 py-2 shrink-0">
+          <div className="flex items-center justify-between border-b px-4 py-2 shrink-0 pr-12">
             <div className="truncate text-sm font-medium">{art.filename?.replace(/\.tex$/i, ".pdf")}</div>
             <div className="flex gap-2">
               <Button size="sm" variant="outline" onClick={downloadPdf}>
