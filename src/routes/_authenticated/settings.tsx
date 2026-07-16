@@ -1,20 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 
-import { getMyWorkspace, updateBudget, listBoards, createBoard, renameBoard, deleteBoard } from "@/lib/workspace.functions";
-import { getProvider, saveProvider, testConnection, pingSavedModel, listModels, upsertModel, deleteModel } from "@/lib/ai-config.functions";
+import { listBoards, createBoard, renameBoard, deleteBoard } from "@/lib/workspace.functions";
 import { listExtensionTokens, createExtensionToken, revokeExtensionToken } from "@/lib/extension.functions";
 
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Trash2, Plus, PlugZap, CheckCircle2, XCircle, AlertTriangle, Sparkles, Loader2 } from "lucide-react";
+import { Trash2, Plus } from "lucide-react";
 import { Chrome, Download, Copy } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/settings")({ component: SettingsPage });
@@ -23,10 +19,7 @@ function SettingsPage() {
   return (
     <div className="space-y-6 p-6">
       <h1 className="text-2xl font-bold">Settings</h1>
-      <ProviderCard />
-      <ModelsCard />
       <BoardsCard />
-      <BudgetCard />
       <ExtensionCard />
     </div>
   );
