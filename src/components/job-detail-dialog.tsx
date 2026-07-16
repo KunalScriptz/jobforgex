@@ -16,6 +16,7 @@ import remarkGfm from "remark-gfm";
 import { Checkbox } from "@/components/ui/checkbox";
 import { tailorResume, generateCoverLetter, saveArtifact, chatWithArtifact } from "@/lib/ai-generate.functions";
 import { TailoringLoader } from "@/components/tailoring-loader";
+import { PaywallDialog, isPaywallError } from "@/components/paywall-dialog";
 
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -339,6 +340,7 @@ function DocumentsTab({ artifacts, jobId, job }: { artifacts: any[]; jobId: stri
 
   const [doTailor, setDoTailor] = useState(true);
   const [doCover, setDoCover] = useState(false);
+  const [paywallOpen, setPaywallOpen] = useState(false);
 
   const gen = useMutation({
     mutationFn: async () => {
@@ -365,10 +367,13 @@ function DocumentsTab({ artifacts, jobId, job }: { artifacts: any[]; jobId: stri
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["job", jobId] });
       qc.invalidateQueries({ queryKey: ["jobs"] });
-      qc.invalidateQueries({ queryKey: ["costs"] });
+      qc.invalidateQueries({ queryKey: ["billing"] });
       toast.success("Documents generated");
     },
-    onError: (e: any) => toast.error(e.message),
+    onError: (e: any) => {
+      if (isPaywallError(e)) { setPaywallOpen(true); return; }
+      toast.error(e.message);
+    },
   });
 
   async function downloadAll() {
@@ -457,6 +462,7 @@ function DocumentsTab({ artifacts, jobId, job }: { artifacts: any[]; jobId: stri
           </div>
         </>
       )}
+      <PaywallDialog open={paywallOpen} onOpenChange={setPaywallOpen} />
     </div>
   );
 }

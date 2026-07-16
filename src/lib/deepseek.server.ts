@@ -1,8 +1,7 @@
-import { decryptApiKey } from "./crypto.server";
 import { getPrompt, renderPrompt, type PromptDef } from "./prompts.server";
 
 type CallArgs = {
-  supabase: any; // authenticated supabase client (RLS)
+  supabase?: any;
   admin: any;    // service-role client (for logging)
   workspaceId: string;
   userId: string;
@@ -42,48 +41,19 @@ export type CallResult = {
 };
 
 export async function callDeepseek(args: CallArgs): Promise<CallResult> {
-  const { supabase, admin, workspaceId, userId, modelId, purpose, jobId, promptName, vars, overrideTemperature } = args;
+  const { admin, workspaceId, userId, purpose, jobId, promptName, vars, overrideTemperature } = args;
 
-  // Resolve model
-  let model: any = null;
-  if (modelId) {
-    const { data } = await supabase.from("ai_models").select("*").eq("id", modelId).eq("workspace_id", workspaceId).maybeSingle();
-    model = data;
-  }
-  if (!model) {
-    const { data } = await supabase.from("ai_models").select("*").eq("workspace_id", workspaceId).eq("is_default", true).maybeSingle();
-    model = data;
-  }
-  if (!model) {
-    const { data } = await supabase.from("ai_models").select("*").eq("workspace_id", workspaceId).order("created_at").limit(1).maybeSingle();
-    model = data;
-  }
-  if (!model) throw new Error("No AI model configured for this workspace");
-
-  // Resolve provider (with encrypted key)
-  const { data: provider } = await admin
-    .from("ai_providers")
-    .select("*")
-    .eq("workspace_id", workspaceId)
-    .eq("is_active", true)
-    .order("created_at")
-    .limit(1)
-    .maybeSingle();
-  if (!provider || !provider.api_key_encrypted) throw new Error("AI provider not configured");
-
-  let apiKey: string;
-  try {
-    apiKey = decryptApiKey(provider.api_key_encrypted as string).trim();
-  } catch (e: any) {
-    throw new Error(
-      `Could not decrypt saved API key (${e?.message ?? "unknown"}). ` +
-      `The encryption secret may have changed — re-enter your API key in Settings.`,
-    );
-  }
+  const apiKey = (process.env.DEEPSEEK_API_KEY ?? "").trim();
+  if (!apiKey) throw new Error("Server AI key not configured. Contact support.");
+  const baseUrl = (process.env.DEEPSEEK_BASE_URL ?? "https://api.deepseek.com/v1").replace(/\/$/, "");
+  const modelName = process.env.DEEPSEEK_MODEL ?? "deepseek-chat";
+  const displayName = "DeepSeek Chat";
+  const inputPricePer1M = Number(process.env.DEEPSEEK_INPUT_PRICE_PER_1M ?? "0.14");
+  const outputPricePer1M = Number(process.env.DEEPSEEK_OUTPUT_PRICE_PER_1M ?? "0.28");
 
   const prompt: PromptDef = getPrompt(promptName as any);
   const body: any = {
-    model: model.name,
+    model: modelName,
     temperature: overrideTemperature ?? prompt.temperature ?? 0.3,
     max_tokens: 8192,
     messages: [
@@ -93,10 +63,9 @@ export async function callDeepseek(args: CallArgs): Promise<CallResult> {
   };
   if (prompt.response_format === "json_object") body.response_format = { type: "json_object" };
 
-  const base = (provider.base_url as string).replace(/\/$/, "");
-  const url = `${base}/chat/completions`;
+  const url = `${baseUrl}/chat/completions`;
   const masked = apiKey.length > 8 ? `${apiKey.slice(0, 4)}…${apiKey.slice(-4)}` : "****";
-  console.log(`[callDeepseek] POST ${url} model=${model.name} purpose=${purpose} key=${masked}`);
+  console.log(`[callDeepseek] POST ${url} model=${modelName} purpose=${purpose} key=${masked}`);
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
@@ -105,27 +74,23 @@ export async function callDeepseek(args: CallArgs): Promise<CallResult> {
   if (!res.ok) {
     const text = await res.text();
     console.log(`[callDeepseek] ← ${res.status} ${text.slice(0, 500)}`);
-    throw new Error(
-      `Provider returned HTTP ${res.status} ${res.statusText}\n` +
-      `URL: ${url}\nModel: ${model.name}\nKey: ${masked} (len ${apiKey.length})\n\n` +
-      `Body:\n${text.slice(0, 1200)}`,
-    );
+    throw new Error(`AI provider error ${res.status}: ${text.slice(0, 300)}`);
   }
   const json: any = await res.json();
   const content: string = json.choices?.[0]?.message?.content ?? "";
   const inTok: number = json.usage?.prompt_tokens ?? 0;
   const outTok: number = json.usage?.completion_tokens ?? 0;
 
-  const inCost = (inTok / 1_000_000) * Number(model.input_price_per_1m);
-  const outCost = (outTok / 1_000_000) * Number(model.output_price_per_1m);
+  const inCost = (inTok / 1_000_000) * inputPricePer1M;
+  const outCost = (outTok / 1_000_000) * outputPricePer1M;
   const totalCost = inCost + outCost;
 
   await admin.from("ai_cost_logs").insert({
     workspace_id: workspaceId,
     user_id: userId,
     job_id: jobId ?? null,
-    model_id: model.id,
-    model_name: model.display_name,
+    model_id: null,
+    model_name: displayName,
     input_tokens: inTok,
     output_tokens: outTok,
     total_tokens: inTok + outTok,
@@ -135,22 +100,10 @@ export async function callDeepseek(args: CallArgs): Promise<CallResult> {
     purpose,
   });
 
-  return { content, inputTokens: inTok, outputTokens: outTok, totalCost, modelName: model.display_name };
+  return { content, inputTokens: inTok, outputTokens: outTok, totalCost, modelName: displayName };
 }
 
-// A simple direct ping used by "test connection"
-export async function pingDeepseek(baseUrl: string, apiKey: string, modelName: string): Promise<void> {
-  const res = await fetch(`${baseUrl.replace(/\/$/, "")}/chat/completions`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({
-      model: modelName,
-      max_tokens: 5,
-      messages: [{ role: "user", content: "ping" }],
-    }),
-  });
-  if (!res.ok) {
-    const t = await res.text();
-    throw new Error(`Test failed (${res.status}): ${t.slice(0, 300)}`);
-  }
+// Ping helper kept for backward compatibility; not used by UI anymore.
+export async function pingDeepseek(_baseUrl: string, _apiKey: string, _modelName: string): Promise<void> {
+  return;
 }

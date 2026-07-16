@@ -6,8 +6,8 @@ import { toast } from "sonner";
 
 import { scoreResume, tailorResume, generateCoverLetter, saveArtifact } from "@/lib/ai-generate.functions";
 import { listJobs } from "@/lib/jobs.functions";
-import { listModels } from "@/lib/ai-config.functions";
 import { compileArtifactPdf } from "@/lib/pdf.functions";
+import { PaywallDialog, isPaywallError } from "@/components/paywall-dialog";
 
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -28,17 +28,15 @@ function GeneratePage() {
   const saveArtifactFn = useServerFn(saveArtifact);
   const compilePdfFn = useServerFn(compileArtifactPdf);
   const getJobs = useServerFn(listJobs);
-  const getModels = useServerFn(listModels);
 
   const { data: allJobs = [] } = useQuery({ queryKey: ["jobs", "all"], queryFn: () => getJobs({ data: {} } as any) });
-  const { data: models = [] } = useQuery({ queryKey: ["models"], queryFn: () => getModels() });
 
   const [selectedJobId, setSelectedJobId] = useState<string>("");
   const selectedJob = allJobs.find((j: any) => j.id === selectedJobId);
 
-  const [modelId, setModelId] = useState<string>("");
   const [doTailor, setDoTailor] = useState(true);
   const [doCover, setDoCover] = useState(false);
+  const [paywallOpen, setPaywallOpen] = useState(false);
 
   const [report, setReport] = useState<any>(null);
   const [tailored, setTailored] = useState<{ latex: string; filename: string } | null>(null);
@@ -48,9 +46,9 @@ function GeneratePage() {
   const scoreMut = useMutation({
     mutationFn: async () => {
       if (!selectedJob?.description || selectedJob.description.length < 30) throw new Error("Selected job has no description to score against.");
-      return scoreFn({ data: { jd: selectedJob.description, model_id: modelId || undefined, job_id: selectedJob.id } } as any);
+      return scoreFn({ data: { jd: selectedJob.description, job_id: selectedJob.id } } as any);
     },
-    onSuccess: (r: any) => { setReport(r.report); setTotalCost((c) => c + Number(r.cost)); qc.invalidateQueries({ queryKey: ["costs"] }); },
+    onSuccess: (r: any) => { setReport(r.report); setTotalCost((c) => c + Number(r.cost)); qc.invalidateQueries({ queryKey: ["billing"] }); },
     onError: (e: any) => toast.error(e.message),
   });
 
@@ -64,13 +62,13 @@ function GeneratePage() {
       let t: any = null, c: any = null;
       const compileJobs: Promise<any>[] = [];
       if (doTailor) {
-        t = await tailorFn({ data: { jd, company: selectedJob.company, title: selectedJob.title, model_id: modelId || undefined, job_id: selectedJob.id } } as any);
+        t = await tailorFn({ data: { jd, company: selectedJob.company, title: selectedJob.title, job_id: selectedJob.id } } as any);
         const savedT = await saveArtifactFn({ data: { job_id: selectedJob.id, kind: "tailored_resume", filename: t.filename, latex_source: t.latex } } as any);
         compileJobs.push(compilePdfFn({ data: { artifact_id: savedT.id } } as any).catch(() => null));
         localCost += Number(t.cost);
       }
       if (doCover) {
-        c = await coverFn({ data: { jd, company: selectedJob.company, title: selectedJob.title, model_id: modelId || undefined, job_id: selectedJob.id } } as any);
+        c = await coverFn({ data: { jd, company: selectedJob.company, title: selectedJob.title, job_id: selectedJob.id } } as any);
         const savedC = await saveArtifactFn({ data: { job_id: selectedJob.id, kind: "cover_letter", filename: c.filename, latex_source: c.latex } } as any);
         compileJobs.push(compilePdfFn({ data: { artifact_id: savedC.id } } as any).catch(() => null));
         localCost += Number(c.cost);
@@ -83,10 +81,13 @@ function GeneratePage() {
       if (c) setCover(c);
       setTotalCost((x) => x + localCost);
       qc.invalidateQueries({ queryKey: ["jobs"] });
-      qc.invalidateQueries({ queryKey: ["costs"] });
+      qc.invalidateQueries({ queryKey: ["billing"] });
       toast.success("Generated and saved to job");
     },
-    onError: (e: any) => toast.error(e.message),
+    onError: (e: any) => {
+      if (isPaywallError(e)) { setPaywallOpen(true); return; }
+      toast.error(e.message);
+    },
   });
 
   function download(name: string, content: string) {
@@ -136,13 +137,6 @@ function GeneratePage() {
               </div>
             )}
 
-            <div><Label>Model</Label>
-              <Select value={modelId} onValueChange={setModelId}>
-                <SelectTrigger><SelectValue placeholder="Default model" /></SelectTrigger>
-                <SelectContent>{models.map((m: any) => <SelectItem key={m.id} value={m.id}>{m.display_name}{m.is_default ? " (default)" : ""}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-
             <div className="flex items-center gap-4 pt-1">
               <label className="flex items-center gap-2 text-sm">
                 <Checkbox checked={doTailor} onCheckedChange={(v) => setDoTailor(!!v)} /> Generate tailored resume
@@ -156,7 +150,7 @@ function GeneratePage() {
               <Wand2 className="mr-1.5 h-4 w-4" />{genMut.isPending ? "Generating…" : "Generate & save"}
             </Button>
 
-            <div className="text-xs text-muted-foreground">Total session cost: ${totalCost.toFixed(4)}</div>
+            {/* internal cost display removed for end users */}
           </CardContent>
         </Card>
 
@@ -200,6 +194,7 @@ function GeneratePage() {
           )}
         </div>
       </div>
+      <PaywallDialog open={paywallOpen} onOpenChange={setPaywallOpen} />
     </div>
   );
 }
