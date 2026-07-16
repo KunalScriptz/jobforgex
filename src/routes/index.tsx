@@ -1,11 +1,10 @@
 import { useEffect, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Sparkles, FileText, LayoutDashboard, DollarSign } from "lucide-react";
+import { Sparkles, FileText, LayoutDashboard, ClipboardCheck } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import screenshotKanban from "@/assets/screenshot-kanban.png";
 import screenshotResume from "@/assets/screenshot-resume.png";
-import screenshotCosts from "@/assets/screenshot-costs.png";
 
 export const Route = createFileRoute("/")({ component: Landing });
 
@@ -81,7 +80,7 @@ function Landing() {
             { icon: Sparkles, title: "AI resume tailoring", body: "Paste a JD, get a tailored LaTeX resume that preserves your template and page count." },
             { icon: FileText, title: "Cover letters", body: "Optional AI-generated cover letters grounded in your resume, ready to compile." },
             { icon: LayoutDashboard, title: "Kanban tracking", body: "Boards per year, columns per stage. Never lose a lead again." },
-            { icon: DollarSign, title: "Cost analytics", body: "Every AI call is priced and logged. See spend by day, model, and purpose." },
+            { icon: ClipboardCheck, title: "ATS check & fit scoring", body: "Instantly see how your resume scores against each JD, with actionable fixes." },
           ].map(({ icon: Icon, title, body }) => (
             <div key={title} className="rounded-lg border bg-card p-5">
               <Icon className="h-5 w-5 text-primary" />
@@ -112,11 +111,6 @@ function Landing() {
                 body: "Paste your LaTeX, tweak colors, compile inline. Every save is versioned so you can roll back anytime.",
                 flip: true,
               },
-              {
-                img: screenshotCosts,
-                title: "See exactly what every AI call cost you.",
-                body: "Daily spend, per-model breakdown, per-purpose pie. No surprises — you're always in control of your budget.",
-              },
             ].map((s, idx) => (
               <div
                 key={idx}
@@ -136,7 +130,7 @@ function Landing() {
 
         <section className="mt-20 rounded-2xl border bg-card p-10 text-center">
           <h3 className="text-2xl font-semibold">Ready to end the copy-paste chaos?</h3>
-          <p className="mt-2 text-muted-foreground">Free to start — bring your own model key or use Lovable AI.</p>
+          <p className="mt-2 text-muted-foreground">Start free with 2 applications. Upgrade to Pro for unlimited generations.</p>
           <Button asChild size="lg" className="mt-6"><Link to="/auth">Get started</Link></Button>
         </section>
       </main>
