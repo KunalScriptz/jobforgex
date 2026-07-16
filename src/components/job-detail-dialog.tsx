@@ -462,6 +462,7 @@ function DocumentsTab({ artifacts, jobId, job }: { artifacts: any[]; jobId: stri
           </div>
         </>
       )}
+      <PaywallDialog open={paywallOpen} onOpenChange={setPaywallOpen} />
     </div>
   );
 }
