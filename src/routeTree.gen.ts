@@ -19,6 +19,7 @@ import { Route as AuthenticatedJobsRouteImport } from './routes/_authenticated/j
 import { Route as AuthenticatedGenerateRouteImport } from './routes/_authenticated/generate'
 import { Route as AuthenticatedCostsRouteImport } from './routes/_authenticated/costs'
 import { Route as AuthenticatedCheckerRouteImport } from './routes/_authenticated/checker'
+import { Route as AuthenticatedBillingRouteImport } from './routes/_authenticated/billing'
 import { Route as AuthenticatedBuilderJobIdRouteImport } from './routes/_authenticated/builder.$jobId'
 import { Route as ApiPublicExtensionJobsRouteImport } from './routes/api/public/extension/jobs'
 
@@ -71,6 +72,11 @@ const AuthenticatedCheckerRoute = AuthenticatedCheckerRouteImport.update({
   path: '/checker',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedBillingRoute = AuthenticatedBillingRouteImport.update({
+  id: '/billing',
+  path: '/billing',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedBuilderJobIdRoute =
   AuthenticatedBuilderJobIdRouteImport.update({
     id: '/builder/$jobId',
@@ -87,6 +93,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/onboarding': typeof OnboardingRoute
+  '/billing': typeof AuthenticatedBillingRoute
   '/checker': typeof AuthenticatedCheckerRoute
   '/costs': typeof AuthenticatedCostsRoute
   '/generate': typeof AuthenticatedGenerateRoute
@@ -100,6 +107,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/onboarding': typeof OnboardingRoute
+  '/billing': typeof AuthenticatedBillingRoute
   '/checker': typeof AuthenticatedCheckerRoute
   '/costs': typeof AuthenticatedCostsRoute
   '/generate': typeof AuthenticatedGenerateRoute
@@ -115,6 +123,7 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/onboarding': typeof OnboardingRoute
+  '/_authenticated/billing': typeof AuthenticatedBillingRoute
   '/_authenticated/checker': typeof AuthenticatedCheckerRoute
   '/_authenticated/costs': typeof AuthenticatedCostsRoute
   '/_authenticated/generate': typeof AuthenticatedGenerateRoute
@@ -130,6 +139,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/onboarding'
+    | '/billing'
     | '/checker'
     | '/costs'
     | '/generate'
@@ -143,6 +153,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/onboarding'
+    | '/billing'
     | '/checker'
     | '/costs'
     | '/generate'
@@ -157,6 +168,7 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/auth'
     | '/onboarding'
+    | '/_authenticated/billing'
     | '/_authenticated/checker'
     | '/_authenticated/costs'
     | '/_authenticated/generate'
@@ -247,6 +259,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCheckerRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/billing': {
+      id: '/_authenticated/billing'
+      path: '/billing'
+      fullPath: '/billing'
+      preLoaderRoute: typeof AuthenticatedBillingRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/builder/$jobId': {
       id: '/_authenticated/builder/$jobId'
       path: '/builder/$jobId'
@@ -265,6 +284,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedBillingRoute: typeof AuthenticatedBillingRoute
   AuthenticatedCheckerRoute: typeof AuthenticatedCheckerRoute
   AuthenticatedCostsRoute: typeof AuthenticatedCostsRoute
   AuthenticatedGenerateRoute: typeof AuthenticatedGenerateRoute
@@ -275,6 +295,7 @@ interface AuthenticatedRouteRouteChildren {
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedBillingRoute: AuthenticatedBillingRoute,
   AuthenticatedCheckerRoute: AuthenticatedCheckerRoute,
   AuthenticatedCostsRoute: AuthenticatedCostsRoute,
   AuthenticatedGenerateRoute: AuthenticatedGenerateRoute,
