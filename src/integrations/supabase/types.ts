@@ -471,6 +471,44 @@ export type Database = {
           },
         ]
       }
+      payment_events: {
+        Row: {
+          event_id: string
+          event_type: string
+          id: string
+          payload: Json
+          processed_at: string
+          provider: string
+          workspace_id: string | null
+        }
+        Insert: {
+          event_id: string
+          event_type: string
+          id?: string
+          payload: Json
+          processed_at?: string
+          provider?: string
+          workspace_id?: string | null
+        }
+        Update: {
+          event_id?: string
+          event_type?: string
+          id?: string
+          payload?: Json
+          processed_at?: string
+          provider?: string
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_events_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       resume_versions: {
         Row: {
           created_at: string
@@ -560,6 +598,62 @@ export type Database = {
           },
         ]
       }
+      subscriptions: {
+        Row: {
+          cancel_at_period_end: boolean
+          created_at: string
+          currency: string
+          current_period_end: string | null
+          cycle: string
+          id: string
+          plan_code: string
+          provider: string
+          rzp_customer_id: string | null
+          rzp_subscription_id: string | null
+          status: string
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          cancel_at_period_end?: boolean
+          created_at?: string
+          currency: string
+          current_period_end?: string | null
+          cycle: string
+          id?: string
+          plan_code: string
+          provider?: string
+          rzp_customer_id?: string | null
+          rzp_subscription_id?: string | null
+          status?: string
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          cancel_at_period_end?: boolean
+          created_at?: string
+          currency?: string
+          current_period_end?: string | null
+          cycle?: string
+          id?: string
+          plan_code?: string
+          provider?: string
+          rzp_customer_id?: string | null
+          rzp_subscription_id?: string | null
+          status?: string
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscriptions_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           id: string
@@ -581,35 +675,44 @@ export type Database = {
       workspaces: {
         Row: {
           created_at: string
+          currency: string
           id: string
           monthly_budget_usd: number | null
           name: string
           onboarding_complete: boolean
           onboarding_step: number
           owner_user_id: string
+          plan: string
           timezone: string
+          trial_apps_limit: number
           updated_at: string
         }
         Insert: {
           created_at?: string
+          currency?: string
           id?: string
           monthly_budget_usd?: number | null
           name: string
           onboarding_complete?: boolean
           onboarding_step?: number
           owner_user_id: string
+          plan?: string
           timezone?: string
+          trial_apps_limit?: number
           updated_at?: string
         }
         Update: {
           created_at?: string
+          currency?: string
           id?: string
           monthly_budget_usd?: number | null
           name?: string
           onboarding_complete?: boolean
           onboarding_step?: number
           owner_user_id?: string
+          plan?: string
           timezone?: string
+          trial_apps_limit?: number
           updated_at?: string
         }
         Relationships: []
@@ -619,6 +722,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      has_active_pro: { Args: { _ws: string }; Returns: boolean }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
