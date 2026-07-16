@@ -2,7 +2,6 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { getSeedModels } from "./prompts.server";
 
 export const getMyWorkspace = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -30,27 +29,9 @@ export const createWorkspace = createServerFn({ method: "POST" })
     }).select().single();
     if (error) throw new Error(error.message);
 
-    // Default board + seed AI models (via admin) + default provider
+    // Default board only — AI provider is now server-managed.
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     await supabaseAdmin.from("boards").insert({ workspace_id: ws.id, name: `${new Date().getFullYear()} Job Search` });
-
-    const { data: provider } = await supabaseAdmin.from("ai_providers").insert({
-      workspace_id: ws.id,
-      name: "DeepSeek",
-      base_url: "https://api.deepseek.com/v1",
-      is_active: true,
-    }).select().single();
-
-    const seeds = getSeedModels();
-    await supabaseAdmin.from("ai_models").insert(seeds.map((m) => ({
-      workspace_id: ws.id,
-      provider_id: provider?.id ?? null,
-      name: m.name,
-      display_name: m.display_name,
-      input_price_per_1m: m.input_price_per_1m,
-      output_price_per_1m: m.output_price_per_1m,
-      is_default: m.is_default,
-    })));
 
     return ws;
   });

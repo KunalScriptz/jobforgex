@@ -4,6 +4,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { callDeepseek } from "./deepseek.server";
 import { extractResumeName } from "./filenames";
+import { assertCanGenerate } from "./entitlement.server";
 
 async function wsId(supabase: any, userId: string) {
   const { data } = await supabase.from("workspaces").select("id").eq("owner_user_id", userId).maybeSingle();
@@ -121,6 +122,8 @@ export const tailorResume = createServerFn({ method: "POST" })
     }
     if (!resume) throw new Error("No base resume found.");
 
+    await assertCanGenerate(supabaseAdmin, id, data.job_id ?? null);
+
     const result = await callDeepseek({
       supabase: context.supabase,
       admin: supabaseAdmin,
@@ -159,6 +162,8 @@ export const generateCoverLetter = createServerFn({ method: "POST" })
       resume = (await context.supabase.from("resumes").select("*").eq("workspace_id", id).eq("is_base", true).maybeSingle()).data;
     }
     if (!resume) throw new Error("No base resume found.");
+
+    await assertCanGenerate(supabaseAdmin, id, data.job_id ?? null);
 
     const result = await callDeepseek({
       supabase: context.supabase, admin: supabaseAdmin,
@@ -249,25 +254,12 @@ export const chatWithArtifact = createServerFn({ method: "POST" })
       jd = job?.description ?? "";
     }
 
-    const { decryptApiKey } = await import("./crypto.server");
-
-    // Resolve model + provider (same pattern as callDeepseek)
-    let model: any = null;
-    if (data.model_id) {
-      const { data: m } = await context.supabase.from("ai_models").select("*").eq("id", data.model_id).eq("workspace_id", id).maybeSingle();
-      model = m;
-    }
-    if (!model) {
-      const { data: m } = await context.supabase.from("ai_models").select("*").eq("workspace_id", id).eq("is_default", true).maybeSingle();
-      model = m;
-    }
-    if (!model) throw new Error("No AI model configured.");
-
-    const { data: provider } = await supabaseAdmin
-      .from("ai_providers").select("*")
-      .eq("workspace_id", id).eq("is_active", true).order("created_at").limit(1).maybeSingle();
-    if (!provider?.api_key_encrypted) throw new Error("AI provider not configured.");
-    const apiKey = decryptApiKey(provider.api_key_encrypted as string).trim();
+    const apiKey = (process.env.DEEPSEEK_API_KEY ?? "").trim();
+    if (!apiKey) throw new Error("Server AI key not configured. Contact support.");
+    const baseUrl = (process.env.DEEPSEEK_BASE_URL ?? "https://api.deepseek.com/v1").replace(/\/$/, "");
+    const modelName = process.env.DEEPSEEK_MODEL ?? "deepseek-chat";
+    const inputPricePer1M = Number(process.env.DEEPSEEK_INPUT_PRICE_PER_1M ?? "0.14");
+    const outputPricePer1M = Number(process.env.DEEPSEEK_OUTPUT_PRICE_PER_1M ?? "0.28");
 
     const system = [
       "You help a candidate work with a LaTeX resume they've already tailored for a job.",
@@ -293,12 +285,12 @@ export const chatWithArtifact = createServerFn({ method: "POST" })
       `=== CURRENT RESUME (LaTeX) ===\n${art.latex_source}\n\n` +
       `=== USER REQUEST ===\n${data.question}`;
 
-    const url = `${(provider.base_url as string).replace(/\/$/, "")}/chat/completions`;
+    const url = `${baseUrl}/chat/completions`;
     const res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
-        model: model.name,
+        model: modelName,
         temperature: 0.3,
         max_tokens: 8192,
         response_format: { type: "json_object" },
@@ -310,7 +302,7 @@ export const chatWithArtifact = createServerFn({ method: "POST" })
     });
     if (!res.ok) {
       const text = await res.text();
-      throw new Error(`Provider HTTP ${res.status}: ${text.slice(0, 500)}`);
+      throw new Error(`AI provider error ${res.status}: ${text.slice(0, 300)}`);
     }
     const json: any = await res.json();
     const content: string = json.choices?.[0]?.message?.content ?? "";
@@ -322,11 +314,11 @@ export const chatWithArtifact = createServerFn({ method: "POST" })
     // Log cost
     const inTok: number = json.usage?.prompt_tokens ?? 0;
     const outTok: number = json.usage?.completion_tokens ?? 0;
-    const inCost = (inTok / 1_000_000) * Number(model.input_price_per_1m);
-    const outCost = (outTok / 1_000_000) * Number(model.output_price_per_1m);
+    const inCost = (inTok / 1_000_000) * inputPricePer1M;
+    const outCost = (outTok / 1_000_000) * outputPricePer1M;
     await supabaseAdmin.from("ai_cost_logs").insert({
       workspace_id: id, user_id: context.userId, job_id: art.job_id ?? null,
-      model_id: model.id, model_name: model.display_name,
+      model_id: null, model_name: "DeepSeek Chat",
       input_tokens: inTok, output_tokens: outTok, total_tokens: inTok + outTok,
       input_cost: inCost, output_cost: outCost, total_cost: inCost + outCost,
       purpose: "custom",

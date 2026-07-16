@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from "@tanstack/react-router";
-import { ListTodo, Wand2, FileText, ClipboardCheck, DollarSign, Settings, Sparkles, LogOut } from "lucide-react";
+import { ListTodo, Wand2, FileText, ClipboardCheck, CreditCard, Settings, Sparkles, LogOut } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -16,7 +16,7 @@ const NAV = [
   { to: "/generate", label: "Generate", icon: Wand2 },
   { to: "/resumes", label: "Resume", icon: FileText },
   { to: "/checker", label: "Checker", icon: ClipboardCheck },
-  { to: "/costs", label: "Costs", icon: DollarSign },
+  { to: "/billing", label: "Billing", icon: CreditCard },
   { to: "/settings", label: "Settings", icon: Settings },
 ] as const;
 

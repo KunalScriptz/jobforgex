@@ -13,7 +13,6 @@ import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { getMyWorkspace, createWorkspace, updateOnboardingStep } from "@/lib/workspace.functions";
-import { saveProvider, testConnection } from "@/lib/ai-config.functions";
 import { saveBaseResume } from "@/lib/resumes.functions";
 import { Sparkles, CheckCircle2, ArrowLeft } from "lucide-react";
 import { PdfToLatexButton } from "@/components/pdf-to-latex-button";
@@ -47,27 +46,20 @@ function OnboardingPage() {
 
   // No blocking loader — Step 1 renders instantly for new users
 
-  const progress = ((step - 1) / 3) * 100;
+  const progress = ((step - 1) / 2) * 100;
 
   return (
     <div className="min-h-screen bg-muted/30 p-6">
       <div className="mx-auto max-w-2xl">
         <div className="mb-6 flex items-center gap-2 text-sm text-muted-foreground">
           <Sparkles className="h-4 w-4 text-primary" />
-          JobForge setup — step {step} of 3
+          JobForge setup — step {step} of 2
         </div>
         <Progress value={progress} className="mb-6" />
 
         {step === 1 && <Step1 onDone={(_ws) => { qc.invalidateQueries({ queryKey: ["ws"] }); setStep(2); }} />}
-        {step === 2 && <Step2
+        {step === 2 && <Step3
           onBack={() => setStep(1)}
-          onDone={async () => {
-            await setStepFn({ data: { step: 3 } } as any);
-            qc.invalidateQueries({ queryKey: ["ws"] }); setStep(3);
-          }}
-        />}
-        {step === 3 && <Step3
-          onBack={() => setStep(2)}
           onDone={async () => {
             qc.invalidateQueries({ queryKey: ["ws"] });
             navigate({ to: "/jobs" });
