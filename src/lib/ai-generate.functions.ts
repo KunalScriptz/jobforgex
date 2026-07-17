@@ -57,26 +57,41 @@ function buildDocFilename(opts: { name: string; company: string; title: string; 
 
 export const scoreResume = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { jd: string; resume_id?: string; model_id?: string | null; job_id?: string | null }) =>
+  .inputValidator((d: {
+    jd: string;
+    resume_id?: string;
+    resume_latex?: string;
+    model_id?: string | null;
+    job_id?: string | null;
+    save_to?: "job_base" | null;
+    artifact_id?: string | null;
+  }) =>
     z.object({
       jd: z.string().min(30).max(100000),
       resume_id: z.string().uuid().optional(),
+      resume_latex: z.string().min(30).max(200000).optional(),
       model_id: z.string().uuid().optional().nullable(),
       job_id: z.string().uuid().optional().nullable(),
+      save_to: z.enum(["job_base"]).optional().nullable(),
+      artifact_id: z.string().uuid().optional().nullable(),
     }).parse(d))
   .handler(async ({ data, context }) => {
     const id = await wsId(context.supabase, context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    let resume: any = null;
-    if (data.resume_id) {
-      const r = await context.supabase.from("resumes").select("*").eq("id", data.resume_id).maybeSingle();
-      resume = r.data;
-    } else {
-      const r = await context.supabase.from("resumes").select("*").eq("workspace_id", id).eq("is_base", true).maybeSingle();
-      resume = r.data;
+    let resumeLatex: string | null = data.resume_latex ?? null;
+    if (!resumeLatex) {
+      let resume: any = null;
+      if (data.resume_id) {
+        const r = await context.supabase.from("resumes").select("*").eq("id", data.resume_id).maybeSingle();
+        resume = r.data;
+      } else {
+        const r = await context.supabase.from("resumes").select("*").eq("workspace_id", id).eq("is_base", true).maybeSingle();
+        resume = r.data;
+      }
+      if (!resume) throw new Error("No resume found. Complete onboarding first.");
+      resumeLatex = resume.latex_source;
     }
-    if (!resume) throw new Error("No resume found. Complete onboarding first.");
 
     const result = await callDeepseek({
       supabase: context.supabase,
@@ -87,7 +102,7 @@ export const scoreResume = createServerFn({ method: "POST" })
       purpose: "resume_scoring",
       jobId: data.job_id ?? null,
       promptName: "resume_scorer",
-      vars: { jd: data.jd, resume_latex: resume.latex_source },
+      vars: { jd: data.jd, resume_latex: resumeLatex! },
     });
 
     let parsed: any = null;
@@ -97,6 +112,14 @@ export const scoreResume = createServerFn({ method: "POST" })
       if (m) { try { parsed = JSON.parse(m[0]); } catch {} }
     }
     if (!parsed) parsed = { score: 0, strengths: [], gaps: [], missing_keywords: [], missing_metrics: [], summary: "Could not parse model response." };
+
+    if (data.save_to === "job_base" && data.job_id) {
+      await context.supabase.from("jobs").update({ base_fit_score: parsed }).eq("id", data.job_id);
+    }
+    if (data.artifact_id) {
+      await context.supabase.from("job_artifacts").update({ fit_score: parsed }).eq("id", data.artifact_id);
+    }
+
     return { report: parsed, cost: result.totalCost, model: result.modelName };
   });
 
