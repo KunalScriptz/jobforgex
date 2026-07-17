@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Sparkles, FileText, LayoutDashboard, ClipboardCheck, Mail } from "lucide-react";
+import { Sparkles, FileText, LayoutDashboard, ClipboardCheck, Mail, Wand2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import screenshotKanban from "@/assets/screenshot-kanban.png";
@@ -14,6 +14,7 @@ const PHRASES = [
   "track every application.",
   "autofill from any job board.",
   "land more interviews.",
+  "run AI tools on any JD.",
 ];
 
 function useTypewriter(words: string[], typeMs = 65, holdMs = 1400, eraseMs = 35) {
@@ -80,7 +81,11 @@ function Landing() {
             { icon: Sparkles, title: "AI resume tailoring", body: "Paste a JD, get a tailored LaTeX resume that preserves your template and page count." },
             { icon: FileText, title: "Cover letters", body: "Optional AI-generated cover letters grounded in your resume, ready to compile." },
             { icon: LayoutDashboard, title: "Kanban tracking", body: "Boards per year, columns per stage. Never lose a lead again." },
-            { icon: ClipboardCheck, title: "ATS check & fit scoring", body: "Instantly see how your resume scores against each JD, with actionable fixes." },
+            { icon: ClipboardCheck, title: "ATS check & fit scoring", body: "Instantly see how your base and tailored resumes score against each JD, with actionable fixes." },
+            { icon: Wand2, title: "AI tools on every job", body: "Recruiter outreach, referral asks, interview prep, salary negotiation, thank-you notes, and more — grounded in the JD." },
+            { icon: Sparkles, title: "Ask AI on any document", body: "Chat with any generated resume or cover letter to answer questions or make targeted edits, then auto-recompile the PDF." },
+            { icon: FileText, title: "Import PDF → LaTeX", body: "Upload your existing PDF resume and JobForge converts it into an editable LaTeX base resume." },
+            { icon: LayoutDashboard, title: "Chrome extension", body: "One-click save any job from LinkedIn, Indeed, JobStreet, SEEK, Glassdoor and more — with auto-detected location." },
           ].map(({ icon: Icon, title, body }) => (
             <div key={title} className="rounded-lg border bg-card p-5">
               <Icon className="h-5 w-5 text-primary" />
