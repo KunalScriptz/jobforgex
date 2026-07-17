@@ -14,7 +14,7 @@ import { LayoutTemplate } from "lucide-react";
 import remarkGfm from "remark-gfm";
 
 import { Checkbox } from "@/components/ui/checkbox";
-import { tailorResume, generateCoverLetter, saveArtifact, chatWithArtifact } from "@/lib/ai-generate.functions";
+import { tailorResume, generateCoverLetter, saveArtifact, chatWithArtifact, scoreResume } from "@/lib/ai-generate.functions";
 import { TailoringLoader } from "@/components/tailoring-loader";
 import { PaywallDialog, isPaywallError } from "@/components/paywall-dialog";
 
