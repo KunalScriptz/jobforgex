@@ -460,6 +460,7 @@ function DocumentsTab({ artifacts, jobId, job }: { artifacts: any[]; jobId: stri
   const coverFn = useServerFn(generateCoverLetter);
   const saveArtifactFn = useServerFn(saveArtifact);
   const compilePdfFn = useServerFn(compileArtifactPdf);
+  const scoreFn = useServerFn(scoreResume);
 
   const [doTailor, setDoTailor] = useState(true);
   const [doCover, setDoCover] = useState(false);
@@ -476,6 +477,12 @@ function DocumentsTab({ artifacts, jobId, job }: { artifacts: any[]; jobId: stri
         t = await tailorFn({ data: { jd, company: job.company, title: job.title, job_id: job.id } } as any);
         const savedT = await saveArtifactFn({ data: { job_id: job.id, kind: "tailored_resume", filename: t.filename, latex_source: t.latex } } as any);
         compileJobs.push(compilePdfFn({ data: { artifact_id: savedT.id } } as any).catch(() => null));
+        // Fire-and-forget score of the tailored resume vs the JD.
+        scoreFn({
+          data: { jd, resume_latex: t.latex, job_id: job.id, artifact_id: savedT.id },
+        } as any)
+          .then(() => qc.invalidateQueries({ queryKey: ["job", jobId] }))
+          .catch(() => {});
         localCost += Number(t.cost);
       }
       if (doCover) {
