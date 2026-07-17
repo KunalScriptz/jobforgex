@@ -18,6 +18,8 @@ export type JobInsights = {
   qualifications: string[];
   seniority?: string;
   remote?: string;
+  visa_sponsorship?: "yes" | "no" | "unknown" | string;
+  visa_notes?: string;
   summary?: string;
 };
 
@@ -69,6 +71,8 @@ export const extractJobInsights = createServerFn({ method: "POST" })
       qualifications: Array.isArray(parsed.qualifications) ? parsed.qualifications.slice(0, 15).map(String) : [],
       seniority: typeof parsed.seniority === "string" ? parsed.seniority : undefined,
       remote: typeof parsed.remote === "string" ? parsed.remote : undefined,
+      visa_sponsorship: typeof parsed.visa_sponsorship === "string" ? parsed.visa_sponsorship : undefined,
+      visa_notes: typeof parsed.visa_notes === "string" ? parsed.visa_notes.slice(0, 400) : undefined,
       summary: typeof parsed.summary === "string" ? parsed.summary.slice(0, 500) : undefined,
     };
 
