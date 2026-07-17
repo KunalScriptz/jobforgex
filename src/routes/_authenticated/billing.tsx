@@ -12,8 +12,8 @@ import { Sparkles, Check, Mail } from "lucide-react";
 export const Route = createFileRoute("/_authenticated/billing")({ component: BillingPage });
 
 const PRICES = {
-  INR: { monthly: "₹499", yearly: "₹4,999", symbol: "₹" },
-  USD: { monthly: "$6.99", yearly: "$59", symbol: "$" },
+  INR: { starter: "₹199", monthly: "₹499", yearly: "₹4,999", symbol: "₹" },
+  USD: { starter: "$2.99", monthly: "$6.99", yearly: "$59", symbol: "$" },
 } as const;
 
 function BillingPage() {
@@ -75,15 +75,20 @@ function BillingPage() {
           <CardDescription>Unlimited generations, priced in {currency}.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <PlanBox title="Monthly" price={p.monthly} suffix="/mo" />
-            <PlanBox title="Yearly" price={p.yearly} suffix="/yr" note="~2 months free" highlight />
+          <div className="grid gap-3 sm:grid-cols-3">
+            <PlanBox
+              title="Starter"
+              price={p.starter}
+              suffix="/mo"
+              note="10 resumes + 10 cover letters"
+            />
+            <PlanBox title="Pro Monthly" price={p.monthly} suffix="/mo" note="Unlimited" highlight />
+            <PlanBox title="Pro Yearly" price={p.yearly} suffix="/yr" note="Unlimited · ~2 months free" />
           </div>
           <ul className="space-y-1.5 text-sm">
             {[
-              "Unlimited tailored resumes",
-              "Unlimited cover letters",
-              "Unlimited AI chat edits on any document",
+              "Tailored resumes & cover letters",
+              "AI chat edits on any document",
               "Job insights, ATS check & fit scoring",
               "Chrome extension for one-click job saves",
               "Priority support",
@@ -100,14 +105,22 @@ function BillingPage() {
             </div>
             <p className="mt-1">
               Razorpay checkout is being finalized. To upgrade today, email{" "}
-              <a className="underline" href="mailto:support@jobforgex.com">support@jobforgex.com</a>{" "}
-              and we'll enable Pro on your workspace within a few hours.
+              <a
+                className="underline"
+                href={`mailto:support@jobforgex.com?subject=${encodeURIComponent("JobForge Pro upgrade request")}&body=${encodeURIComponent(
+                  "Hi JobForge team,\n\nI'd like to upgrade to the following plan:\n\n• Plan: (Starter / Pro Monthly / Pro Yearly)\n• Currency: (INR / USD)\n• Workspace email: \n\nThanks!"
+                )}`}
+              >
+                support@jobforgex.com
+              </a>{" "}
+              with your chosen plan and we'll enable it on your workspace within a few hours.
             </p>
           </div>
 
-          <div className="flex gap-2">
-            <Button disabled>Subscribe {p.monthly}/mo</Button>
-            <Button variant="outline" disabled>Subscribe {p.yearly}/yr</Button>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" disabled>Starter {p.starter}/mo</Button>
+            <Button disabled>Pro {p.monthly}/mo</Button>
+            <Button variant="outline" disabled>Pro {p.yearly}/yr</Button>
           </div>
         </CardContent>
       </Card>
