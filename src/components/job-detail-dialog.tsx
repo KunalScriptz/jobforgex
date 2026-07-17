@@ -303,6 +303,20 @@ function InsightsTab({ job }: { job: any }) {
   );
 }
 
+function FitChip({ score }: { score: number }) {
+  const s = Math.max(0, Math.min(100, Math.round(score)));
+  const cls = s >= 75
+    ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+    : s >= 50
+    ? "bg-amber-500/10 text-amber-600 dark:text-amber-400"
+    : "bg-red-500/10 text-red-600 dark:text-red-400";
+  return (
+    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium ${cls}`}>
+      <Target className="h-3 w-3" /> Fit {s}/100
+    </span>
+  );
+}
+
 function FitScoreCard({
   title, subtitle, score, loading, onRun, canRun,
 }: {
