@@ -236,6 +236,21 @@ function InsightsTab({ job }: { job: any }) {
                     : "Visa sponsorship: Not mentioned"}
                 </span>
               )}
+              {insights.language_required && (
+                <span
+                  className={
+                    "rounded-full px-2 py-0.5 font-medium " +
+                    (insights.language_required === "yes"
+                      ? "bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                      : "bg-muted text-muted-foreground")
+                  }
+                  title={insights.language_notes || undefined}
+                >
+                  {insights.language_required === "yes"
+                    ? `Language: ${insights.language_notes || "Non-English required"}`
+                    : "Language: English only / Not specified"}
+                </span>
+              )}
             </div>
           )}
           {insights?.visa_notes && (

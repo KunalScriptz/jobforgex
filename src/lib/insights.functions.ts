@@ -20,6 +20,8 @@ export type JobInsights = {
   remote?: string;
   visa_sponsorship?: "yes" | "no" | "unknown" | string;
   visa_notes?: string;
+  language_required?: "yes" | "no" | "unknown" | string;
+  language_notes?: string;
   summary?: string;
 };
 
@@ -73,6 +75,8 @@ export const extractJobInsights = createServerFn({ method: "POST" })
       remote: typeof parsed.remote === "string" ? parsed.remote : undefined,
       visa_sponsorship: typeof parsed.visa_sponsorship === "string" ? parsed.visa_sponsorship : undefined,
       visa_notes: typeof parsed.visa_notes === "string" ? parsed.visa_notes.slice(0, 400) : undefined,
+      language_required: typeof parsed.language_required === "string" ? parsed.language_required : undefined,
+      language_notes: typeof parsed.language_notes === "string" ? parsed.language_notes.slice(0, 400) : undefined,
       summary: typeof parsed.summary === "string" ? parsed.summary.slice(0, 500) : undefined,
     };
 
