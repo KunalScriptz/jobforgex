@@ -20,6 +20,8 @@ export type JobInsights = {
   remote?: string;
   visa_sponsorship?: "yes" | "no" | "unknown" | string;
   visa_notes?: string;
+  language_required?: "yes" | "no" | "unknown" | string;
+  language_notes?: string;
   summary?: string;
 };
 
