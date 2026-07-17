@@ -356,6 +356,7 @@ export type Database = {
           compile_error: string | null
           created_at: string
           filename: string
+          fit_score: Json | null
           id: string
           job_id: string
           kind: Database["public"]["Enums"]["artifact_kind"]
@@ -367,6 +368,7 @@ export type Database = {
           compile_error?: string | null
           created_at?: string
           filename: string
+          fit_score?: Json | null
           id?: string
           job_id: string
           kind: Database["public"]["Enums"]["artifact_kind"]
@@ -378,6 +380,7 @@ export type Database = {
           compile_error?: string | null
           created_at?: string
           filename?: string
+          fit_score?: Json | null
           id?: string
           job_id?: string
           kind?: Database["public"]["Enums"]["artifact_kind"]
@@ -404,6 +407,7 @@ export type Database = {
       }
       jobs: {
         Row: {
+          base_fit_score: Json | null
           board_id: string
           company: string
           created_at: string
@@ -421,6 +425,7 @@ export type Database = {
           workspace_id: string
         }
         Insert: {
+          base_fit_score?: Json | null
           board_id: string
           company: string
           created_at?: string
@@ -438,6 +443,7 @@ export type Database = {
           workspace_id: string
         }
         Update: {
+          base_fit_score?: Json | null
           board_id?: string
           company?: string
           created_at?: string
