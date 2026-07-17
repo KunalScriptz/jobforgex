@@ -169,12 +169,20 @@ export function JobDetailDialog({ jobId, open, onOpenChange }: {
 function InsightsTab({ job }: { job: any }) {
   const qc = useQueryClient();
   const extractFn = useServerFn(extractJobInsights);
+  const scoreFn = useServerFn(scoreResume);
   const insights: any = job?.insights ?? null;
+  const baseFit: any = job?.base_fit_score ?? null;
 
   const extract = useMutation({
     mutationFn: (force: boolean) =>
       extractFn({ data: { job_id: job.id, force } } as any),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["job", job.id] }); toast.success("Insights ready"); },
+    onError: (e: any) => toast.error(String(e?.message ?? e).slice(0, 200)),
+  });
+
+  const scoreBase = useMutation({
+    mutationFn: () => scoreFn({ data: { jd: job.description, job_id: job.id, save_to: "job_base" } } as any),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["job", job.id] }); toast.success("Base resume scored"); },
     onError: (e: any) => toast.error(String(e?.message ?? e).slice(0, 200)),
   });
 
@@ -271,6 +279,15 @@ function InsightsTab({ job }: { job: any }) {
         </div>
       )}
 
+      <FitScoreCard
+        title="Base resume fit vs this JD"
+        subtitle="How well your default base resume matches this job before tailoring."
+        score={baseFit}
+        loading={scoreBase.isPending}
+        onRun={() => scoreBase.mutate()}
+        canRun={!!job.description && job.description.length >= 30}
+      />
+
       <Section icon={ClipboardList} title="Job Description (keywords highlighted)">
         <HighlightedJd text={job.description || "No description saved."} keywords={insights?.keywords ?? []} />
       </Section>
@@ -281,6 +298,73 @@ function InsightsTab({ job }: { job: any }) {
             {job.url}
           </a>
         </Section>
+      )}
+    </div>
+  );
+}
+
+function FitScoreCard({
+  title, subtitle, score, loading, onRun, canRun,
+}: {
+  title: string; subtitle?: string; score: any; loading: boolean; onRun: () => void; canRun: boolean;
+}) {
+  const s = Math.max(0, Math.min(100, Number(score?.score ?? 0)));
+  const tone = s >= 75 ? "emerald" : s >= 50 ? "amber" : "red";
+  const ring =
+    tone === "emerald" ? "text-emerald-500" : tone === "amber" ? "text-amber-500" : "text-red-500";
+  return (
+    <div className="rounded-xl border bg-card p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="text-sm font-semibold">{title}</div>
+          {subtitle && <div className="text-xs text-muted-foreground">{subtitle}</div>}
+        </div>
+        <Button size="sm" variant={score ? "ghost" : "default"} onClick={onRun} disabled={loading || !canRun}>
+          {loading
+            ? <><Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> Scoring…</>
+            : <><Target className="mr-1 h-3.5 w-3.5" /> {score ? "Re-score" : "Score"}</>}
+        </Button>
+      </div>
+      {score && (
+        <div className="mt-3 grid gap-4 md:grid-cols-[auto,1fr]">
+          <div className="flex items-center gap-3">
+            <div className={`text-4xl font-bold ${ring}`}>{s}<span className="text-lg text-muted-foreground">/100</span></div>
+          </div>
+          <div className="space-y-2 text-xs">
+            {score.summary && <p className="text-muted-foreground">{score.summary}</p>}
+            {!!score.strengths?.length && (
+              <div>
+                <div className="mb-1 font-medium text-emerald-600 dark:text-emerald-400">Strengths</div>
+                <ul className="list-disc space-y-0.5 pl-4 text-muted-foreground">
+                  {score.strengths.slice(0, 5).map((x: string, i: number) => <li key={i}>{x}</li>)}
+                </ul>
+              </div>
+            )}
+            {!!score.gaps?.length && (
+              <div>
+                <div className="mb-1 font-medium text-amber-600 dark:text-amber-400">Gaps</div>
+                <ul className="list-disc space-y-0.5 pl-4 text-muted-foreground">
+                  {score.gaps.slice(0, 5).map((x: string, i: number) => <li key={i}>{x}</li>)}
+                </ul>
+              </div>
+            )}
+            {!!score.missing_keywords?.length && (
+              <div>
+                <div className="mb-1 font-medium">Missing keywords</div>
+                <div className="flex flex-wrap gap-1">
+                  {score.missing_keywords.slice(0, 12).map((k: string, i: number) => (
+                    <span key={i} className="rounded-full bg-muted px-2 py-0.5 text-[10px]">{k}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+      {!score && !loading && (
+        <p className="mt-2 text-xs text-muted-foreground">
+          {canRun ? "Click Score to compare your base resume against this JD." : "Add a job description first."}
+        </p>
       )}
     </div>
   );
