@@ -13,7 +13,7 @@ const PHRASES = [
   "generate cover letters.",
   "track every application.",
   "autofill from any job board.",
-  "see cost per generation.",
+  "land more interviews.",
 ];
 
 function useTypewriter(words: string[], typeMs = 65, holdMs = 1400, eraseMs = 35) {
