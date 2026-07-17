@@ -217,7 +217,31 @@ function InsightsTab({ job }: { job: any }) {
               {insights.remote && insights.remote !== "unknown" && (
                 <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 font-medium capitalize text-emerald-600 dark:text-emerald-400">{insights.remote}</span>
               )}
+              {insights.visa_sponsorship && (
+                <span
+                  className={
+                    "rounded-full px-2 py-0.5 font-medium " +
+                    (insights.visa_sponsorship === "yes"
+                      ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                      : insights.visa_sponsorship === "no"
+                      ? "bg-red-500/10 text-red-600 dark:text-red-400"
+                      : "bg-muted text-muted-foreground")
+                  }
+                  title={insights.visa_notes || undefined}
+                >
+                  {insights.visa_sponsorship === "yes"
+                    ? "Visa sponsorship: Yes"
+                    : insights.visa_sponsorship === "no"
+                    ? "Visa sponsorship: No"
+                    : "Visa sponsorship: Not mentioned"}
+                </span>
+              )}
             </div>
+          )}
+          {insights?.visa_notes && (
+            <p className="mt-2 text-xs italic text-muted-foreground">
+              &ldquo;{insights.visa_notes}&rdquo;
+            </p>
           )}
         </div>
       </div>
