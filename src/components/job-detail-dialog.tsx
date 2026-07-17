@@ -681,6 +681,9 @@ function DocumentCard({ art, jobId }: { art: any; jobId: string }) {
           <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
             {String(art.kind).replace(/_/g, " ")}
           </span>
+          {art.kind === "tailored_resume" && art.fit_score && (
+            <FitChip score={Number(art.fit_score.score ?? 0)} />
+          )}
         </div>
         {hasPdf
           ? <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
