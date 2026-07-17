@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Sparkles, FileText, LayoutDashboard, ClipboardCheck } from "lucide-react";
+import { Sparkles, FileText, LayoutDashboard, ClipboardCheck, Mail } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import screenshotKanban from "@/assets/screenshot-kanban.png";
