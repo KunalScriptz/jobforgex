@@ -12,8 +12,16 @@ user_template: |
     "qualifications": [<5-10 short bullet strings — education, experience, certifications>],
     "seniority": <"intern" | "junior" | "mid" | "senior" | "staff" | "principal" | "unknown">,
     "remote": <"remote" | "hybrid" | "onsite" | "unknown">,
+    "visa_sponsorship": <"yes" | "no" | "unknown">,
+    "visa_notes": <"short string quoting or paraphrasing the JD's exact wording about sponsorship, work authorization, clearance, or citizenship requirements — empty string if nothing relevant">,
     "summary": <"1-2 sentence plain-English overview of the role">
   }
+
+  VISA SPONSORSHIP RULES:
+  - "yes" ONLY if the JD explicitly says sponsorship is offered (e.g. "we sponsor visas", "H-1B sponsorship available", "visa sponsorship provided").
+  - "no" if the JD explicitly says it will NOT sponsor (e.g. "no sponsorship", "unable to sponsor", "must be authorized to work without sponsorship now or in the future", "US citizens only", "security clearance required").
+  - "unknown" if the JD is silent on the topic. Do NOT guess.
+  - Put the exact quoted or paraphrased sentence in visa_notes so the candidate can verify.
 
   Keywords MUST be terms that literally appear in the JD (or very close variants) so they can
   be highlighted in the source text. Prefer nouns and noun phrases (e.g. "PyTorch", "A/B testing",
