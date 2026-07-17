@@ -102,7 +102,7 @@ export const scoreResume = createServerFn({ method: "POST" })
       purpose: "resume_scoring",
       jobId: data.job_id ?? null,
       promptName: "resume_scorer",
-      vars: { jd: data.jd, resume_latex: resumeLatex },
+      vars: { jd: data.jd, resume_latex: resumeLatex! },
     });
 
     let parsed: any = null;
