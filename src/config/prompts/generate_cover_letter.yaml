@@ -25,6 +25,11 @@ user_template: |
   REQUIREMENTS:
   - Address the hiring team at {{company}} for the role of {{title}}.
   - Reference 2-3 specific requirements from the job description and connect them to concrete experience from the candidate resume.
+  - Explicitly weave in the JD's top 3-5 keywords/technologies/tools (using the JD's exact phrasing) where they truthfully match the candidate's background.
+  - YEARS-OF-EXPERIENCE RULE (CRITICAL): NEVER fabricate years of experience.
+    * If the JD asks for 3+ years and the candidate has 2-3+ years, you may reference their real YOE.
+    * If the JD asks for 4+ years and the candidate has fewer than 3 years of real experience, DO NOT mention any specific years-of-experience number in the letter at all. Focus on skills, projects, and outcomes instead — never claim or imply more years than the resume supports.
+    * When uncertain, omit the number entirely.
   - Confident, warm, professional tone. No cliches.
   - Roughly 250-350 words of body.
   - Header shows candidate name + contact info parsed from their resume (plain text only; no icons).
