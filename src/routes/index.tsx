@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Sparkles, FileText, LayoutDashboard, ClipboardCheck } from "lucide-react";
+import { Sparkles, FileText, LayoutDashboard, ClipboardCheck, Mail } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import screenshotKanban from "@/assets/screenshot-kanban.png";
@@ -134,6 +134,75 @@ function Landing() {
           <Button asChild size="lg" className="mt-6"><Link to="/auth">Get started</Link></Button>
         </section>
       </main>
+
+      <footer className="border-t bg-card/40">
+        <div className="mx-auto grid max-w-6xl gap-8 px-6 py-12 sm:grid-cols-2 lg:grid-cols-4">
+          <div>
+            <div className="flex items-center gap-2 font-semibold">
+              <Sparkles className="h-5 w-5 text-primary" /> JobForge
+            </div>
+            <p className="mt-3 text-sm text-muted-foreground">
+              Your AI-powered job search command center.
+            </p>
+          </div>
+          <div>
+            <div className="text-sm font-medium">Product</div>
+            <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
+              <li><Link to="/auth" className="hover:text-foreground">Get started</Link></li>
+              <li><Link to="/auth" className="hover:text-foreground">Sign in</Link></li>
+            </ul>
+          </div>
+          <div>
+            <div className="text-sm font-medium">Support</div>
+            <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
+              <li>
+                <a
+                  className="hover:text-foreground"
+                  href={`mailto:support@jobforgex.com?subject=${encodeURIComponent("JobForge support request")}&body=${encodeURIComponent(
+                    "Hi JobForge team,\n\n• What I was trying to do:\n• What happened instead:\n• Workspace email:\n• Steps to reproduce (if any):\n\nThanks!"
+                  )}`}
+                >
+                  Contact support
+                </a>
+              </li>
+              <li>
+                <a
+                  className="hover:text-foreground"
+                  href={`mailto:support@jobforgex.com?subject=${encodeURIComponent("JobForge feedback")}&body=${encodeURIComponent(
+                    "Hi JobForge team,\n\nHere's some feedback:\n\n"
+                  )}`}
+                >
+                  Send feedback
+                </a>
+              </li>
+              <li>
+                <a
+                  className="hover:text-foreground"
+                  href={`mailto:support@jobforgex.com?subject=${encodeURIComponent("JobForge Pro upgrade request")}&body=${encodeURIComponent(
+                    "Hi JobForge team,\n\nI'd like to upgrade to:\n• Plan: (Starter / Pro Monthly / Pro Yearly)\n• Currency: (INR / USD)\n• Workspace email:\n\nThanks!"
+                  )}`}
+                >
+                  Upgrade plan
+                </a>
+              </li>
+            </ul>
+          </div>
+          <div>
+            <div className="text-sm font-medium">Contact</div>
+            <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
+              <li className="flex items-center gap-2">
+                <Mail className="h-4 w-4" />
+                <a className="hover:text-foreground" href="mailto:support@jobforgex.com">
+                  support@jobforgex.com
+                </a>
+              </li>
+            </ul>
+          </div>
+        </div>
+        <div className="border-t px-6 py-4 text-center text-xs text-muted-foreground">
+          © {new Date().getFullYear()} JobForge. All rights reserved.
+        </div>
+      </footer>
     </div>
   );
 }
