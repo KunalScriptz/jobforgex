@@ -1,117 +1,159 @@
 
-## Goal
-Ship JobForge for public launch: monetize via Razorpay subscriptions, hide all AI‑provider plumbing from end users, remove internal cost dashboards, and gate document generation behind a free‑trial + Pro subscription with local currency.
+# JobForge — Architecture Overview (read-only)
 
-## 1. Monetization model
+Note on domain language: this app has no user-uploaded "applications" that get downloaded. What users download are **generated documents** — tailored resumes and cover letters produced by AI from a job description — stored as `job_artifacts` rows with an associated PDF in Supabase Storage. I've mapped your "application/download" questions onto that model.
 
-- **Free trial**: every new user gets **2 applications** free.
-  - 1 application = 1 job's tailored resume **+** 1 cover letter for that job (either or both counts as consuming that job's slot; a job never costs more than 1).
-  - Counter is per‑workspace, based on distinct `job_id`s that have any generated artifact.
-- **Pro plan** (single tier, two cycles):
-  - Monthly: ₹499 / $6.99
-  - Yearly: ₹4,999 / $59 (≈2 months free)
-  - Unlimited applications, resume scoring, ATS checks, cover letters, chat‑with‑resume, Chrome extension.
-- **Currency**: auto‑detect. India (IP/timezone `Asia/*` + India, or Razorpay customer country = IN) → INR. Everyone else → USD. Stored on workspace so it's stable after first detection.
+---
 
-## 2. Razorpay integration (BYO account)
+## 1. AUTH
 
-- Add secrets via `add_secret`: `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`.
-- Also `VITE_RAZORPAY_KEY_ID` (public, safe) for the Checkout script.
-- User creates 4 **Plans** in Razorpay dashboard (Pro‑Monthly‑INR, Pro‑Yearly‑INR, Pro‑Monthly‑USD, Pro‑Yearly‑USD). We store the plan IDs as secrets or a small config table.
-- Flow: **Razorpay Subscriptions** API (recurring) — not one‑off orders.
-  - `POST /subscriptions` server fn → returns subscription id.
-  - Client loads `https://checkout.razorpay.com/v1/checkout.js` and opens Checkout with that subscription id.
-  - On success handler → server verifies signature → marks subscription active.
-- Webhook route: `src/routes/api/public/razorpay-webhook.ts` handles `subscription.activated`, `subscription.charged`, `subscription.halted`, `subscription.cancelled`, `subscription.completed`. Verifies HMAC‑SHA256 with `RAZORPAY_WEBHOOK_SECRET` before writing.
+- **Provider**: Supabase Auth (email/password), wired via `@/integrations/supabase/client` (browser) and `@/integrations/supabase/auth-middleware` (server functions). No custom auth.
+- **Sign-up flow** (`src/routes/auth.tsx`): `supabase.auth.signUp({ email, password, options: { data: { full_name } } })` → redirect to `/onboarding`.
+- **On new user**: DB trigger `handle_new_user()` inserts a row into `public.user_roles (user_id, role='user')`. **No `profiles` table exists** — user identity is `auth.users.id` only; per-user app data lives on `workspaces`.
+- **Workspace creation**: not automatic. `/onboarding` calls `createWorkspace` (`src/lib/workspace.functions.ts`), which inserts a `workspaces` row (`owner_user_id = auth.uid()`) and a default `boards` row. One workspace per user (MVP).
+- **Session/user id access**:
+  - Client: `supabase.auth.getUser()` (used in `_authenticated/route.tsx` gate + `auth.tsx`).
+  - Server functions: `requireSupabaseAuth` middleware → `context.userId`, `context.supabase` (RLS-scoped), `context.claims`.
+  - Bearer token attached to every server-fn call by `attachSupabaseAuth` registered in `src/start.ts`.
+  - Root `onAuthStateChange` in `src/routes/__root.tsx` invalidates router + query cache on `SIGNED_IN/SIGNED_OUT/USER_UPDATED`.
+- **Route gate**: `src/routes/_authenticated/route.tsx` (`ssr: false`) redirects unauthenticated users to `/auth`, and unless already on `/onboarding` requires `workspaces.onboarding_complete = true`.
 
-## 3. Database (single migration)
+---
 
-New tables:
-- `subscriptions` (workspace_id, provider='razorpay', plan_code, cycle, currency, rzp_subscription_id, rzp_customer_id, status, current_period_end, cancel_at_period_end, created/updated_at)
-- `payment_events` (raw webhook log, idempotency by rzp event id)
+## 2. DATABASE
 
-Workspace additions:
-- `workspaces.currency` ('INR'|'USD'), `workspaces.plan` ('free'|'pro'), `workspaces.trial_apps_limit` default 2.
+All app tables live in `public`. Every user-data table is scoped by `workspace_id` and gated by RLS via the SECURITY DEFINER function `owns_workspace(_ws uuid)` (checks `workspaces.owner_user_id = auth.uid()`).
 
-RLS + GRANTs per template rules. Server‑definer helper `has_active_pro(_ws uuid)` used by an entitlement check.
+### Tables in use
 
-## 4. Entitlement gate (server side)
+| Table | Key columns | Relates to |
+|---|---|---|
+| `workspaces` | `id, owner_user_id → auth.users, name, timezone, monthly_budget_usd, onboarding_step, onboarding_complete, currency, plan ('free'/'pro'), trial_apps_limit` | User (1:1 in MVP) |
+| `user_roles` | `id, user_id → auth.users, role (app_role enum)` | User; populated by `handle_new_user()` trigger |
+| `boards` | `id, workspace_id, name` | Workspace |
+| `jobs` | `id, workspace_id, board_id, company, title, description, url, notes, status, date_applied, resume_score, insights (jsonb), location, base_fit_score (jsonb)` | Board / Workspace |
+| `job_artifacts` | `id, workspace_id, job_id, kind (enum: tailored_resume | cover_letter | ...), filename, latex_source, pdf_storage_path, compile_error, fit_score (jsonb)` | Job / Workspace — **this is the "downloadable application" record** |
+| `resumes` | `id, workspace_id, name, latex_source, page_count, primary_color, secondary_color, is_base` | Workspace (base resume library) |
+| `resume_versions` | history of `resumes` | Resume |
+| `builder_resumes` / `builder_resume_versions` | interactive resume builder state | Job / Workspace |
+| `ai_cost_logs` | `workspace_id, user_id, job_id, model_name, input/output_tokens, total_cost, purpose` | Workspace |
+| `ai_models`, `ai_providers` | legacy per-workspace AI config (now unused; server uses `DEEPSEEK_API_KEY` env) | Workspace |
+| `extension_tokens` | Chrome extension bearer tokens | User / Workspace |
+| `subscriptions` | `workspace_id, provider, plan_code, cycle, currency, rzp_subscription_id, rzp_customer_id, status, current_period_end, cancel_at_period_end` | Workspace — **billing** |
+| `payment_events` | `provider, event_id, event_type, workspace_id, payload, processed_at` | Workspace — **billing** |
 
-Central helper `assertCanGenerate({ workspace_id, job_id })` invoked at the top of:
-- `tailorResume`, `generateCoverLetter`, `chatWithArtifact` (when it modifies).
+### Foreign keys
+No FKs declared to `public` tables in `information_schema.referential_constraints` (workspace scoping is enforced by RLS + app code, not FKs). `owner_user_id`/`user_id` columns reference `auth.users` conventionally.
 
-Logic:
-1. If `has_active_pro(ws)` → allow.
-2. Else count `distinct job_id` in `job_artifacts` for workspace. If `< 2` OR `job_id` already among those distinct ids → allow. Otherwise throw `PAYMENT_REQUIRED` error with message "Free trial used up — upgrade to Pro".
+### RLS policies (summary)
+- **All workspace-scoped tables** (`jobs`, `job_artifacts`, `boards`, `resumes`, `resume_versions`, `builder_resumes`, `builder_resume_versions`, `ai_models`, `ai_providers`, `ai_cost_logs`): `USING owns_workspace(workspace_id)` for `ALL` (cost logs SELECT-only) to `authenticated`.
+- `workspaces`: `owner_user_id = auth.uid()` (ALL).
+- `extension_tokens`: `user_id = auth.uid()` (ALL).
+- `subscriptions`: owner SELECT only. Writes happen via `supabaseAdmin` from webhooks (once wired).
+- `payment_events`: owner SELECT only (workspace-scoped).
+- `user_roles`: `read own roles` (SELECT `auth.uid() = user_id`); INSERT/UPDATE/DELETE blocked for anon+authenticated — only trigger/service role can write.
+- **Storage (`storage.objects`)** — `job-artifacts` bucket: authenticated users can SELECT/INSERT/UPDATE/DELETE objects where the first path segment equals a workspace they own (`owns_workspace((storage.foldername(name))[1]::uuid)`).
 
-`scoreResume`, `runAtsCheck` stay free (they don't produce artifacts). Rationale: they help users decide before spending a slot.
+### Helper DB functions
+- `owns_workspace(_ws)` — SECURITY DEFINER, used in every RLS policy.
+- `has_role(_user_id, _role)` — SECURITY DEFINER.
+- `has_active_pro(_ws)` — returns true if a `subscriptions` row is `active|authenticated` and not expired. **This is the current source of truth for "is user on paid plan".**
+- `handle_new_user()`, `set_updated_at()`.
 
-## 5. Remove user‑facing AI provider UI
+---
 
-- Delete `ProviderCard`, `ModelsCard`, `BudgetCard` from `settings.tsx`. Keep only `ExtensionCard` + `BoardsCard` + new `BillingCard`.
-- Remove Step 2 (AI provider) from `onboarding.tsx`. New flow: Step 1 workspace → Step 2 base resume. Update `updateOnboardingStep` schema (max 3).
-- Delete `src/routes/_authenticated/costs.tsx` and its `Costs` nav entry in `app-shell.tsx`.
-- Server fns kept but no longer user‑configurable: `getProvider`/`saveProvider`/`testConnection`/`pingSavedModel`/`upsertModel`/`deleteModel` stay for internal use only or get deleted (delete to reduce surface).
-- `deepseek.server.ts` + `ai-generate.functions.ts` + `chatWithArtifact` + `builder-render.server.ts`: replace per‑workspace provider lookup with a single platform key.
-  - Read `process.env.DEEPSEEK_API_KEY` and `process.env.DEEPSEEK_BASE_URL` (default `https://api.deepseek.com/v1`) and `process.env.DEEPSEEK_MODEL` (default `deepseek-chat`) inside handlers.
-  - Cost logging still runs to `ai_cost_logs` for admin audit (not exposed in UI).
+## 3. APPLICATION (ARTIFACT) STORAGE
 
-## 6. Billing UI
+- **Bucket**: `job-artifacts` — **private** (see `<storage-buckets>`). Constant `BUCKET = "job-artifacts"` in `src/lib/pdf.functions.ts` and `src/lib/artifacts.functions.ts`.
+- **Path structure**: `<workspace_id>/<artifact_id>.pdf` (one PDF per artifact, upsert on regeneration).
+- **How an artifact + file get created** (`src/components/job-detail-dialog.tsx` → `DocumentsTab.gen`):
+  1. `tailorResume` / `generateCoverLetter` server fn calls DeepSeek and returns `{ latex, filename, cost }`.
+  2. `saveArtifact` inserts a row into `job_artifacts` (`latex_source` set, `pdf_storage_path` null).
+  3. `compileArtifactPdf` (server fn, `src/lib/pdf.functions.ts`) POSTs the LaTeX to the external `LATEX_COMPILE_URL` service, uploads returned PDF bytes to `job-artifacts/<ws>/<artifact>.pdf` via the RLS-scoped user client (`context.supabase.storage.from(BUCKET).upload(...)`), then updates the row with `pdf_storage_path`. On failure, `compile_error` is written; no throw.
 
-- New route `src/routes/_authenticated/billing.tsx` with:
-  - Current plan card (Free trial: "1 of 2 free applications used"; Pro: "Active until DD MMM YYYY, manage").
-  - Two Pro cards (Monthly / Yearly) with prices in detected currency, "Upgrade" button opening Razorpay Checkout.
-  - Cancel subscription button (calls `POST /subscriptions/:id/cancel`, cancel at cycle end).
-- Add "Billing" to sidebar in `app-shell.tsx` (replacing "Costs").
-- Paywall dialog component: shown when `PAYMENT_REQUIRED` is thrown from Tailor/Cover Letter buttons in `job-detail-dialog.tsx` and `generate.tsx`. Uses same Upgrade CTA.
+---
 
-## 7. Currency detection
+## 4. DOWNLOAD FLOW  ⭐
 
-- On workspace creation (or first call if null): server fn reads `CF-IPCountry` / `x-vercel-ip-country` from request headers, falls back to timezone; sets `workspaces.currency`.
-- All price strings formatted with `Intl.NumberFormat(locale, { style:'currency', currency })`.
+Two distinct paths — depending on whether the download is server-stored PDF or client-rendered from LaTeX/markdown.
 
-## 8. Files touched
+### 4a. Stored PDF download (the main one)
 
-**New**
-- `supabase/migrations/<ts>_billing.sql`
-- `src/lib/billing.functions.ts` (create subscription, cancel, get status, entitlement)
-- `src/lib/razorpay.server.ts` (SDK wrapper, HMAC verify)
-- `src/routes/api/public/razorpay-webhook.ts`
-- `src/routes/_authenticated/billing.tsx`
-- `src/components/paywall-dialog.tsx`
-- `src/components/upgrade-cta.tsx`
+Files: `src/components/job-detail-dialog.tsx` (`DocumentCard`, ~line 617+), server fn `getArtifactPdfUrl` in `src/lib/pdf.functions.ts`.
 
-**Edited**
-- `src/routes/_authenticated/settings.tsx` — drop Provider/Models/Budget cards; add Billing link.
-- `src/routes/onboarding.tsx` — remove Step 2; renumber.
-- `src/components/app-shell.tsx` — remove Costs, add Billing.
-- `src/lib/deepseek.server.ts` — platform key.
-- `src/lib/ai-generate.functions.ts` — call `assertCanGenerate` in tailor/coverletter/chat‑modify.
-- `src/lib/builder-render.server.ts`, `src/lib/insights.functions.ts` — switch to platform key.
-- `src/lib/workspace.functions.ts` — currency detection; onboarding step max 3; drop `updateBudget`.
+Step by step, user clicks "PDF" or "Preview" on a `DocumentCard`:
+1. Component calls `useServerFn(getArtifactPdfUrl)` with `{ artifact_id, inline? }`.
+2. `getArtifactPdfUrl` (server fn, `requireSupabaseAuth`):
+   - Reads `job_artifacts` row with RLS-scoped client. If no `pdf_storage_path` → throws.
+   - Calls `context.supabase.storage.from("job-artifacts").createSignedUrl(path, 600 /* 10 min */, download ? { download: pdfName } : undefined)`.
+   - Returns `{ url, filename }`.
+3. Browser navigates to / fetches that signed URL. Supabase serves the PDF (with `Content-Disposition: attachment; filename=…` when `download` param is set; inline when the Preview iframe uses it).
 
-**Deleted**
-- `src/routes/_authenticated/costs.tsx`
-- `src/lib/costs.functions.ts`
-- `src/lib/ai-config.functions.ts` (or trimmed to nothing)
+### 4b. "Download all (.zip)" bundle
+`DocumentsTab.downloadAll` iterates artifacts, calls `getArtifactPdfUrl` per file, `fetch`es each signed URL client-side, packs with JSZip, triggers browser download. Also embeds `latex_source` as text where present.
 
-## 9. Secrets to add (before build)
+### 4c. Client-rendered downloads
+`src/lib/export-doc.ts` (`downloadAs(format, filename, content)`) generates `.txt`/`.pdf` (jsPDF)/`.docx` in the browser from LaTeX/markdown content — used for the `.tex`, `.txt` items on `DocumentCard` and for AI tool output. **No server round-trip, no quota surface today.**
 
-Request from you via secure form:
-- `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`
-- `VITE_RAZORPAY_KEY_ID` (same as key id, non‑secret publishable)
-- `DEEPSEEK_API_KEY` (your platform key)
-- `RAZORPAY_PLAN_ID_MONTHLY_INR`, `RAZORPAY_PLAN_ID_YEARLY_INR`, `RAZORPAY_PLAN_ID_MONTHLY_USD`, `RAZORPAY_PLAN_ID_YEARLY_USD`
+### Existing limit/tracking
+- **No download-side counter or gate exists.** No table records downloads; `getArtifactPdfUrl` has no rate/quota check.
+- The only enforcement anywhere is at **generation time**: `assertCanGenerate(admin, workspaceId, jobId)` in `src/lib/entitlement.server.ts`, called by `tailorResume` / `generateCoverLetter` / etc. It counts **distinct `job_id`s** in `job_artifacts` with `kind IN ('tailored_resume','cover_letter')` against `workspaces.trial_apps_limit` (default 2), unless `workspaces.plan = 'pro'` or `has_active_pro(ws)` returns true. Throws sentinel `"PAYMENT_REQUIRED"` (`PAYWALL_ERROR`), which the client detects via `isPaywallError` in `src/components/paywall-dialog.tsx`.
+- Existing telemetry: `ai_cost_logs` (per generation, not per download).
 
-## 10. Verification
+### View-only flow (separate from download)
+Yes: **Preview** button on `DocumentCard` (also at ~line 850). It calls `getArtifactPdfUrl({ artifact_id, inline: true })` (no `{ download }` param → served inline) and renders the signed URL in an iframe inside a dialog. Same server fn, same signed URL mechanism — the only difference is the `inline` flag skipping `Content-Disposition: attachment`. **Preview shares the exact same code path as download.**
 
-- Playwright: sign up new user → generate 2 applications → 3rd Tailor click shows paywall.
-- Manual Razorpay test‑mode purchase → webhook lands → workspace flips to Pro → 3rd generation now succeeds.
-- Cancel → workspace stays Pro until `current_period_end`.
-- INR vs USD switch by faking `CF-IPCountry` header.
+---
 
-## Out of scope (deferred)
-- Proration / plan switching mid‑cycle.
-- Team seats.
-- Refund workflow (handled manually in Razorpay dashboard).
-- GST invoices (Razorpay auto‑generates on Indian accounts).
+## 5. EXISTING BILLING / PLAN LOGIC
+
+Substantial scaffolding is present but not yet wired to a payment provider:
+
+- **Schema**:
+  - `workspaces.plan` (`'free' | 'pro'`), `workspaces.trial_apps_limit` (int, default 2), `workspaces.currency`.
+  - `subscriptions` table with Razorpay-flavoured columns (`rzp_subscription_id`, `rzp_customer_id`, `cycle`, `status`, `current_period_end`, `cancel_at_period_end`).
+  - `payment_events` (`provider`, `event_id`, `event_type`, `payload`) for webhook idempotency.
+  - DB function `has_active_pro(_ws)`.
+- **Server**:
+  - `src/lib/entitlement.server.ts` — `assertCanGenerate`, called from `ai-generate.functions.ts` and `ai-tools.functions.ts` (search these files for the sentinel to confirm every gated entry point).
+  - `src/lib/billing.functions.ts` — `getBillingStatus` server fn returns `{ plan, currency, trial_used, trial_limit, has_pro, current_period_end, cycle, cancel_at_period_end }`.
+- **UI**:
+  - `src/routes/_authenticated/billing.tsx` — plan tiers page (Starter / Pro Monthly / Pro Yearly), auto currency detection (INR/USD).
+  - `src/components/paywall-dialog.tsx` — shown on `PAYMENT_REQUIRED` errors, links to `/billing`.
+- **Not yet built**: no Razorpay webhook route, no checkout handler; `subscriptions` rows are not populated from any code path currently visible.
+
+---
+
+## 6. FRONTEND STRUCTURE
+
+- **Router**: TanStack Start (`src/router.tsx`, file-based routes in `src/routes/`). Root shell at `src/routes/__root.tsx`. Protected subtree under `src/routes/_authenticated/` gated by `_authenticated/route.tsx`.
+- **App shell / sidebar**: `src/components/app-shell.tsx` (workspace name, theme toggle, sign out, nav to `/jobs`, `/resumes`, `/generate`, `/checker`, `/builder`, `/settings`, `/billing`).
+- **Job list & download UI**:
+  - `src/routes/_authenticated/jobs.tsx` — Kanban board; clicking a card opens…
+  - `src/components/job-detail-dialog.tsx` — huge file (~1187 lines) containing `DocumentsTab`, `DocumentCard`, Preview iframe, `Download PDF`, `Download all (.zip)`, `.tex`/`.txt`/`.docx` menu items. **This is where every download button lives** (with the small exception of AI-tool output downloads later in the same file at ~line 1131).
+- **User/session state**: no central `useAuth`/context. Instead:
+  - `_authenticated/route.tsx` calls `supabase.auth.getUser()` and returns `{ user }` in route context. Child routes rarely read it — most rely on server functions using `requireSupabaseAuth`, so identity lives server-side.
+  - Workspace info fetched ad-hoc via `getMyWorkspace` (`src/lib/workspace.functions.ts`) — used in `app-shell.tsx`, `onboarding.tsx`, etc.
+  - Billing status fetched via `getBillingStatus` on `/billing` — **not currently prefetched globally**.
+
+There is no shared "current user + plan" hook today; each surface queries what it needs.
+
+---
+
+## Where to hook a subscription/quota check on downloads (recommendation)
+
+Because **all stored-PDF downloads funnel through one server function** — `getArtifactPdfUrl` in `src/lib/pdf.functions.ts` — that is the single chokepoint for gating downloads without touching UI. Any check placed there covers:
+- Individual PDF download from `DocumentCard`
+- Preview iframe (same fn, `inline: true`)
+- "Download all (.zip)" (calls the fn per artifact)
+
+Client-rendered exports (`downloadAs` in `src/lib/export-doc.ts` for `.tex`/`.txt`/`.docx` and AI-tool markdown) bypass the server entirely — if those need to count against a download quota, they must be routed through a new server fn (e.g. `recordDownload`) or a middleware call before the browser action.
+
+For a per-user download quota you'd want:
+- A new `download_events` table (`workspace_id, artifact_id, user_id, kind, created_at`), workspace-scoped RLS, service-role writes, plus a `downloads_this_period(_ws)` DB function mirroring `has_active_pro`.
+- An `assertCanDownload(admin, workspaceId, artifactId)` helper in `src/lib/entitlement.server.ts` in the same shape as `assertCanGenerate`, thrown-error sentinel reused so `PaywallDialog` already handles it.
+- Call `assertCanDownload` at the top of `getArtifactPdfUrl.handler`, and record a `download_events` row after `createSignedUrl` succeeds.
+- Extend `getBillingStatus` to include `downloads_used` / `downloads_limit` for the UI.
+- Optionally add a shared `useBillingStatus()` React Query hook so the download button can disable itself pre-emptively (no functional loss — the server still enforces).
+
+No existing component or route needs to change for enforcement to work: throwing `PAYMENT_REQUIRED` from `getArtifactPdfUrl` will bubble through `useServerFn` and can be caught with the same `isPaywallError` helper the generation buttons already use — just add that catch in `DocumentCard`'s download handler and in `downloadAll`.
