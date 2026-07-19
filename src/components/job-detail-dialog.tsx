@@ -50,6 +50,7 @@ import { Eye } from "lucide-react";
 import { AI_TOOLS_META, runAiTool, saveToolOutput } from "@/lib/ai-tools.functions";
 import { extractJobInsights } from "@/lib/insights.functions";
 import { compileArtifactPdf, getArtifactPdfUrl } from "@/lib/pdf.functions";
+import { checkPromptAccess, getPromptQuota } from "@/lib/quota.functions";
 import { CompanyLogo } from "@/components/company-logo";
 
 type Status = "wishlist" | "applied" | "interview" | "offer" | "rejected";
