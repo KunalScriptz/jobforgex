@@ -36,11 +36,8 @@ export const getBillingStatus = createServerFn({ method: "GET" })
 
     const { data: sub } = await supabaseAdmin
       .from("subscriptions")
-      .select("current_period_end, cancel_at_period_end, cycle, status")
-      .eq("workspace_id", ws.id)
-      .in("status", ["active", "authenticated"])
-      .order("created_at", { ascending: false })
-      .limit(1)
+      .select("current_period_end, subscription_status, plan")
+      .eq("user_id", userId)
       .maybeSingle();
 
     return {
@@ -50,7 +47,8 @@ export const getBillingStatus = createServerFn({ method: "GET" })
       trial_limit: Number(ws.trial_apps_limit ?? 2),
       has_pro: Boolean(isPro),
       current_period_end: sub?.current_period_end ?? null,
-      cycle: sub?.cycle ?? null,
-      cancel_at_period_end: Boolean(sub?.cancel_at_period_end),
+      cycle: null as string | null,
+      cancel_at_period_end: false,
+      subscription_status: sub?.subscription_status ?? null,
     };
   });
