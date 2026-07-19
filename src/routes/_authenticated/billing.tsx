@@ -1,13 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
+import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 
 import { getBillingStatus } from "@/lib/billing.functions";
+import { createSubscription, getMySubscription } from "@/lib/razorpay.functions";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { Sparkles, Check, Mail } from "lucide-react";
+import { Sparkles, Check, Mail, Loader2 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/billing")({ component: BillingPage });
 
@@ -20,12 +23,102 @@ function BillingPage() {
   const getStatus = useServerFn(getBillingStatus);
   const { data } = useQuery({ queryKey: ["billing"], queryFn: () => getStatus() });
 
+  const getSubFn = useServerFn(getMySubscription);
+  const createSubFn = useServerFn(createSubscription);
+  const [pollEnabled, setPollEnabled] = useState(false);
+  const { data: sub, refetch: refetchSub } = useQuery({
+    queryKey: ["my-subscription"],
+    queryFn: () => getSubFn(),
+    refetchInterval: pollEnabled ? 2500 : false,
+  });
+
   const currency = (data?.currency ?? "USD") as "INR" | "USD";
   const p = PRICES[currency];
   const used = data?.trial_used ?? 0;
   const limit = data?.trial_limit ?? 2;
-  const isPro = Boolean(data?.has_pro);
+  const subPlan = (sub?.plan as string | undefined) ?? "free";
+  const subStatus = (sub?.subscription_status as string | undefined) ?? null;
+  const subEnd = sub?.current_period_end ? new Date(sub.current_period_end as string) : null;
+  const isPaidActive =
+    subPlan === "paid" &&
+    (subStatus === "active" || (subEnd != null && subEnd.getTime() > Date.now()));
+  const isPro = Boolean(data?.has_pro) || isPaidActive;
   const trialPct = Math.min(100, (used / Math.max(1, limit)) * 100);
+
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [activating, setActivating] = useState(false);
+  const [activationHint, setActivationHint] = useState<string | null>(null);
+  const pollTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (activating && isPaidActive) {
+      setActivating(false);
+      setPollEnabled(false);
+      setActivationHint(null);
+      if (pollTimerRef.current) window.clearTimeout(pollTimerRef.current);
+      toast.success("Subscription activated");
+    }
+  }, [activating, isPaidActive]);
+
+  useEffect(() => () => {
+    if (pollTimerRef.current) window.clearTimeout(pollTimerRef.current);
+  }, []);
+
+  async function loadRazorpay(): Promise<boolean> {
+    if (typeof window === "undefined") return false;
+    if ((window as any).Razorpay) return true;
+    return new Promise((resolve) => {
+      const s = document.createElement("script");
+      s.src = "https://checkout.razorpay.com/v1/checkout.js";
+      s.onload = () => resolve(true);
+      s.onerror = () => resolve(false);
+      document.body.appendChild(s);
+    });
+  }
+
+  async function handleUpgrade() {
+    try {
+      setCheckoutLoading(true);
+      const ok = await loadRazorpay();
+      if (!ok) throw new Error("Failed to load Razorpay");
+      const resp = await createSubFn();
+      if ((resp as any).already_active) {
+        toast.info("You already have an active subscription");
+        await refetchSub();
+        return;
+      }
+      const rzp = new (window as any).Razorpay({
+        key: (resp as any).key_id,
+        subscription_id: (resp as any).subscription_id,
+        name: "JobForge Pro",
+        description: "Pro subscription",
+        handler: () => {
+          setActivating(true);
+          setActivationHint("Activating your subscription…");
+          setPollEnabled(true);
+          if (pollTimerRef.current) window.clearTimeout(pollTimerRef.current);
+          pollTimerRef.current = window.setTimeout(() => {
+            setPollEnabled(false);
+            setActivationHint(
+              "Payment received, activating your account — this may take a minute. Refresh shortly.",
+            );
+          }, 20000);
+        },
+        modal: {
+          ondismiss: () => setCheckoutLoading(false),
+        },
+        theme: { color: "#6366f1" },
+      });
+      rzp.on("payment.failed", () => {
+        toast.error("Payment failed. Please try again.");
+        setCheckoutLoading(false);
+      });
+      rzp.open();
+    } catch (e: any) {
+      toast.error(String(e?.message ?? e).slice(0, 300));
+      setCheckoutLoading(false);
+    }
+  }
 
   return (
     <div className="mx-auto max-w-4xl space-y-6 p-6">
@@ -124,6 +217,92 @@ function BillingPage() {
           </div>
         </CardContent>
       </Card>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Card className={subPlan === "free" && !isPaidActive ? "border-primary/50" : ""}>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle>Free</CardTitle>
+              {subPlan === "free" && !isPaidActive && <Badge variant="secondary">Current Plan</Badge>}
+            </div>
+            <div className="mt-1 flex items-baseline gap-1">
+              <span className="text-3xl font-bold">$0</span>
+              <span className="text-sm text-muted-foreground">/forever</span>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <ul className="space-y-1.5 text-sm">
+              {[
+                "2 prompt submissions",
+                "Access to all AI tools",
+                "Chrome extension for job saves",
+                "Community support",
+              ].map((f) => (
+                <li key={f} className="flex items-center gap-2 text-muted-foreground">
+                  <Check className="h-4 w-4 text-primary" /> {f}
+                </li>
+              ))}
+            </ul>
+            <Button variant="outline" className="w-full" disabled>
+              {subPlan === "free" && !isPaidActive ? "Current Plan" : "Included"}
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card className={isPaidActive ? "border-primary/50" : "border-primary bg-primary/5"}>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                Pro <Sparkles className="h-4 w-4 text-primary" />
+              </CardTitle>
+              {isPaidActive && <Badge>Current Plan</Badge>}
+            </div>
+            <div className="mt-1 flex items-baseline gap-1">
+              <span className="text-3xl font-bold">$100</span>
+              <span className="text-sm text-muted-foreground">/month</span>
+            </div>
+            {isPaidActive && subEnd && (
+              <CardDescription className="mt-1">
+                Renews {subEnd.toLocaleDateString()}
+              </CardDescription>
+            )}
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <ul className="space-y-1.5 text-sm">
+              {[
+                "Unlimited prompt submissions",
+                "Access to all AI tools",
+                "Job insights, ATS check & scoring",
+                "Priority support",
+              ].map((f) => (
+                <li key={f} className="flex items-center gap-2 text-muted-foreground">
+                  <Check className="h-4 w-4 text-primary" /> {f}
+                </li>
+              ))}
+            </ul>
+            {isPaidActive ? (
+              <Button className="w-full" disabled>Current Plan</Button>
+            ) : (
+              <Button
+                className="w-full"
+                onClick={handleUpgrade}
+                disabled={checkoutLoading || activating}
+              >
+                {activating ? (
+                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Activating…</>
+                ) : checkoutLoading ? (
+                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Opening checkout…</>
+                ) : (
+                  "Upgrade"
+                )}
+              </Button>
+            )}
+            {activationHint && (
+              <p className="text-xs text-muted-foreground">{activationHint}</p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
