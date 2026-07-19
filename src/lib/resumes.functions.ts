@@ -3,7 +3,6 @@ import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import RESUME_TEMPLATE_TEX from "@/config/resume-template.tex?raw";
-import { decryptApiKey } from "./crypto.server";
 
 async function wsId(supabase: any, userId: string) {
   const { data } = await supabase.from("workspaces").select("id").eq("owner_user_id", userId).maybeSingle();
@@ -128,38 +127,20 @@ export const convertPdfTextToLatex = createServerFn({ method: "POST" })
       model_id: z.string().uuid().optional().nullable(),
     }).parse(d))
   .handler(async ({ data, context }) => {
-    const wsId = await (async () => {
+    const workspaceId = await (async () => {
       const { data: w } = await context.supabase.from("workspaces").select("id").eq("owner_user_id", context.userId).maybeSingle();
       if (!w) throw new Error("Workspace not found");
       return w.id as string;
     })();
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    // Resolve model
-    let model: any = null;
-    if (data.model_id) {
-      const { data: m } = await context.supabase.from("ai_models").select("*").eq("id", data.model_id).eq("workspace_id", wsId).maybeSingle();
-      model = m;
-    }
-    if (!model) {
-      const { data: m } = await context.supabase.from("ai_models").select("*").eq("workspace_id", wsId).eq("is_default", true).maybeSingle();
-      model = m;
-    }
-    if (!model) {
-      const { data: m } = await context.supabase.from("ai_models").select("*").eq("workspace_id", wsId).order("created_at").limit(1).maybeSingle();
-      model = m;
-    }
-    if (!model) throw new Error("No AI model configured. Add one in Settings.");
-
-    const { data: provider } = await supabaseAdmin
-      .from("ai_providers").select("*")
-      .eq("workspace_id", wsId).eq("is_active", true)
-      .order("created_at").limit(1).maybeSingle();
-    if (!provider?.api_key_encrypted) throw new Error("AI provider not configured. Add your API key in Settings.");
-
-    let apiKey: string;
-    try { apiKey = decryptApiKey(provider.api_key_encrypted as string).trim(); }
-    catch (e: any) { throw new Error(`Could not decrypt saved API key (${e?.message}). Re-save it in Settings.`); }
+    const apiKey = (process.env.DEEPSEEK_API_KEY ?? "").trim();
+    if (!apiKey) throw new Error("Server AI key not configured. Contact support.");
+    const baseUrl = (process.env.DEEPSEEK_BASE_URL ?? "https://api.deepseek.com/v1").replace(/\/$/, "");
+    const modelName = process.env.DEEPSEEK_MODEL ?? "deepseek-chat";
+    const displayName = "DeepSeek Chat";
+    const inputPricePer1M = Number(process.env.DEEPSEEK_INPUT_PRICE_PER_1M ?? "0.14");
+    const outputPricePer1M = Number(process.env.DEEPSEEK_OUTPUT_PRICE_PER_1M ?? "0.28");
 
     const system = [
       "You convert a raw resume (plain text extracted from a PDF) into a LaTeX resume that EXACTLY follows the template provided below.",
@@ -183,13 +164,14 @@ export const convertPdfTextToLatex = createServerFn({ method: "POST" })
       data.text +
       "\n\nReturn the final LaTeX document now.";
 
-    const url = `${(provider.base_url as string).replace(/\/$/, "")}/chat/completions`;
+    const url = `${baseUrl}/chat/completions`;
     const res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
-        model: model.name,
+        model: modelName,
         temperature: 0.2,
+        max_tokens: 8192,
         messages: [
           { role: "system", content: system },
           { role: "user", content: userMsg },
@@ -217,17 +199,17 @@ export const convertPdfTextToLatex = createServerFn({ method: "POST" })
 
     const inTok: number = json.usage?.prompt_tokens ?? 0;
     const outTok: number = json.usage?.completion_tokens ?? 0;
-    const inCost = (inTok / 1_000_000) * Number(model.input_price_per_1m);
-    const outCost = (outTok / 1_000_000) * Number(model.output_price_per_1m);
+    const inCost = (inTok / 1_000_000) * inputPricePer1M;
+    const outCost = (outTok / 1_000_000) * outputPricePer1M;
     const totalCost = inCost + outCost;
 
     await supabaseAdmin.from("ai_cost_logs").insert({
-      workspace_id: wsId, user_id: context.userId,
-      model_id: model.id, model_name: model.display_name,
+      workspace_id: workspaceId, user_id: context.userId,
+      model_id: null, model_name: displayName,
       input_tokens: inTok, output_tokens: outTok, total_tokens: inTok + outTok,
       input_cost: inCost, output_cost: outCost, total_cost: totalCost,
       purpose: "custom",
     });
 
-    return { latex: content, cost: totalCost, model: model.display_name };
+    return { latex: content, cost: totalCost, model: displayName };
   });
