@@ -1029,15 +1029,39 @@ function AiToolRunner({ jobId, toolId, onBack, job }: { jobId: string; toolId: s
   const tool = AI_TOOLS_META.find((t) => t.id === toolId);
   const runFn = useServerFn(runAiTool);
   const saveFn = useServerFn(saveToolOutput);
+  const checkFn = useServerFn(checkPromptAccess);
+  const quotaFn = useServerFn(getPromptQuota);
   const qc = useQueryClient();
   const [ctx, setCtx] = useState("");
   const [result, setResult] = useState<{ content: string; label: string } | null>(null);
   const [view, setView] = useState<"preview" | "edit">("preview");
+  const [paywallOpen, setPaywallOpen] = useState(false);
+
+  const quotaQ = useQuery({
+    queryKey: ["prompt-quota"],
+    queryFn: () => quotaFn(),
+  });
 
   const run = useMutation({
-    mutationFn: () => runFn({ data: { job_id: jobId, tool_id: toolId, context: ctx } } as any),
+    mutationFn: async () => {
+      const gate: any = await checkFn({ data: { tool_name: tool?.label ?? toolId, action: "prompt_submit" } } as any);
+      if (!gate?.allowed) {
+        const err: any = new Error(gate?.reason === "quota_reached" ? "QUOTA_REACHED" : "ACCESS_DENIED");
+        err.__quota = true;
+        throw err;
+      }
+      qc.invalidateQueries({ queryKey: ["prompt-quota"] });
+      return runFn({ data: { job_id: jobId, tool_id: toolId, context: ctx } } as any);
+    },
     onSuccess: (r: any) => { setResult({ content: r.content, label: r.tool_label }); qc.invalidateQueries({ queryKey: ["costs"] }); },
-    onError: (e: any) => toast.error(String(e?.message ?? e).slice(0, 200)),
+    onError: (e: any) => {
+      if (e?.__quota || String(e?.message ?? "").includes("QUOTA_REACHED")) {
+        setPaywallOpen(true);
+        return;
+      }
+      if (isPaywallError(e)) { setPaywallOpen(true); return; }
+      toast.error(String(e?.message ?? e).slice(0, 200));
+    },
   });
   const save = useMutation({
     mutationFn: () => saveFn({ data: { job_id: jobId, tool_label: result!.label, content: result!.content } } as any),
@@ -1051,12 +1075,24 @@ function AiToolRunner({ jobId, toolId, onBack, job }: { jobId: string; toolId: s
     const parts = [label, job?.company, job?.title].filter(Boolean).map((s: string) => String(s));
     return parts.join(" — ");
   };
+  const q: any = quotaQ.data;
+  const showQuota = !!q && !q.is_paid;
+  const remaining = showQuota ? Math.max(Number(q.limit ?? 2) - Number(q.prompt_count ?? 0), 0) : null;
 
   return (
     <div className="space-y-4">
       <button onClick={onBack} className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
         <ArrowLeft className="h-3.5 w-3.5" /> back to tools
       </button>
+
+      {showQuota && (
+        <div className="flex items-center justify-between rounded-lg border border-dashed bg-muted/30 px-3 py-2 text-xs">
+          <span className="text-muted-foreground">
+            <span className="font-medium text-foreground">{remaining}</span> of {q.limit} free prompts remaining
+          </span>
+          <Link to="/billing" className="font-medium text-primary hover:underline">Upgrade</Link>
+        </div>
+      )}
 
       <div className="rounded-xl border bg-gradient-to-br from-card to-muted/20 p-5">
         <div className="flex items-start gap-3">
@@ -1157,6 +1193,7 @@ function AiToolRunner({ jobId, toolId, onBack, job }: { jobId: string; toolId: s
           )}
         </div>
       )}
+      <PaywallDialog open={paywallOpen} onOpenChange={setPaywallOpen} />
     </div>
   );
 }
