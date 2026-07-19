@@ -18,7 +18,9 @@ import { Route as AuthenticatedResumesRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedJobsRouteImport } from './routes/_authenticated/jobs'
 import { Route as AuthenticatedGenerateRouteImport } from './routes/_authenticated/generate'
 import { Route as AuthenticatedCheckerRouteImport } from './routes/_authenticated/checker'
+import { Route as AuthenticatedBillingTestRouteImport } from './routes/_authenticated/billing-test'
 import { Route as AuthenticatedBillingRouteImport } from './routes/_authenticated/billing'
+import { Route as ApiPublicRazorpayWebhookRouteImport } from './routes/api/public/razorpay-webhook'
 import { Route as AuthenticatedBuilderJobIdRouteImport } from './routes/_authenticated/builder.$jobId'
 import { Route as ApiPublicExtensionJobsRouteImport } from './routes/api/public/extension/jobs'
 
@@ -66,11 +68,23 @@ const AuthenticatedCheckerRoute = AuthenticatedCheckerRouteImport.update({
   path: '/checker',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedBillingTestRoute =
+  AuthenticatedBillingTestRouteImport.update({
+    id: '/billing-test',
+    path: '/billing-test',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedBillingRoute = AuthenticatedBillingRouteImport.update({
   id: '/billing',
   path: '/billing',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const ApiPublicRazorpayWebhookRoute =
+  ApiPublicRazorpayWebhookRouteImport.update({
+    id: '/api/public/razorpay-webhook',
+    path: '/api/public/razorpay-webhook',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AuthenticatedBuilderJobIdRoute =
   AuthenticatedBuilderJobIdRouteImport.update({
     id: '/builder/$jobId',
@@ -88,12 +102,14 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/onboarding': typeof OnboardingRoute
   '/billing': typeof AuthenticatedBillingRoute
+  '/billing-test': typeof AuthenticatedBillingTestRoute
   '/checker': typeof AuthenticatedCheckerRoute
   '/generate': typeof AuthenticatedGenerateRoute
   '/jobs': typeof AuthenticatedJobsRoute
   '/resumes': typeof AuthenticatedResumesRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/builder/$jobId': typeof AuthenticatedBuilderJobIdRoute
+  '/api/public/razorpay-webhook': typeof ApiPublicRazorpayWebhookRoute
   '/api/public/extension/jobs': typeof ApiPublicExtensionJobsRoute
 }
 export interface FileRoutesByTo {
@@ -101,12 +117,14 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/onboarding': typeof OnboardingRoute
   '/billing': typeof AuthenticatedBillingRoute
+  '/billing-test': typeof AuthenticatedBillingTestRoute
   '/checker': typeof AuthenticatedCheckerRoute
   '/generate': typeof AuthenticatedGenerateRoute
   '/jobs': typeof AuthenticatedJobsRoute
   '/resumes': typeof AuthenticatedResumesRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/builder/$jobId': typeof AuthenticatedBuilderJobIdRoute
+  '/api/public/razorpay-webhook': typeof ApiPublicRazorpayWebhookRoute
   '/api/public/extension/jobs': typeof ApiPublicExtensionJobsRoute
 }
 export interface FileRoutesById {
@@ -116,12 +134,14 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/onboarding': typeof OnboardingRoute
   '/_authenticated/billing': typeof AuthenticatedBillingRoute
+  '/_authenticated/billing-test': typeof AuthenticatedBillingTestRoute
   '/_authenticated/checker': typeof AuthenticatedCheckerRoute
   '/_authenticated/generate': typeof AuthenticatedGenerateRoute
   '/_authenticated/jobs': typeof AuthenticatedJobsRoute
   '/_authenticated/resumes': typeof AuthenticatedResumesRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/builder/$jobId': typeof AuthenticatedBuilderJobIdRoute
+  '/api/public/razorpay-webhook': typeof ApiPublicRazorpayWebhookRoute
   '/api/public/extension/jobs': typeof ApiPublicExtensionJobsRoute
 }
 export interface FileRouteTypes {
@@ -131,12 +151,14 @@ export interface FileRouteTypes {
     | '/auth'
     | '/onboarding'
     | '/billing'
+    | '/billing-test'
     | '/checker'
     | '/generate'
     | '/jobs'
     | '/resumes'
     | '/settings'
     | '/builder/$jobId'
+    | '/api/public/razorpay-webhook'
     | '/api/public/extension/jobs'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -144,12 +166,14 @@ export interface FileRouteTypes {
     | '/auth'
     | '/onboarding'
     | '/billing'
+    | '/billing-test'
     | '/checker'
     | '/generate'
     | '/jobs'
     | '/resumes'
     | '/settings'
     | '/builder/$jobId'
+    | '/api/public/razorpay-webhook'
     | '/api/public/extension/jobs'
   id:
     | '__root__'
@@ -158,12 +182,14 @@ export interface FileRouteTypes {
     | '/auth'
     | '/onboarding'
     | '/_authenticated/billing'
+    | '/_authenticated/billing-test'
     | '/_authenticated/checker'
     | '/_authenticated/generate'
     | '/_authenticated/jobs'
     | '/_authenticated/resumes'
     | '/_authenticated/settings'
     | '/_authenticated/builder/$jobId'
+    | '/api/public/razorpay-webhook'
     | '/api/public/extension/jobs'
   fileRoutesById: FileRoutesById
 }
@@ -172,6 +198,7 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
   OnboardingRoute: typeof OnboardingRoute
+  ApiPublicRazorpayWebhookRoute: typeof ApiPublicRazorpayWebhookRoute
   ApiPublicExtensionJobsRoute: typeof ApiPublicExtensionJobsRoute
 }
 
@@ -240,12 +267,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCheckerRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/billing-test': {
+      id: '/_authenticated/billing-test'
+      path: '/billing-test'
+      fullPath: '/billing-test'
+      preLoaderRoute: typeof AuthenticatedBillingTestRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/billing': {
       id: '/_authenticated/billing'
       path: '/billing'
       fullPath: '/billing'
       preLoaderRoute: typeof AuthenticatedBillingRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/api/public/razorpay-webhook': {
+      id: '/api/public/razorpay-webhook'
+      path: '/api/public/razorpay-webhook'
+      fullPath: '/api/public/razorpay-webhook'
+      preLoaderRoute: typeof ApiPublicRazorpayWebhookRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_authenticated/builder/$jobId': {
       id: '/_authenticated/builder/$jobId'
@@ -266,6 +307,7 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedBillingRoute: typeof AuthenticatedBillingRoute
+  AuthenticatedBillingTestRoute: typeof AuthenticatedBillingTestRoute
   AuthenticatedCheckerRoute: typeof AuthenticatedCheckerRoute
   AuthenticatedGenerateRoute: typeof AuthenticatedGenerateRoute
   AuthenticatedJobsRoute: typeof AuthenticatedJobsRoute
@@ -276,6 +318,7 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedBillingRoute: AuthenticatedBillingRoute,
+  AuthenticatedBillingTestRoute: AuthenticatedBillingTestRoute,
   AuthenticatedCheckerRoute: AuthenticatedCheckerRoute,
   AuthenticatedGenerateRoute: AuthenticatedGenerateRoute,
   AuthenticatedJobsRoute: AuthenticatedJobsRoute,
@@ -292,6 +335,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   OnboardingRoute: OnboardingRoute,
+  ApiPublicRazorpayWebhookRoute: ApiPublicRazorpayWebhookRoute,
   ApiPublicExtensionJobsRoute: ApiPublicExtensionJobsRoute,
 }
 export const routeTree = rootRouteImport
