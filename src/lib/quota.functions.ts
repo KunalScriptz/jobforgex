@@ -32,7 +32,7 @@ export const checkPromptAccess = createServerFn({ method: "POST" })
       allowed: !!row?.allowed,
       reason: (row?.reason as string) ?? "ok",
       remaining: row?.remaining ?? null,
-      prompt_count: row?.prompt_count ?? 0,
+      prompt_count: row?.used ?? 0,
       is_paid: !!row?.is_paid,
       limit: FREE_PROMPT_LIMIT,
     };
