@@ -310,6 +310,30 @@ export type Database = {
           },
         ]
       }
+      download_logs: {
+        Row: {
+          action: string
+          application_id: string | null
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          action: string
+          application_id?: string | null
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          action?: string
+          application_id?: string | null
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       extension_tokens: {
         Row: {
           created_at: string
@@ -477,44 +501,6 @@ export type Database = {
           },
         ]
       }
-      payment_events: {
-        Row: {
-          event_id: string
-          event_type: string
-          id: string
-          payload: Json
-          processed_at: string
-          provider: string
-          workspace_id: string | null
-        }
-        Insert: {
-          event_id: string
-          event_type: string
-          id?: string
-          payload: Json
-          processed_at?: string
-          provider?: string
-          workspace_id?: string | null
-        }
-        Update: {
-          event_id?: string
-          event_type?: string
-          id?: string
-          payload?: Json
-          processed_at?: string
-          provider?: string
-          workspace_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "payment_events_workspace_id_fkey"
-            columns: ["workspace_id"]
-            isOneToOne: false
-            referencedRelation: "workspaces"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       resume_versions: {
         Row: {
           created_at: string
@@ -606,59 +592,42 @@ export type Database = {
       }
       subscriptions: {
         Row: {
-          cancel_at_period_end: boolean
           created_at: string
-          currency: string
           current_period_end: string | null
-          cycle: string
+          download_count: number
           id: string
-          plan_code: string
-          provider: string
-          rzp_customer_id: string | null
-          rzp_subscription_id: string | null
-          status: string
+          plan: string
+          razorpay_customer_id: string | null
+          razorpay_subscription_id: string | null
+          subscription_status: string | null
           updated_at: string
-          workspace_id: string
+          user_id: string
         }
         Insert: {
-          cancel_at_period_end?: boolean
           created_at?: string
-          currency: string
           current_period_end?: string | null
-          cycle: string
+          download_count?: number
           id?: string
-          plan_code: string
-          provider?: string
-          rzp_customer_id?: string | null
-          rzp_subscription_id?: string | null
-          status?: string
+          plan?: string
+          razorpay_customer_id?: string | null
+          razorpay_subscription_id?: string | null
+          subscription_status?: string | null
           updated_at?: string
-          workspace_id: string
+          user_id: string
         }
         Update: {
-          cancel_at_period_end?: boolean
           created_at?: string
-          currency?: string
           current_period_end?: string | null
-          cycle?: string
+          download_count?: number
           id?: string
-          plan_code?: string
-          provider?: string
-          rzp_customer_id?: string | null
-          rzp_subscription_id?: string | null
-          status?: string
+          plan?: string
+          razorpay_customer_id?: string | null
+          razorpay_subscription_id?: string | null
+          subscription_status?: string | null
           updated_at?: string
-          workspace_id?: string
+          user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "subscriptions_workspace_id_fkey"
-            columns: ["workspace_id"]
-            isOneToOne: false
-            referencedRelation: "workspaces"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       user_roles: {
         Row: {
