@@ -42,6 +42,9 @@ export const createSubscription = createServerFn({ method: "POST" })
       return {
         subscription_id: existing.razorpay_subscription_id,
         already_active: true,
+        key_id: keyId,
+        short_url: null,
+        status: existing.subscription_status ?? null,
       };
     }
 
@@ -89,6 +92,7 @@ export const createSubscription = createServerFn({ method: "POST" })
       short_url: (json.short_url as string | undefined) ?? null,
       status: (json.status as string | undefined) ?? null,
       already_active: false,
+      key_id: keyId,
     };
   });
 
