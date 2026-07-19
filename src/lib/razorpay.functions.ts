@@ -89,6 +89,7 @@ export const createSubscription = createServerFn({ method: "POST" })
       short_url: (json.short_url as string | undefined) ?? null,
       status: (json.status as string | undefined) ?? null,
       already_active: false,
+      key_id: keyId,
     };
   });
 
