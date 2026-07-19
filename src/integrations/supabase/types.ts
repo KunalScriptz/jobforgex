@@ -735,9 +735,9 @@ export type Database = {
         Returns: {
           allowed: boolean
           is_paid: boolean
-          prompt_count: number
           reason: string
           remaining: number
+          used: number
         }[]
       }
     }
