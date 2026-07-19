@@ -501,6 +501,27 @@ export type Database = {
           },
         ]
       }
+      prompt_logs: {
+        Row: {
+          created_at: string
+          id: string
+          tool_name: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          tool_name: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          tool_name?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       resume_versions: {
         Row: {
           created_at: string
@@ -597,6 +618,7 @@ export type Database = {
           download_count: number
           id: string
           plan: string
+          prompt_count: number
           razorpay_customer_id: string | null
           razorpay_subscription_id: string | null
           subscription_status: string | null
@@ -609,6 +631,7 @@ export type Database = {
           download_count?: number
           id?: string
           plan?: string
+          prompt_count?: number
           razorpay_customer_id?: string | null
           razorpay_subscription_id?: string | null
           subscription_status?: string | null
@@ -621,6 +644,7 @@ export type Database = {
           download_count?: number
           id?: string
           plan?: string
+          prompt_count?: number
           razorpay_customer_id?: string | null
           razorpay_subscription_id?: string | null
           subscription_status?: string | null
@@ -706,6 +730,16 @@ export type Database = {
         Returns: boolean
       }
       owns_workspace: { Args: { _ws: string }; Returns: boolean }
+      try_consume_prompt: {
+        Args: { _tool: string; _user_id: string }
+        Returns: {
+          allowed: boolean
+          is_paid: boolean
+          prompt_count: number
+          reason: string
+          remaining: number
+        }[]
+      }
     }
     Enums: {
       ai_purpose:
