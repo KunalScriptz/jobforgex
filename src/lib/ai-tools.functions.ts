@@ -2,7 +2,6 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { decryptApiKey } from "./crypto.server";
 
 // ---------- Tool catalog (shared with the client via a plain export) ----------
 
@@ -227,32 +226,15 @@ export const runAiTool = createServerFn({ method: "POST" })
 
     const { data: resume } = await ctx.supabase.from("resumes").select("*").eq("workspace_id", wsid).eq("is_base", true).maybeSingle();
 
-    // Resolve model + provider (same shape as callDeepseek)
+    // AI tools are server-managed now. New users should not need workspace model settings.
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    let model: any = null;
-    if (data.model_id) {
-      const { data: m } = await ctx.supabase.from("ai_models").select("*").eq("id", data.model_id).eq("workspace_id", wsid).maybeSingle();
-      model = m;
-    }
-    if (!model) {
-      const { data: m } = await ctx.supabase.from("ai_models").select("*").eq("workspace_id", wsid).eq("is_default", true).maybeSingle();
-      model = m;
-    }
-    if (!model) {
-      const { data: m } = await ctx.supabase.from("ai_models").select("*").eq("workspace_id", wsid).order("created_at").limit(1).maybeSingle();
-      model = m;
-    }
-    if (!model) throw new Error("No AI model configured. Add one in Settings.");
-
-    const { data: provider } = await supabaseAdmin
-      .from("ai_providers").select("*")
-      .eq("workspace_id", wsid).eq("is_active", true)
-      .order("created_at").limit(1).maybeSingle();
-    if (!provider?.api_key_encrypted) throw new Error("AI provider not configured. Add your API key in Settings.");
-
-    let apiKey: string;
-    try { apiKey = decryptApiKey(provider.api_key_encrypted as string).trim(); }
-    catch (e: any) { throw new Error(`Could not decrypt saved API key (${e?.message}). Re-save it in Settings.`); }
+    const apiKey = (process.env.DEEPSEEK_API_KEY ?? "").trim();
+    if (!apiKey) throw new Error("Server AI key not configured. Contact support.");
+    const baseUrl = (process.env.DEEPSEEK_BASE_URL ?? "https://api.deepseek.com/v1").replace(/\/$/, "");
+    const modelName = process.env.DEEPSEEK_MODEL ?? "deepseek-chat";
+    const displayName = "DeepSeek Chat";
+    const inputPricePer1M = Number(process.env.DEEPSEEK_INPUT_PRICE_PER_1M ?? "0.14");
+    const outputPricePer1M = Number(process.env.DEEPSEEK_OUTPUT_PRICE_PER_1M ?? "0.28");
 
     const userMsg = tool.buildUser({
       jd: job.description ?? "",
@@ -262,13 +244,14 @@ export const runAiTool = createServerFn({ method: "POST" })
       context: data.context ?? "",
     });
 
-    const url = `${(provider.base_url as string).replace(/\/$/, "")}/chat/completions`;
+    const url = `${baseUrl}/chat/completions`;
     const res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
-        model: model.name,
+        model: modelName,
         temperature: 0.55,
+        max_tokens: 8192,
         messages: [
           { role: "system", content: tool.system },
           { role: "user", content: userMsg },
@@ -283,19 +266,19 @@ export const runAiTool = createServerFn({ method: "POST" })
     const content: string = json.choices?.[0]?.message?.content ?? "";
     const inTok: number = json.usage?.prompt_tokens ?? 0;
     const outTok: number = json.usage?.completion_tokens ?? 0;
-    const inCost = (inTok / 1_000_000) * Number(model.input_price_per_1m);
-    const outCost = (outTok / 1_000_000) * Number(model.output_price_per_1m);
+    const inCost = (inTok / 1_000_000) * inputPricePer1M;
+    const outCost = (outTok / 1_000_000) * outputPricePer1M;
     const totalCost = inCost + outCost;
 
     await supabaseAdmin.from("ai_cost_logs").insert({
       workspace_id: wsid, user_id: ctx.userId, job_id: data.job_id,
-      model_id: model.id, model_name: model.display_name,
+      model_id: null, model_name: displayName,
       input_tokens: inTok, output_tokens: outTok, total_tokens: inTok + outTok,
       input_cost: inCost, output_cost: outCost, total_cost: totalCost,
       purpose: "custom",
     });
 
-    return { content, tool_id: tool.id, tool_label: tool.label, cost: totalCost, model: model.display_name };
+    return { content, tool_id: tool.id, tool_label: tool.label, cost: totalCost, model: displayName };
   });
 
 export const saveToolOutput = createServerFn({ method: "POST" })
