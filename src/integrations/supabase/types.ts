@@ -375,6 +375,56 @@ export type Database = {
           },
         ]
       }
+      geo_pricing: {
+        Row: {
+          annual_price: number
+          country_code: string
+          created_at: string
+          currency: string
+          currency_symbol: string
+          id: string
+          monthly_price: number
+          plan_id: string
+          priority: number
+          razorpay_plan_id_annual: string | null
+          razorpay_plan_id_monthly: string | null
+        }
+        Insert: {
+          annual_price: number
+          country_code: string
+          created_at?: string
+          currency: string
+          currency_symbol?: string
+          id?: string
+          monthly_price: number
+          plan_id: string
+          priority?: number
+          razorpay_plan_id_annual?: string | null
+          razorpay_plan_id_monthly?: string | null
+        }
+        Update: {
+          annual_price?: number
+          country_code?: string
+          created_at?: string
+          currency?: string
+          currency_symbol?: string
+          id?: string
+          monthly_price?: number
+          plan_id?: string
+          priority?: number
+          razorpay_plan_id_annual?: string | null
+          razorpay_plan_id_monthly?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "geo_pricing_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       job_artifacts: {
         Row: {
           compile_error: string | null
@@ -501,6 +551,45 @@ export type Database = {
           },
         ]
       }
+      plans: {
+        Row: {
+          annual_price_usd: number
+          cover_letter_limit: number | null
+          created_at: string
+          features: Json
+          id: string
+          is_active: boolean
+          job_track_limit: number | null
+          monthly_price_usd: number
+          name: string
+          sort_order: number
+        }
+        Insert: {
+          annual_price_usd?: number
+          cover_letter_limit?: number | null
+          created_at?: string
+          features?: Json
+          id: string
+          is_active?: boolean
+          job_track_limit?: number | null
+          monthly_price_usd?: number
+          name: string
+          sort_order?: number
+        }
+        Update: {
+          annual_price_usd?: number
+          cover_letter_limit?: number | null
+          created_at?: string
+          features?: Json
+          id?: string
+          is_active?: boolean
+          job_track_limit?: number | null
+          monthly_price_usd?: number
+          name?: string
+          sort_order?: number
+        }
+        Relationships: []
+      }
       prompt_logs: {
         Row: {
           created_at: string
@@ -613,45 +702,77 @@ export type Database = {
       }
       subscriptions: {
         Row: {
+          billing_cycle: string | null
+          cancel_at_period_end: boolean
           created_at: string
           current_period_end: string | null
+          current_period_start: string | null
           download_count: number
           id: string
+          lifetime_deal: boolean
           plan: string
+          plan_id: string
           prompt_count: number
+          provider: string
           razorpay_customer_id: string | null
           razorpay_subscription_id: string | null
           subscription_status: string | null
+          suspended: boolean
+          trial_ends_at: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          billing_cycle?: string | null
+          cancel_at_period_end?: boolean
           created_at?: string
           current_period_end?: string | null
+          current_period_start?: string | null
           download_count?: number
           id?: string
+          lifetime_deal?: boolean
           plan?: string
+          plan_id?: string
           prompt_count?: number
+          provider?: string
           razorpay_customer_id?: string | null
           razorpay_subscription_id?: string | null
           subscription_status?: string | null
+          suspended?: boolean
+          trial_ends_at?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          billing_cycle?: string | null
+          cancel_at_period_end?: boolean
           created_at?: string
           current_period_end?: string | null
+          current_period_start?: string | null
           download_count?: number
           id?: string
+          lifetime_deal?: boolean
           plan?: string
+          plan_id?: string
           prompt_count?: number
+          provider?: string
           razorpay_customer_id?: string | null
           razorpay_subscription_id?: string | null
           subscription_status?: string | null
+          suspended?: boolean
+          trial_ends_at?: string | null
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "subscriptions_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
