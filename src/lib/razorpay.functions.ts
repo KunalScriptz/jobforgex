@@ -2,22 +2,37 @@ import { createServerFn } from "@tanstack/react-start";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
+export class PlanNotConfiguredError extends Error {
+  code = "PLAN_NOT_CONFIGURED" as const;
+  constructor(message = "This plan isn't available in your region yet — try changing currency or contact support.") {
+    super(message);
+    this.name = "PlanNotConfiguredError";
+  }
+}
+
 /**
  * Create a Razorpay subscription for the currently authenticated user.
- * The user id is taken from the verified Supabase JWT — never from client input.
- * Returns the Razorpay subscription id (and short_url when present) so the
- * frontend can redirect the user to the hosted checkout.
+ * Resolves the Razorpay plan id from geo_pricing based on the caller's
+ * selected plan + billing cycle + country, with USD fallback.
  */
 export const createSubscription = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .inputValidator((input: {
+    plan_id?: "pro" | "unlimited";
+    billing_cycle?: "monthly" | "annual";
+    country_code?: string;
+    trial?: boolean;
+  } | undefined) => ({
+    plan_id: (input?.plan_id ?? "pro") as "pro" | "unlimited",
+    billing_cycle: (input?.billing_cycle ?? "monthly") as "monthly" | "annual",
+    country_code: (input?.country_code ?? "DEFAULT").toUpperCase(),
+    trial: Boolean(input?.trial),
+  }))
+  .handler(async ({ context, data }) => {
     const keyId = (process.env.RAZORPAY_KEY_ID ?? "").trim();
     const keySecret = (process.env.RAZORPAY_KEY_SECRET ?? "").trim();
-    const planId = (process.env.RAZORPAY_PLAN_ID ?? "").trim();
-    if (!keyId || !keySecret || !planId) {
-      throw new Error(
-        "Razorpay not configured: RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET, and RAZORPAY_PLAN_ID must be set.",
-      );
+    if (!keyId || !keySecret) {
+      throw new Error("Razorpay not configured: RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET must be set.");
     }
 
     const userId = context.userId;
@@ -26,18 +41,34 @@ export const createSubscription = createServerFn({ method: "POST" })
       (context.claims as any)?.user_metadata?.email ??
       null;
 
-    // Look up any existing Razorpay ids we may already have stored for this user.
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    // Resolve razorpay plan id from geo_pricing: try exact country, fall back to DEFAULT.
+    const { data: rows } = await supabaseAdmin
+      .from("geo_pricing")
+      .select("country_code, razorpay_plan_id_monthly, razorpay_plan_id_annual")
+      .eq("plan_id", data.plan_id)
+      .in("country_code", [data.country_code, "DEFAULT"]);
+    const chosen =
+      (rows ?? []).find((r) => r.country_code === data.country_code) ??
+      (rows ?? []).find((r) => r.country_code === "DEFAULT");
+    const razorpayPlanId =
+      data.billing_cycle === "annual"
+        ? chosen?.razorpay_plan_id_annual
+        : chosen?.razorpay_plan_id_monthly;
+    if (!razorpayPlanId) {
+      throw new PlanNotConfiguredError();
+    }
+
     const { data: existing } = await supabaseAdmin
       .from("subscriptions")
-      .select("razorpay_subscription_id, subscription_status, plan")
+      .select("razorpay_subscription_id, subscription_status, plan_id")
       .eq("user_id", userId)
       .maybeSingle();
 
     if (
       existing?.razorpay_subscription_id &&
-      (existing.subscription_status === "active" ||
-        existing.plan === "paid")
+      existing.subscription_status === "active"
     ) {
       return {
         subscription_id: existing.razorpay_subscription_id,
@@ -49,6 +80,7 @@ export const createSubscription = createServerFn({ method: "POST" })
     }
 
     const auth = btoa(`${keyId}:${keySecret}`);
+    const useTrial = data.trial && data.plan_id === "pro" && data.billing_cycle === "annual";
     const res = await fetch("https://api.razorpay.com/v1/subscriptions", {
       method: "POST",
       headers: {
@@ -56,11 +88,15 @@ export const createSubscription = createServerFn({ method: "POST" })
         Authorization: `Basic ${auth}`,
       },
       body: JSON.stringify({
-        plan_id: planId,
-        total_count: 120, // 10 years of monthly cycles — subscription runs until cancelled
+        plan_id: razorpayPlanId,
+        total_count: data.billing_cycle === "annual" ? 10 : 120,
         customer_notify: 1,
+        ...(useTrial ? { trial_period_days: 7 } : {}),
         notes: {
           supabase_user_id: userId,
+          plan_id: data.plan_id,
+          billing_cycle: data.billing_cycle,
+          country_code: data.country_code,
           ...(email ? { email } : {}),
         },
       }),
@@ -74,8 +110,6 @@ export const createSubscription = createServerFn({ method: "POST" })
     }
     const json: any = JSON.parse(text);
 
-    // Pre-record the subscription id so we can correlate even if the webhook
-    // arrives before the user returns to the app. Do NOT flip plan → paid yet.
     await supabaseAdmin
       .from("subscriptions")
       .upsert(
@@ -83,6 +117,7 @@ export const createSubscription = createServerFn({ method: "POST" })
           user_id: userId,
           razorpay_subscription_id: json.id,
           subscription_status: json.status ?? null,
+          billing_cycle: data.billing_cycle,
         },
         { onConflict: "user_id" },
       );
