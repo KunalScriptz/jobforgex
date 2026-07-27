@@ -11,16 +11,19 @@ from app.config import settings
 from app.services.storage import upload_pdf
 
 
-PROMPTS_DIR = Path(__file__).parent.parent.parent / "src" / "config" / "prompts"
+PROMPTS_PATHS = [
+    Path(__file__).parent.parent / "config" / "prompts",          # backend/config/prompts/
+    Path(os.getcwd()) / "config" / "prompts",                     # ./config/prompts/ (Docker mount)
+    Path(__file__).parent.parent.parent / "config" / "prompts",   # ../config/prompts/
+]
 
 
 def load_prompt(prompt_name: str) -> dict:
-    prompt_path = PROMPTS_DIR / f"{prompt_name}.yaml"
-    if not prompt_path.exists():
-        alt_path = Path(os.getcwd()) / "config" / "prompts" / f"{prompt_name}.yaml"
-        if alt_path.exists():
-            prompt_path = alt_path
-    if not prompt_path.exists():
+    for base in PROMPTS_PATHS:
+        prompt_path = base / f"{prompt_name}.yaml"
+        if prompt_path.exists():
+            break
+    else:
         raise ValueError(f"Prompt not found: {prompt_name}")
     with open(prompt_path) as f:
         return yaml.safe_load(f)
