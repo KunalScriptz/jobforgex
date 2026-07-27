@@ -20,6 +20,23 @@ dist-ssr
 .wrangler/
 .dev.vars
 
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+.venv/
+venv/
+env/
+
+# Environment
+.env
+!.env.example
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
@@ -30,3 +47,13 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Docker
+pgdata/
+redisdata/
+miniodata/
+pgadmindata/
+
+# Backend specific
+backend/alembic/versions/*.py
+!backend/alembic/versions/.gitkeep
