@@ -1,10 +1,23 @@
-<!-- LOVABLE:BEGIN -->
-> [!IMPORTANT]
-> This project is connected to [Lovable](https://lovable.dev). Avoid rewriting
-> published git history — force pushing, or rebasing/amending/squashing commits
-> that are already pushed — as it rewrites history on Lovable's side and the
-> user will likely lose their project history.
->
-> Commits you push to the connected branch sync back to Lovable and show up in
-> the editor, so keep the branch in a working state.
-<!-- LOVABLE:END -->
+# JobForge — Self-Hosted
+
+This project is migrated from Supabase + Lovable to a fully self-hosted Docker Compose stack.
+
+## Architecture
+
+- **Frontend:** React 19 + Vite + React Router + TanStack Query + TailwindCSS + shadcn/ui
+- **Backend:** FastAPI + SQLAlchemy 2.0 + Alembic + Pydantic v2
+- **Database:** PostgreSQL 16
+- **Cache:** Redis 7
+- **Storage:** MinIO (S3-compatible)
+- **Background Jobs:** Celery + Celery Beat
+- **PDF:** TeX Live LaTeX compiler
+- **AI:** DeepSeek API
+
+## Quick Start
+
+```bash
+cp .env.example .env  # Configure your keys
+docker compose up -d
+```
+
+See `docs/local-development.md` for detailed instructions.
