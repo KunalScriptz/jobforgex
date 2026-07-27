@@ -1,0 +1,225 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-jobforgex}
+      POSTGRES_USER: ${DB_USER:-jobforgex}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-jobforgex}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./database/migrations/001_init.sql:/docker-entrypoint-initdb.d/001_init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-jobforgex} -d ${DB_NAME:-jobforgex}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - jobforge
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - jobforge
+
+  minio:
+    image: minio/minio:RELEASE.2025-02-18T16-25-55Z
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-minioadmin}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - miniodata:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - jobforge
+
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 ${MINIO_ACCESS_KEY:-minioadmin} ${MINIO_SECRET_KEY:-minioadmin};
+      mc mb --ignore-existing local/${MINIO_BUCKET:-job-artifacts};
+      mc anonymous set download local/${MINIO_BUCKET:-job-artifacts};
+      echo 'MinIO bucket initialized';
+      "
+    networks:
+      - jobforge
+
+  pgadmin:
+    image: dpage/pgadmin4:8.14
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@jobforge.local}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmindata:/var/lib/pgadmin
+      - ./infrastructure/servers.json:/pgadmin4/servers.json:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - jobforge
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${DB_USER:-jobforgex}:${DB_PASSWORD:-jobforgex}@postgres:5432/${DB_NAME:-jobforgex}
+      DATABASE_URL_SYNC: postgresql+psycopg2://${DB_USER:-jobforgex}:${DB_PASSWORD:-jobforgex}@postgres:5432/${DB_NAME:-jobforgex}
+      REDIS_URL: redis://redis:6379/0
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-15}
+      REFRESH_TOKEN_EXPIRE_DAYS: ${REFRESH_TOKEN_EXPIRE_DAYS:-7}
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT:-minio:9000}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin}
+      MINIO_BUCKET: ${MINIO_BUCKET:-job-artifacts}
+      MINIO_SECURE: ${MINIO_SECURE:-false}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY}
+      DEEPSEEK_BASE_URL: ${DEEPSEEK_BASE_URL:-https://api.deepseek.com/v1}
+      DEEPSEEK_MODEL: ${DEEPSEEK_MODEL:-deepseek-chat}
+      DEEPSEEK_INPUT_PRICE_PER_1M: ${DEEPSEEK_INPUT_PRICE_PER_1M:-0.14}
+      DEEPSEEK_OUTPUT_PRICE_PER_1M: ${DEEPSEEK_OUTPUT_PRICE_PER_1M:-0.28}
+      DEEPSEEK_KEY_ENC_SECRET: ${DEEPSEEK_KEY_ENC_SECRET}
+      LATEX_COMPILE_URL: ${LATEX_COMPILE_URL:-http://latex-server:8080}
+      LATEX_SHARED_SECRET: ${LATEX_SHARED_SECRET:-}
+      RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:-}
+      RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET:-}
+      RAZORPAY_WEBHOOK_SECRET: ${RAZORPAY_WEBHOOK_SECRET:-}
+      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
+      SMTP_PORT: ${SMTP_PORT:-465}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-JobForge <noreply@jobforge.local>}
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173}
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    networks:
+      - jobforge
+
+  celery-worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: celery -A app.celery_app worker --loglevel=${LOG_LEVEL:-INFO} --concurrency=2
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${DB_USER:-jobforgex}:${DB_PASSWORD:-jobforgex}@postgres:5432/${DB_NAME:-jobforgex}
+      DATABASE_URL_SYNC: postgresql+psycopg2://${DB_USER:-jobforgex}:${DB_PASSWORD:-jobforgex}@postgres:5432/${DB_NAME:-jobforgex}
+      REDIS_URL: redis://redis:6379/0
+      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
+      SMTP_PORT: ${SMTP_PORT:-465}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-JobForge <noreply@jobforge.local>}
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+    volumes:
+      - ./backend:/app
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - jobforge
+
+  celery-beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: celery -A app.celery_app beat --loglevel=${LOG_LEVEL:-INFO}
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${DB_USER:-jobforgex}:${DB_PASSWORD:-jobforgex}@postgres:5432/${DB_NAME:-jobforgex}
+      DATABASE_URL_SYNC: postgresql+psycopg2://${DB_USER:-jobforgex}:${DB_PASSWORD:-jobforgex}@postgres:5432/${DB_NAME:-jobforgex}
+      REDIS_URL: redis://redis:6379/0
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+    volumes:
+      - ./backend:/app
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - jobforge
+
+  latex-server:
+    build:
+      context: ./latex-server
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      PORT: "8080"
+      SHARED_SECRET: ${LATEX_SHARED_SECRET:-}
+    ports:
+      - "8080:8080"
+    networks:
+      - jobforge
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: ${BUILD_TARGET:-development}
+    restart: unless-stopped
+    environment:
+      VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - frontend_node_modules:/app/node_modules
+    depends_on:
+      - backend
+    networks:
+      - jobforge
+
+volumes:
+  pgdata:
+  redisdata:
+  miniodata:
+  pgadmindata:
+  frontend_node_modules:
+
+networks:
+  jobforge:
+    driver: bridge
