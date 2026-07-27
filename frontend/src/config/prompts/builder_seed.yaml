@@ -1,0 +1,34 @@
+system: |
+  You convert a LaTeX resume into structured JSON. Return ONLY valid JSON — no prose, no fences.
+user_template: |
+  Parse the following LaTeX resume into this exact JSON shape. Fill only what's actually present; use empty strings/arrays for missing values. Do NOT invent facts.
+
+  {
+    "target_title": <string, best-guess role headline or "">,
+    "contact": {
+      "name": <string>, "email": <string>, "phone": <string>,
+      "location": <string>, "linkedin": <string>, "github": <string>, "website": <string>
+    },
+    "about": <string — professional summary paragraph, or "">,
+    "work": [{ "company": <string>, "title": <string>, "location": <string>,
+               "start": <string>, "end": <string>, "bullets": [<string>] }],
+    "education": [{ "school": <string>, "degree": <string>, "field": <string>,
+                    "start": <string>, "end": <string>, "details": [<string>] }],
+    "skills": [{ "group": <string>, "items": [<string>] }],
+    "projects": [{ "name": <string>, "link": <string>, "bullets": [<string>] }],
+    "certifications": [{ "name": <string>, "issuer": <string>, "date": <string> }],
+    "links": [{ "label": <string>, "url": <string> }],
+    "volunteer": [{ "org": <string>, "role": <string>, "start": <string>,
+                    "end": <string>, "bullets": [<string>] }]
+  }
+
+  Rules:
+  - Strip all LaTeX commands from text values (no \textbf, no \color{...}, no braces).
+  - Preserve bullet order.
+  - "end" is "" for current roles/degrees.
+  - Skills: group by heading if present (e.g. "Programming Languages"), else one group named "Skills".
+
+  === RESUME (LaTeX) ===
+  {{resume_latex}}
+temperature: 0.1
+response_format: json_object
