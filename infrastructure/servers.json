@@ -1,0 +1,14 @@
+{
+  "Servers": {
+    "1": {
+      "Name": "JobForge PostgreSQL",
+      "Group": "Servers",
+      "Host": "postgres",
+      "Port": 5432,
+      "MaintenanceDB": "jobforgex",
+      "Username": "jobforgex",
+      "SSLMode": "prefer",
+      "ConnectNow": true
+    }
+  }
+}
