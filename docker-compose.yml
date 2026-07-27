@@ -1,4 +1,3 @@
-version: "3.9"
 
 services:
   postgres:
@@ -94,8 +93,11 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     environment:
-      DATABASE_URL: postgresql+asyncpg://${DB_USER:-jobforgex}:${DB_PASSWORD:-jobforgex}@postgres:5432/${DB_NAME:-jobforgex}
-      DATABASE_URL_SYNC: postgresql+psycopg2://${DB_USER:-jobforgex}:${DB_PASSWORD:-jobforgex}@postgres:5432/${DB_NAME:-jobforgex}
+      DB_HOST: ${DB_HOST:-postgres}
+      DB_PORT: ${DB_PORT:-5432}
+      DB_NAME: ${DB_NAME:-jobforgex}
+      DB_USER: ${DB_USER:-jobforgex}
+      DB_PASSWORD: ${DB_PASSWORD:-jobforgex}
       REDIS_URL: redis://redis:6379/0
       JWT_SECRET: ${JWT_SECRET}
       JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
@@ -146,8 +148,11 @@ services:
     restart: unless-stopped
     command: celery -A app.celery_app worker --loglevel=${LOG_LEVEL:-INFO} --concurrency=2
     environment:
-      DATABASE_URL: postgresql+asyncpg://${DB_USER:-jobforgex}:${DB_PASSWORD:-jobforgex}@postgres:5432/${DB_NAME:-jobforgex}
-      DATABASE_URL_SYNC: postgresql+psycopg2://${DB_USER:-jobforgex}:${DB_PASSWORD:-jobforgex}@postgres:5432/${DB_NAME:-jobforgex}
+      DB_HOST: ${DB_HOST:-postgres}
+      DB_PORT: ${DB_PORT:-5432}
+      DB_NAME: ${DB_NAME:-jobforgex}
+      DB_USER: ${DB_USER:-jobforgex}
+      DB_PASSWORD: ${DB_PASSWORD:-jobforgex}
       REDIS_URL: redis://redis:6379/0
       SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
       SMTP_PORT: ${SMTP_PORT:-465}
@@ -170,8 +175,11 @@ services:
     restart: unless-stopped
     command: celery -A app.celery_app beat --loglevel=${LOG_LEVEL:-INFO}
     environment:
-      DATABASE_URL: postgresql+asyncpg://${DB_USER:-jobforgex}:${DB_PASSWORD:-jobforgex}@postgres:5432/${DB_NAME:-jobforgex}
-      DATABASE_URL_SYNC: postgresql+psycopg2://${DB_USER:-jobforgex}:${DB_PASSWORD:-jobforgex}@postgres:5432/${DB_NAME:-jobforgex}
+      DB_HOST: ${DB_HOST:-postgres}
+      DB_PORT: ${DB_PORT:-5432}
+      DB_NAME: ${DB_NAME:-jobforgex}
+      DB_USER: ${DB_USER:-jobforgex}
+      DB_PASSWORD: ${DB_PASSWORD:-jobforgex}
       REDIS_URL: redis://redis:6379/0
       ENVIRONMENT: ${ENVIRONMENT:-development}
     volumes:
@@ -179,19 +187,6 @@ services:
     depends_on:
       - postgres
       - redis
-    networks:
-      - jobforge
-
-  latex-server:
-    build:
-      context: ./latex-server
-      dockerfile: Dockerfile
-    restart: unless-stopped
-    environment:
-      PORT: "8080"
-      SHARED_SECRET: ${LATEX_SHARED_SECRET:-}
-    ports:
-      - "8080:8080"
     networks:
       - jobforge
 

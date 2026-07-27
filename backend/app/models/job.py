@@ -1,8 +1,7 @@
 import uuid
 import enum
 from datetime import datetime, date
-from decimal import Decimal
-from sqlalchemy import String, Integer, Text, Date, Enum as SAEnum, ForeignKey, DateTime, func
+from sqlalchemy import String, Integer, Text, Date, ForeignKey, DateTime, func
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database import Base
@@ -35,7 +34,7 @@ class Job(Base):
     url: Mapped[str | None] = mapped_column(String, nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     location: Mapped[str | None] = mapped_column(String, nullable=True)
-    status: Mapped[JobStatus] = mapped_column(SAEnum(JobStatus, name="job_status", create_type=False), default=JobStatus.WISHLIST, index=True)
+    status: Mapped[str] = mapped_column(String, default=JobStatus.WISHLIST.value, index=True)
     date_applied: Mapped[date | None] = mapped_column(Date, nullable=True)
     resume_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
     insights: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
@@ -46,7 +45,6 @@ class Job(Base):
     workspace: Mapped["Workspace"] = relationship(back_populates="jobs")
     board: Mapped["Board"] = relationship(back_populates="jobs")
     artifacts: Mapped[list["JobArtifact"]] = relationship(back_populates="job", cascade="all, delete-orphan")
-    cost_logs: Mapped[list["AICostLog"]] = relationship(back_populates="job", cascade="all, delete-orphan")
 
 
 class JobArtifact(Base):
@@ -55,7 +53,7 @@ class JobArtifact(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     workspace_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("workspaces.id", ondelete="CASCADE"), nullable=False, index=True)
     job_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("jobs.id", ondelete="CASCADE"), nullable=False, index=True)
-    kind: Mapped[ArtifactKind] = mapped_column(SAEnum(ArtifactKind, name="artifact_kind", create_type=False))
+    kind: Mapped[str] = mapped_column(String, nullable=False)
     filename: Mapped[str] = mapped_column(String, nullable=False)
     latex_source: Mapped[str] = mapped_column(Text, default="")
     pdf_storage_path: Mapped[str | None] = mapped_column(String, nullable=True)

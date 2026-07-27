@@ -7,21 +7,6 @@
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- ============================================================================
--- ENUMS
--- ============================================================================
-CREATE TYPE app_role AS ENUM ('admin', 'user');
-CREATE TYPE job_status AS ENUM ('wishlist', 'applied', 'interview', 'rejected', 'offer');
-CREATE TYPE artifact_kind AS ENUM ('tailored_resume', 'cover_letter', 'ai_tool', 'pdf');
-CREATE TYPE ai_purpose AS ENUM (
-    'resume_tailoring',
-    'cover_letter',
-    'resume_scoring',
-    'jd_parsing',
-    'ats_check',
-    'custom'
-);
-
--- ============================================================================
 -- USERS (replaces Supabase auth.users)
 -- ============================================================================
 CREATE TABLE users (
@@ -75,7 +60,7 @@ CREATE INDEX idx_password_reset_tokens_hash ON password_reset_tokens (token_hash
 CREATE TABLE user_roles (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id         UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE UNIQUE,
-    role            app_role NOT NULL DEFAULT 'user'
+    role            VARCHAR(20) NOT NULL DEFAULT 'user'
 );
 CREATE INDEX idx_user_roles_user_id ON user_roles (user_id);
 
@@ -184,7 +169,7 @@ CREATE TABLE jobs (
     url             TEXT,
     notes           TEXT,
     location        TEXT,
-    status          job_status NOT NULL DEFAULT 'wishlist',
+    status          VARCHAR(20) NOT NULL DEFAULT 'wishlist',
     date_applied    DATE,
     resume_score    INT,
     insights        JSONB,
@@ -206,7 +191,7 @@ CREATE TABLE job_artifacts (
     id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     workspace_id        UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
     job_id              UUID NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
-    kind                artifact_kind NOT NULL,
+    kind                VARCHAR(30) NOT NULL,
     filename            TEXT NOT NULL,
     latex_source        TEXT NOT NULL DEFAULT '',
     pdf_storage_path    TEXT,
@@ -234,7 +219,7 @@ CREATE TABLE ai_cost_logs (
     input_cost      NUMERIC(10, 6) NOT NULL DEFAULT 0,
     output_cost     NUMERIC(10, 6) NOT NULL DEFAULT 0,
     total_cost      NUMERIC(10, 6) NOT NULL DEFAULT 0,
-    purpose         ai_purpose NOT NULL,
+    purpose         VARCHAR(30) NOT NULL,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX idx_ai_cost_logs_workspace ON ai_cost_logs (workspace_id);

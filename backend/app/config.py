@@ -1,12 +1,26 @@
 from pydantic_settings import BaseSettings
 from functools import lru_cache
-from typing import List
+from typing import List, Any
+from urllib.parse import quote_plus
+
+
+def parse_cors(v: Any) -> list[str]:
+    if isinstance(v, str):
+        return [x.strip() for x in v.split(",") if x.strip()]
+    if isinstance(v, list):
+        return v
+    return ["http://localhost:5173"]
 
 
 class Settings(BaseSettings):
-    # Database
-    DATABASE_URL: str = "postgresql+asyncpg://jobforgex:jobforgex@postgres:5432/jobforgex"
-    DATABASE_URL_SYNC: str = "postgresql+psycopg2://jobforgex:jobforgex@postgres:5432/jobforgex"
+    DB_HOST: str = "postgres"
+    DB_PORT: int = 5432
+    DB_NAME: str = "jobforgex"
+    DB_USER: str = "jobforgex"
+    DB_PASSWORD: str = "jobforgex"
+
+    DATABASE_URL: str = ""
+    DATABASE_URL_SYNC: str = ""
 
     # Redis
     REDIS_URL: str = "redis://redis:6379/0"
@@ -51,9 +65,17 @@ class Settings(BaseSettings):
     # App
     ENVIRONMENT: str = "development"
     LOG_LEVEL: str = "INFO"
-    CORS_ORIGINS: List[str] = ["http://localhost:5173"]
+    CORS_ORIGINS: str = "http://localhost:5173"
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "ignore"}
+
+    def model_post_init(self, __context):
+        if not self.DATABASE_URL:
+            encoded_password = quote_plus(self.DB_PASSWORD)
+            self.DATABASE_URL = f"postgresql+asyncpg://{self.DB_USER}:{encoded_password}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
+        if not self.DATABASE_URL_SYNC:
+            encoded_password = quote_plus(self.DB_PASSWORD)
+            self.DATABASE_URL_SYNC = f"postgresql+psycopg2://{self.DB_USER}:{encoded_password}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
 
 
 @lru_cache()
