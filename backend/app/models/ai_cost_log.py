@@ -2,9 +2,9 @@ import uuid
 import enum
 from datetime import datetime
 from decimal import Decimal
-from sqlalchemy import String, Integer, Enum as SAEnum, ForeignKey, Numeric, DateTime, func
+from sqlalchemy import String, Integer, ForeignKey, Numeric, DateTime, func
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column
 from app.database import Base
 
 
@@ -32,7 +32,5 @@ class AICostLog(Base):
     input_cost: Mapped[Decimal] = mapped_column(Numeric(10, 6), default=0)
     output_cost: Mapped[Decimal] = mapped_column(Numeric(10, 6), default=0)
     total_cost: Mapped[Decimal] = mapped_column(Numeric(10, 6), default=0)
-    purpose: Mapped[AIPurpose] = mapped_column(SAEnum(AIPurpose, name="ai_purpose", create_type=False))
+    purpose: Mapped[str] = mapped_column(String, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-
-    job: Mapped["Job"] = relationship(back_populates="cost_logs")

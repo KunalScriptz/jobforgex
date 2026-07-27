@@ -12,7 +12,7 @@ logger = structlog.get_logger()
 def setup_middleware(app: FastAPI) -> None:
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=settings.CORS_ORIGINS,
+        allow_origins=[x.strip() for x in settings.CORS_ORIGINS.split(",") if x.strip()],
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],

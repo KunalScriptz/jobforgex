@@ -8,7 +8,7 @@ from jose import jwt, JWTError
 
 from app.config import settings
 from app.models.user import User, RefreshToken, VerificationToken, PasswordResetToken
-from app.models.user_role import UserRole, AppRole
+from app.models.user_role import UserRole
 from app.models.workspace import Workspace
 from app.models.subscription import Subscription
 
@@ -58,7 +58,7 @@ async def register_user(db: AsyncSession, email: str, password: str, full_name: 
     db.add(user)
     await db.flush()
 
-    user_role = UserRole(user_id=user.id, role=AppRole.USER)
+    user_role = UserRole(user_id=user.id, role="user")
     db.add(user_role)
 
     subscription = Subscription(
@@ -74,7 +74,7 @@ async def register_user(db: AsyncSession, email: str, password: str, full_name: 
         "id": str(user.id),
         "email": user.email,
         "full_name": user.full_name,
-        "role": AppRole.USER.value,
+        "role": "user",
     }
 
 
@@ -86,7 +86,7 @@ async def login_user(db: AsyncSession, email: str, password: str) -> dict:
 
     role_result = await db.execute(select(UserRole).where(UserRole.user_id == user.id))
     user_role = role_result.scalar_one_or_none()
-    role = user_role.role.value if user_role else "user"
+    role = user_role.role if user_role else "user"
 
     ws_result = await db.execute(select(Workspace).where(Workspace.owner_user_id == user.id).limit(1))
     workspace = ws_result.scalar_one_or_none()
@@ -143,7 +143,7 @@ async def refresh_access_token(db: AsyncSession, refresh_token: str) -> dict:
 
     role_result = await db.execute(select(UserRole).where(UserRole.user_id == user.id))
     user_role = role_result.scalar_one_or_none()
-    role = user_role.role.value if user_role else "user"
+    role = user_role.role if user_role else "user"
 
     ws_result = await db.execute(select(Workspace).where(Workspace.owner_user_id == user.id).limit(1))
     workspace = ws_result.scalar_one_or_none()
