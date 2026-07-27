@@ -1,6 +1,6 @@
 const $ = (id) => document.getElementById(id);
 
-const DEFAULT_HOST = "https://jobforgex.lovable.app";
+const DEFAULT_HOST = "http://localhost:8000";
 
 chrome.storage.local.get(["host", "token"], (v) => {
   $("host").value = v.host || DEFAULT_HOST;

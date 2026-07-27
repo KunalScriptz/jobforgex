@@ -2,10 +2,10 @@
   if (window.__jobforgeInjected) return;
   window.__jobforgeInjected = true;
 
-  const HOST_FALLBACK = "https://jobforgex.lovable.app";
+  const HOST_FALLBACK = "https://localhost:8000";
 
   // Don't inject on the JobForge app itself.
-  const selfHosts = [/(^|\.)jobforgex\.lovable\.app$/i, /(^|\.)lovable\.app$/i, /^localhost$/i];
+  const selfHosts = [/^localhost$/i, /^127\.0\.0\.1$/i, /^0\.0\.0\.0$/i];
   if (selfHosts.some((r) => r.test(location.hostname))) return;
 
   // ---------- Scraping heuristics ---------------------------------------
