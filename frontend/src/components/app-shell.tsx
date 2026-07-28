@@ -1,106 +1,72 @@
-import React, { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarHeader,
-  SidebarMenu,
-  SidebarMenuItem,
-  SidebarMenuButton,
-  SidebarProvider,
-  SidebarTrigger,
-} from "@/components/ui/sidebar";
-import { Button } from "@/components/ui/button";
-import {
-  Briefcase,
-  FileText,
-  Sparkles,
-  ShieldCheck,
-  Calculator,
-  Settings,
-  LogOut,
-  Sun,
-  Moon,
-  CreditCard,
-} from "lucide-react";
+import { ListTodo, Wand2, FileText, ClipboardCheck, CreditCard, Settings, Sparkles, LogOut } from "lucide-react";
+import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
+
+import { cn } from "@/lib/utils";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { useAuth } from "@/context/auth-context";
 import { useWorkspace } from "@/hooks/use-workspace";
-import { useTheme } from "next-themes";
 
-const navItems = [
-  { to: "/jobs", label: "Jobs", icon: Briefcase },
-  { to: "/resumes", label: "Resumes", icon: FileText },
-  { to: "/generate", label: "Generate", icon: Sparkles },
-  { to: "/checker", label: "ATS Checker", icon: ShieldCheck },
+const NAV = [
+  { to: "/jobs", label: "Jobs", icon: ListTodo },
+  { to: "/generate", label: "Generate", icon: Wand2 },
+  { to: "/resumes", label: "Resume", icon: FileText },
+  { to: "/checker", label: "Checker", icon: ClipboardCheck },
   { to: "/billing", label: "Billing", icon: CreditCard },
   { to: "/settings", label: "Settings", icon: Settings },
-];
+] as const;
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const { user, logout } = useAuth();
-  const { data: workspace } = useWorkspace();
-  const navigate = useNavigate();
   const location = useLocation();
-  const [theme, setThemeState] = useState(() => localStorage.getItem("theme") || "light");
+  const navigate = useNavigate();
+  const qc = useQueryClient();
+  const { logout } = useAuth();
+  const { data: ws } = useWorkspace();
 
-  const toggleTheme = () => {
-    const next = theme === "light" ? "dark" : "light";
-    setThemeState(next);
-    localStorage.setItem("theme", next);
-    document.documentElement.classList.toggle("dark", next === "dark");
-  };
-
-  const handleLogout = async () => {
+  async function signOut() {
+    await qc.cancelQueries();
+    qc.clear();
     await logout();
-    navigate("/auth");
-  };
+    toast.success("Signed out");
+    navigate("/auth", { replace: true });
+  }
 
   return (
-    <div className="flex h-screen">
-      <div className="flex h-full w-64 flex-col border-r bg-muted/40">
-        <div className="flex h-14 items-center gap-2 border-b px-4">
-          <Sparkles className="h-5 w-5 text-primary" />
-          <span className="font-semibold text-sm">JobForge</span>
-        </div>
-        <div className="flex-1 overflow-auto p-2">
-          <nav className="space-y-1">
-            {navItems.map((item) => {
-              const isActive = location.pathname === item.to || location.pathname.startsWith(item.to + "/");
-              return (
-                <Link
-                  key={item.to}
-                  to={item.to}
-                  className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
-                    isActive
-                      ? "bg-primary/10 text-primary"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                  }`}
-                >
-                  <item.icon className="h-4 w-4" />
-                  {item.label}
-                </Link>
-              );
-            })}
-          </nav>
-        </div>
-        <div className="border-t p-3">
-          <div className="mb-2 truncate text-xs text-muted-foreground">
-            {workspace?.name || user?.email}
-          </div>
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={toggleTheme}>
-              {theme === "light" ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
-            </Button>
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleLogout}>
-              <LogOut className="h-4 w-4" />
-            </Button>
+    <div className="flex min-h-screen bg-muted/20">
+      <aside className="sticky top-0 flex h-screen w-56 shrink-0 flex-col border-r bg-card">
+        <Link
+          to="/jobs"
+          className="flex h-14 items-center gap-2 border-b px-4 font-semibold transition-colors hover:bg-muted/50"
+        >
+          <Sparkles className="h-4 w-4 text-primary" />
+          JobForge
+        </Link>
+        <nav className="flex-1 space-y-1 overflow-y-auto p-2">
+          {NAV.map(({ to, label, icon: Icon }) => {
+            const active = location.pathname.startsWith(to);
+            return (
+              <Link key={to} to={to} className={cn(
+                "flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors",
+                active ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:bg-muted hover:text-foreground",
+              )}>
+                <Icon className="h-4 w-4" />
+                {label}
+              </Link>
+            );
+          })}
+        </nav>
+        <div className="border-t p-3 text-xs">
+          <div className="truncate font-medium">{ws?.name ?? "Workspace"}</div>
+          <div className="mt-2 flex flex-col gap-1.5">
+            <ThemeToggle />
+            <button onClick={signOut} className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground">
+              <LogOut className="h-3.5 w-3.5" /> Sign out
+            </button>
           </div>
         </div>
-      </div>
-      <main className="flex-1 overflow-auto">
-        <div className="p-6">{children}</div>
-      </main>
+      </aside>
+      <main className="flex-1 overflow-x-hidden">{children}</main>
     </div>
   );
 }

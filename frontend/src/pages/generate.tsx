@@ -1,115 +1,275 @@
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
-import { aiApi, AiGenerateResult } from "@/api/ai";
+
+import { jobsApi } from "@/api/jobs";
+import { resumesApi } from "@/api/resumes";
+import { aiApi } from "@/api/ai";
+import apiClient from "@/api/client";
+import { PaywallDialog, isPaywallError } from "@/components/paywall-dialog";
+
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { Sparkles, FileText, Mail } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Progress } from "@/components/ui/progress";
+import { Wand2, Download, FileText, Sparkles } from "lucide-react";
+import { LatexPreview } from "@/components/latex-preview";
+import { TailoringLoader } from "@/components/tailoring-loader";
+
+// ---- wrapper functions that match original server fn shapes ----
+
+async function _scoreResume(args: { jd: string; job_id: string }) {
+  const result = await aiApi.generate({
+    prompt_name: "score_resume",
+    vars: { job_description: args.jd },
+    job_id: args.job_id,
+    purpose: "score",
+  });
+  return { report: JSON.parse(result.content), cost: result.total_cost };
+}
+
+async function _tailorResume(args: { jd: string; company: string; title: string; job_id: string }) {
+  const result = await aiApi.generate({
+    prompt_name: "tailor_resume",
+    vars: { job_description: args.jd, company: args.company, job_title: args.title },
+    job_id: args.job_id,
+    purpose: "tailor",
+  });
+  return {
+    latex: result.content,
+    filename: `Tailored_Resume_${(args.company || "job").replace(/\s+/g, "_")}.tex`,
+    cost: result.total_cost,
+  };
+}
+
+async function _generateCoverLetter(args: { jd: string; company: string; title: string; job_id: string }) {
+  const result = await aiApi.generate({
+    prompt_name: "generate_cover_letter",
+    vars: { job_description: args.jd, company: args.company, job_title: args.title },
+    job_id: args.job_id,
+    purpose: "cover_letter",
+  });
+  return {
+    latex: result.content,
+    filename: `Cover_Letter_${(args.company || "job").replace(/\s+/g, "_")}.tex`,
+    cost: result.total_cost,
+  };
+}
+
+async function _saveArtifact(args: { job_id: string; kind: string; filename: string; latex_source: string }) {
+  const { data } = await apiClient.post("/api/v1/jobs/artifacts", args);
+  return data;
+}
+
+async function _compileArtifactPdf(args: { artifact_id: string }) {
+  return resumesApi.compileArtifact(args.artifact_id);
+}
 
 export default function GeneratePage() {
-  const [jd, setJd] = useState("");
-  const [jobTitle, setJobTitle] = useState("");
-  const [company, setCompany] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [results, setResults] = useState<{
-    tailored?: AiGenerateResult;
-    coverLetter?: AiGenerateResult;
-  }>({});
+  const qc = useQueryClient();
 
-  const handleGenerate = async () => {
-    if (!jd) return;
-    setLoading(true);
-    try {
-      const [tailored, coverLetter] = await Promise.all([
-        aiApi.generate({
-          prompt_name: "tailor_resume",
-          vars: { job_description: jd, job_title: jobTitle, company },
-          purpose: "resume_tailoring",
-        }),
-        aiApi.generate({
-          prompt_name: "generate_cover_letter",
-          vars: { job_description: jd, job_title: jobTitle, company },
-          purpose: "cover_letter",
-        }),
-      ]);
-      setResults({ tailored, coverLetter });
-      toast.success("Generation complete");
-    } catch (err: any) {
-      toast.error(err.response?.data?.detail || "Generation failed");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { data: allJobs = [] } = useQuery({ queryKey: ["jobs", "all"], queryFn: () => jobsApi.listJobs() });
+
+  const [selectedJobId, setSelectedJobId] = useState<string>("");
+  const selectedJob = allJobs.find((j: any) => j.id === selectedJobId);
+
+  const [doTailor, setDoTailor] = useState(true);
+  const [doCover, setDoCover] = useState(false);
+  const [paywallOpen, setPaywallOpen] = useState(false);
+
+  const [report, setReport] = useState<any>(null);
+  const [tailored, setTailored] = useState<{ latex: string; filename: string } | null>(null);
+  const [cover, setCover] = useState<{ latex: string; filename: string } | null>(null);
+  const [totalCost, setTotalCost] = useState(0);
+
+  const scoreMut = useMutation({
+    mutationFn: async () => {
+      if (!selectedJob?.description || selectedJob.description.length < 30) throw new Error("Selected job has no description to score against.");
+      return _scoreResume({ jd: selectedJob.description, job_id: selectedJob.id });
+    },
+    onSuccess: (r: any) => { setReport(r.report); setTotalCost((c) => c + Number(r.cost)); qc.invalidateQueries({ queryKey: ["billing"] }); },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const genMut = useMutation({
+    mutationFn: async () => {
+      if (!selectedJob) throw new Error("Select a job first.");
+      const jd = selectedJob.description ?? "";
+      if (jd.length < 30) throw new Error("Selected job has no description.");
+
+      let localCost = 0;
+      let t: any = null, c: any = null;
+      const compileJobs: Promise<any>[] = [];
+      if (doTailor) {
+        t = await _tailorResume({ jd, company: selectedJob.company, title: selectedJob.title, job_id: selectedJob.id });
+        const savedT = await _saveArtifact({ job_id: selectedJob.id, kind: "tailored_resume", filename: t.filename, latex_source: t.latex });
+        compileJobs.push(_compileArtifactPdf({ artifact_id: savedT.id }).catch(() => null));
+        localCost += Number(t.cost);
+      }
+      if (doCover) {
+        c = await _generateCoverLetter({ jd, company: selectedJob.company, title: selectedJob.title, job_id: selectedJob.id });
+        const savedC = await _saveArtifact({ job_id: selectedJob.id, kind: "cover_letter", filename: c.filename, latex_source: c.latex });
+        compileJobs.push(_compileArtifactPdf({ artifact_id: savedC.id }).catch(() => null));
+        localCost += Number(c.cost);
+      }
+      await Promise.all(compileJobs);
+      return { t, c, localCost };
+    },
+    onSuccess: ({ t, c, localCost }) => {
+      if (t) setTailored(t);
+      if (c) setCover(c);
+      setTotalCost((x) => x + localCost);
+      qc.invalidateQueries({ queryKey: ["jobs"] });
+      qc.invalidateQueries({ queryKey: ["billing"] });
+      toast.success("Generated and saved to job");
+    },
+    onError: (e: any) => {
+      if (isPaywallError(e)) { setPaywallOpen(true); return; }
+      toast.error(e.message);
+    },
+  });
+
+  function download(name: string, content: string) {
+    const blob = new Blob([content], { type: "application/x-tex" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = name;
+    link.click();
+  }
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Generate</h1>
+    <div className="p-6">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold">Generate</h1>
+        <p className="text-sm text-muted-foreground">Select a saved job, score your fit, and generate documents.</p>
+      </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Job Description</CardTitle>
-          <CardDescription>Paste the job description to tailor your resume and generate a cover letter.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label>Job Title</Label>
-              <Input value={jobTitle} onChange={(e) => setJobTitle(e.target.value)} placeholder="Software Engineer" />
-            </div>
-            <div>
-              <Label>Company</Label>
-              <Input value={company} onChange={(e) => setCompany(e.target.value)} placeholder="Acme Inc" />
-            </div>
-          </div>
-          <div>
-            <Label>Job Description *</Label>
-            <Textarea
-              value={jd}
-              onChange={(e) => setJd(e.target.value)}
-              rows={12}
-              placeholder="Paste the full job description here..."
-            />
-          </div>
-          <Button onClick={handleGenerate} disabled={loading || !jd} className="w-full">
-            <Sparkles className="mr-2 h-4 w-4" />
-            {loading ? "Generating..." : "Generate Tailored Resume & Cover Letter"}
-          </Button>
-        </CardContent>
-      </Card>
-
-      {results.tailored && (
+      <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5" /> Tailored Resume (LaTeX)
-            </CardTitle>
-            <CardDescription>
-              Tokens: {results.tailored.input_tokens + results.tailored.output_tokens} | Cost: ${results.tailored.total_cost.toFixed(4)}
-            </CardDescription>
+            <CardTitle>Job</CardTitle>
+            <CardDescription>Pick a job from your board.</CardDescription>
           </CardHeader>
-          <CardContent>
-            <Textarea value={results.tailored.content} readOnly rows={20} className="font-mono text-sm" />
-          </CardContent>
-        </Card>
-      )}
+          <CardContent className="space-y-3">
+            <Select value={selectedJobId} onValueChange={(v) => { setSelectedJobId(v); setReport(null); setTailored(null); setCover(null); }}>
+              <SelectTrigger><SelectValue placeholder="Choose a job…" /></SelectTrigger>
+              <SelectContent>
+                {allJobs.map((j: any) => (
+                  <SelectItem key={j.id} value={j.id}>{j.company} — {j.title}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
-      {results.coverLetter && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Mail className="h-5 w-5" /> Cover Letter
-            </CardTitle>
-            <CardDescription>
-              Tokens: {results.coverLetter.input_tokens + results.coverLetter.output_tokens} | Cost: ${results.coverLetter.total_cost.toFixed(4)}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Textarea value={results.coverLetter.content} readOnly rows={16} className="text-sm" />
+            {selectedJob && (
+              <div className="space-y-2">
+                <div className="text-sm font-medium">{selectedJob.title} <span className="text-muted-foreground">@ {selectedJob.company}</span></div>
+                {selectedJob.description && (
+                  <div className="max-h-64 overflow-auto rounded border bg-muted/30 p-3 text-xs whitespace-pre-wrap leading-relaxed">
+                    {selectedJob.description}
+                  </div>
+                )}
+                <div className="flex items-center gap-2">
+                  <Button onClick={() => scoreMut.mutate()} disabled={scoreMut.isPending || !selectedJob.description || selectedJob.description.length < 30} variant="outline" size="sm">
+                    <Sparkles className="mr-1.5 h-4 w-4" />{scoreMut.isPending ? "Scoring…" : "Score my resume"}
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            <div className="flex items-center gap-4 pt-1">
+              <label className="flex items-center gap-2 text-sm">
+                <Checkbox checked={doTailor} onCheckedChange={(v) => setDoTailor(!!v)} /> Generate tailored resume
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <Checkbox checked={doCover} onCheckedChange={(v) => setDoCover(!!v)} /> Generate cover letter
+              </label>
+            </div>
+
+            <Button onClick={() => genMut.mutate()} disabled={genMut.isPending || !selectedJob || (!doTailor && !doCover)}>
+              <Wand2 className="mr-1.5 h-4 w-4" />{genMut.isPending ? "Generating…" : "Generate & save"}
+            </Button>
           </CardContent>
         </Card>
-      )}
+
+        <div className="space-y-4">
+          {genMut.isPending && (
+            <Card>
+              <CardContent className="pt-6">
+                <TailoringLoader
+                  kind={doTailor && doCover ? "both" : doCover ? "cover_letter" : "resume"}
+                  estimatedSeconds={doTailor && doCover ? 70 : 45}
+                />
+              </CardContent>
+            </Card>
+          )}
+
+          {report && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Resume score: {report.score}/100</CardTitle>
+                <CardDescription>{report.summary}</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <Progress value={report.score} />
+                <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                  <div className="rounded bg-muted/50 p-2">Keywords<br /><span className="text-lg font-semibold">{report.keyword_score ?? "—"}</span></div>
+                  <div className="rounded bg-muted/50 p-2">Responsibilities<br /><span className="text-lg font-semibold">{report.responsibility_score ?? "—"}</span></div>
+                  <div className="rounded bg-muted/50 p-2">ATS<br /><span className="text-lg font-semibold">{report.ats_score ?? "—"}</span></div>
+                </div>
+                <ReportList title="Strengths" items={report.strengths} />
+                <ReportList title="Gaps" items={report.gaps} />
+                <ReportList title="Missing keywords" items={report.missing_keywords} />
+              </CardContent>
+            </Card>
+          )}
+
+          {tailored && !genMut.isPending && (
+            <ArtifactCard title="Tailored resume" filename={tailored.filename} latex={tailored.latex} onDownload={() => download(tailored.filename, tailored.latex)} />
+          )}
+          {cover && !genMut.isPending && (
+            <ArtifactCard title="Cover letter" filename={cover.filename} latex={cover.latex} onDownload={() => download(cover.filename, cover.latex)} />
+          )}
+        </div>
+      </div>
+      <PaywallDialog open={paywallOpen} onOpenChange={setPaywallOpen} />
     </div>
+  );
+}
+
+function ReportList({ title, items }: { title: string; items?: string[] }) {
+  if (!items?.length) return null;
+  return (
+    <div>
+      <div className="mb-1 text-xs font-medium uppercase text-muted-foreground">{title}</div>
+      <ul className="list-disc space-y-0.5 pl-5 text-sm">{items.map((s, i) => <li key={i}>{s}</li>)}</ul>
+    </div>
+  );
+}
+
+function ArtifactCard({ title, filename, latex, onDownload }: any) {
+  return (
+    <Card>
+      <CardHeader className="flex-row items-center justify-between space-y-0">
+        <div>
+          <CardTitle className="flex items-center gap-2"><FileText className="h-4 w-4" />{title}</CardTitle>
+          <CardDescription className="font-mono text-xs">{filename}</CardDescription>
+        </div>
+        <Button size="sm" variant="outline" onClick={onDownload}><Download className="mr-1 h-4 w-4" />.tex</Button>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        <div className="h-96 overflow-hidden rounded border">
+          <LatexPreview
+            source={latex}
+            cacheKey={`generate:${filename}`}
+            downloadFilename={filename.replace(/\.tex$/i, ".pdf")}
+          />
+        </div>
+        <details className="rounded border bg-muted/30 text-xs">
+          <summary className="cursor-pointer select-none px-2 py-1.5 text-muted-foreground">View LaTeX source</summary>
+          <pre className="max-h-64 overflow-auto p-2 text-[10px] leading-tight">{latex.slice(0, 4000)}{latex.length > 4000 ? "\n..." : ""}</pre>
+        </details>
+      </CardContent>
+    </Card>
   );
 }

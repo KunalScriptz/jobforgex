@@ -1,165 +1,123 @@
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
-import { useBoards, useCreateBoard, useDeleteBoard } from "@/hooks/use-workspace";
-import { extensionApi, ExtensionToken, ExtensionTokenCreated } from "@/api/extension";
+
+import { workspaceApi } from "@/api/workspace";
+import { extensionApi } from "@/api/extension";
+
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Trash2, Plus, Copy, Key, Columns } from "lucide-react";
+import { Trash2, Plus, Chrome, Download, Copy } from "lucide-react";
 
 export default function SettingsPage() {
-  const { data: boards = [] } = useBoards();
-  const createBoard = useCreateBoard();
-  const deleteBoard = useDeleteBoard();
+  return (
+    <div className="space-y-6 p-6">
+      <h1 className="text-2xl font-bold">Settings</h1>
+      <BoardsCard />
+      <ExtensionCard />
+    </div>
+  );
+}
 
-  const [tokens, setTokens] = useState<ExtensionToken[]>([]);
-  const [newBoardName, setNewBoardName] = useState("");
-  const [tokenLabel, setTokenLabel] = useState("");
-  const [showToken, setShowToken] = useState<string | null>(null);
-  const [newToken, setNewToken] = useState<ExtensionTokenCreated | null>(null);
+function BoardsCard() {
+  const qc = useQueryClient();
+  const { data: boards = [] } = useQuery({ queryKey: ["boards"], queryFn: () => workspaceApi.listBoards() });
+  const [name, setName] = useState("");
+  return (
+    <Card>
+      <CardHeader><CardTitle>Boards</CardTitle><CardDescription>Group your jobs by year, focus, or campaign.</CardDescription></CardHeader>
+      <CardContent>
+        <div className="space-y-2">
+          {boards.map((b: any) => (
+            <div key={b.id} className="flex items-center gap-2">
+              <Input defaultValue={b.name} onBlur={(e) => e.target.value !== b.name && workspaceApi.renameBoard(b.id, e.target.value).then(() => qc.invalidateQueries({ queryKey: ["boards"] }))} />
+              <Button size="sm" variant="ghost" onClick={() => workspaceApi.deleteBoard(b.id).then(() => qc.invalidateQueries({ queryKey: ["boards"] }))}><Trash2 className="h-4 w-4" /></Button>
+            </div>
+          ))}
+        </div>
+        <div className="mt-3 flex gap-2">
+          <Input placeholder="New board name" value={name} onChange={(e) => setName(e.target.value)} />
+          <Button onClick={async () => { if (!name) return; await workspaceApi.createBoard(name); qc.invalidateQueries({ queryKey: ["boards"] }); setName(""); }}><Plus className="h-4 w-4" /></Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
-  const loadTokens = async () => {
-    try {
-      const data = await extensionApi.listTokens();
-      setTokens(data);
-    } catch {}
-  };
-
-  useState(() => {
-    loadTokens();
+function ExtensionCard() {
+  const qc = useQueryClient();
+  const { data: tokens = [] } = useQuery({ queryKey: ["ext-tokens"], queryFn: () => extensionApi.listTokens() });
+  const [freshToken, setFreshToken] = useState<string>("");
+  const create = useMutation({
+    mutationFn: async () => extensionApi.createToken("Chrome extension"),
+    onSuccess: (r: any) => { setFreshToken(r.token); qc.invalidateQueries({ queryKey: ["ext-tokens"] }); toast.success("Token generated"); },
+    onError: (e: any) => toast.error(String(e?.message ?? e).slice(0, 200)),
+  });
+  const revoke = useMutation({
+    mutationFn: async (id: string) => extensionApi.revokeToken(id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["ext-tokens"] }); toast.success("Revoked"); },
   });
 
-  const handleCreateToken = async () => {
+  async function downloadExtension() {
     try {
-      const data = await extensionApi.createToken(tokenLabel);
-      setNewToken(data);
-      setShowToken(data.token);
-      setTokenLabel("");
-      loadTokens();
-      toast.success("Token created");
-    } catch (err: any) {
-      toast.error(err.response?.data?.detail || "Failed to create token");
-    }
-  };
-
-  const handleRevokeToken = async (id: string) => {
-    try {
-      await extensionApi.revokeToken(id);
-      toast.success("Token revoked");
-      loadTokens();
-    } catch (err: any) {
-      toast.error(err.response?.data?.detail || "Failed to revoke");
-    }
-  };
-
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    toast.success("Copied to clipboard");
-  };
+      const res = await fetch("/jobforge-extension.zip");
+      if (!res.ok) throw new Error(`Download failed (${res.status})`);
+      const blob = await res.blob();
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "jobforge-extension.zip";
+      a.click();
+      URL.revokeObjectURL(a.href);
+    } catch (e: any) { toast.error(e.message); }
+  }
 
   return (
-    <div className="max-w-2xl mx-auto space-y-8">
-      <h1 className="text-2xl font-bold">Settings</h1>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Columns className="h-5 w-5" /> Boards
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex gap-2">
-            <Input
-              value={newBoardName}
-              onChange={(e) => setNewBoardName(e.target.value)}
-              placeholder="New board name"
-              maxLength={80}
-            />
-            <Button
-              onClick={async () => {
-                if (!newBoardName) return;
-                await createBoard.mutateAsync(newBoardName);
-                setNewBoardName("");
-                toast.success("Board created");
-              }}
-              disabled={createBoard.isPending}
-            >
-              <Plus className="mr-1 h-4 w-4" /> Add
-            </Button>
-          </div>
-          <div className="space-y-1">
-            {boards.map((b) => (
-              <div key={b.id} className="flex items-center justify-between rounded-md bg-muted px-3 py-2">
-                <span className="text-sm">{b.name}</span>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7"
-                  onClick={() => deleteBoard.mutate(b.id)}
-                >
-                  <Trash2 className="h-3 w-3 text-muted-foreground" />
-                </Button>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Key className="h-5 w-5" /> Chrome Extension Tokens
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex gap-2">
-            <Input
-              value={tokenLabel}
-              onChange={(e) => setTokenLabel(e.target.value)}
-              placeholder="Token label (e.g. Laptop)"
-            />
-            <Button onClick={handleCreateToken}>
-              <Plus className="mr-1 h-4 w-4" /> Create Token
-            </Button>
-          </div>
-
-          {showToken && (
-            <div className="rounded-md bg-amber-50 border border-amber-200 p-3 dark:bg-amber-950 dark:border-amber-800">
-              <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
-                Save this token now — it won't be shown again:
-              </p>
-              <div className="mt-1 flex items-center gap-2">
-                <code className="text-xs break-all bg-amber-100 dark:bg-amber-900 px-2 py-1 rounded">
-                  {showToken}
-                </code>
-                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => copyToClipboard(showToken)}>
-                  <Copy className="h-3 w-3" />
-                </Button>
-              </div>
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2"><Chrome className="h-4 w-4" /> Chrome extension</CardTitle>
+        <CardDescription>Save jobs to your board with one click from any job posting.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex flex-wrap gap-2">
+          <Button size="sm" onClick={downloadExtension}><Download className="mr-1.5 h-4 w-4" /> Download extension (.zip)</Button>
+          <Button size="sm" variant="outline" onClick={() => create.mutate()} disabled={create.isPending}>
+            <Plus className="mr-1.5 h-4 w-4" /> Generate connect token
+          </Button>
+        </div>
+        {freshToken && (
+          <div className="rounded-md border border-primary/40 bg-primary/5 p-3 text-sm">
+            <div className="mb-1 font-medium">Copy this token — you won't see it again:</div>
+            <div className="flex items-center gap-2">
+              <code className="flex-1 overflow-auto rounded bg-background px-2 py-1 font-mono text-xs">{freshToken}</code>
+              <Button size="sm" variant="ghost" onClick={() => { navigator.clipboard.writeText(freshToken); toast.success("Copied"); }}>
+                <Copy className="h-3.5 w-3.5" />
+              </Button>
             </div>
-          )}
-
-          <div className="space-y-1">
-            {tokens.map((t) => (
-              <div key={t.id} className="flex items-center justify-between rounded-md bg-muted px-3 py-2">
-                <div>
-                  <span className="text-sm">{t.label || "Unnamed"}</span>
-                  <span className="text-xs text-muted-foreground ml-2">{t.token_prefix}...</span>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7"
-                  onClick={() => handleRevokeToken(t.id)}
-                >
-                  <Trash2 className="h-3 w-3 text-muted-foreground" />
-                </Button>
-              </div>
-            ))}
           </div>
-        </CardContent>
-      </Card>
-    </div>
+        )}
+        <div className="rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground">
+          <div className="mb-1 font-semibold text-foreground">Install</div>
+          <ol className="list-decimal space-y-0.5 pl-4">
+            <li>Unzip the downloaded file.</li>
+            <li>Open <code>chrome://extensions</code> and enable Developer mode.</li>
+            <li>Click Load unpacked and pick the unzipped folder.</li>
+            <li>Click the extension icon → Connect → paste your token.</li>
+          </ol>
+        </div>
+        <div className="space-y-1">
+          <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Active tokens</div>
+          {tokens.length === 0 && <div className="text-xs text-muted-foreground">No tokens yet.</div>}
+          {tokens.map((t: any) => (
+            <div key={t.id} className="flex items-center justify-between rounded border p-2 text-xs">
+              <div><span className="font-mono">{t.token_prefix}…</span> · {t.label} · {new Date(t.created_at).toLocaleDateString()}</div>
+              <Button size="sm" variant="ghost" onClick={() => revoke.mutate(t.id)}>
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
