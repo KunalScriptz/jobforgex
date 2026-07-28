@@ -122,6 +122,23 @@ async def list_artifacts(
     return detail["artifacts"]
 
 
+@router.post("/artifacts", response_model=JobArtifactOut)
+async def create_artifact(
+    data: JobArtifactCreate,
+    user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    ws_id = await get_workspace_id(user, db)
+    return await jobs_service.create_artifact(
+        db,
+        workspace_id=ws_id,
+        job_id=data.job_id,
+        kind=ArtifactKind(data.kind.value),
+        filename=data.filename,
+        latex_source=data.latex_source,
+    )
+
+
 @router.delete("/artifacts/{artifact_id}")
 async def delete_artifact(
     artifact_id: uuid.UUID,

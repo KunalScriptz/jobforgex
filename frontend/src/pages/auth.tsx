@@ -1,17 +1,18 @@
-import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { useAuth } from "@/context/auth-context";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useAuth } from "@/context/auth-context";
 import { Sparkles } from "lucide-react";
 
 export default function AuthPage() {
   const navigate = useNavigate();
-  const { isAuthenticated, login, register } = useAuth();
+  const { isAuthenticated } = useAuth();
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -35,10 +36,10 @@ export default function AuthPage() {
               <TabsTrigger value="signup">Sign up</TabsTrigger>
             </TabsList>
             <TabsContent value="signin" className="mt-4">
-              <AuthForm mode="signin" busy={busy} setBusy={setBusy} navigate={navigate} login={login} />
+              <AuthForm mode="signin" busy={busy} setBusy={setBusy} />
             </TabsContent>
             <TabsContent value="signup" className="mt-4">
-              <AuthForm mode="signup" busy={busy} setBusy={setBusy} navigate={navigate} register={register} />
+              <AuthForm mode="signup" busy={busy} setBusy={setBusy} />
             </TabsContent>
           </Tabs>
         </CardContent>
@@ -47,21 +48,9 @@ export default function AuthPage() {
   );
 }
 
-function AuthForm({
-  mode,
-  busy,
-  setBusy,
-  navigate,
-  login,
-  register,
-}: {
-  mode: "signin" | "signup";
-  busy: boolean;
-  setBusy: (v: boolean) => void;
-  navigate: (path: string) => void;
-  login?: (data: { email: string; password: string }) => Promise<any>;
-  register?: (data: { email: string; password: string; full_name?: string }) => Promise<any>;
-}) {
+function AuthForm({ mode, busy, setBusy }: { mode: "signin" | "signup"; busy: boolean; setBusy: (v: boolean) => void }) {
+  const navigate = useNavigate();
+  const { login, register } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
@@ -70,17 +59,21 @@ function AuthForm({
     e.preventDefault();
     setBusy(true);
     try {
-      if (mode === "signup" && register) {
-        await register({ email, password, full_name: fullName });
+      if (mode === "signup") {
+        await register({
+          email,
+          password,
+          full_name: fullName,
+        });
         toast.success("Account created. Redirecting...");
         navigate("/onboarding");
-      } else if (login) {
+      } else {
         await login({ email, password });
         toast.success("Signed in");
         navigate("/jobs");
       }
     } catch (err: any) {
-      toast.error(err.response?.data?.detail || err.message || "Authentication failed");
+      toast.error(err.message ?? "Authentication failed");
     } finally {
       setBusy(false);
     }

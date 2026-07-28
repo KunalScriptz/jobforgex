@@ -1,100 +1,146 @@
-import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { useAuth } from "@/context/auth-context";
-import { useCreateWorkspace } from "@/hooks/use-workspace";
-import { useSaveBaseResume } from "@/hooks/use-resumes";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { Sparkles } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useAuth } from "@/context/auth-context";
+import { workspaceApi } from "@/api/workspace";
+import { resumesApi } from "@/api/resumes";
+import { Sparkles, CheckCircle2, ArrowLeft } from "lucide-react";
+import { PdfToLatexButton } from "@/components/pdf-to-latex-button";
 
 export default function OnboardingPage() {
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const createWs = useCreateWorkspace();
-  const saveResume = useSaveBaseResume();
-
+  const { isAuthenticated } = useAuth();
+  const qc = useQueryClient();
+  const { data: ws, isLoading } = useQuery({ queryKey: ["ws"], queryFn: () => workspaceApi.getMyWorkspace() });
   const [step, setStep] = useState(1);
-  const [wsName, setWsName] = useState(user?.full_name || "My Workspace");
-  const [latexSource, setLatexSource] = useState("");
 
-  const handleCreateWorkspace = async () => {
-    try {
-      await createWs.mutateAsync({ name: wsName });
-      toast.success("Workspace created");
-      setStep(2);
-    } catch (err: any) {
-      toast.error(err.response?.data?.detail || "Failed to create workspace");
-    }
-  };
+  useEffect(() => {
+    if (!isAuthenticated) navigate("/auth");
+  }, [isAuthenticated, navigate]);
 
-  const handleSaveResume = async () => {
-    try {
-      await saveResume.mutateAsync({ latex_source: latexSource, name: "Base Resume" });
-      toast.success("Resume saved. All set!");
-      navigate("/jobs");
-    } catch (err: any) {
-      toast.error(err.response?.data?.detail || "Failed to save resume");
+  useEffect(() => {
+    if (ws) {
+      if (ws.onboarding_complete) navigate("/jobs");
+      else setStep(ws.onboarding_step ?? 1);
     }
-  };
+  }, [ws, navigate]);
+
+  const progress = ((step - 1) / 2) * 100;
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-muted/30 p-4">
-      <Card className="w-full max-w-lg">
-        <CardHeader className="text-center">
-          <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-            <Sparkles className="h-5 w-5 text-primary" />
-          </div>
-          <CardTitle className="mt-2">Welcome aboard</CardTitle>
-          <CardDescription>
-            {step === 1 ? "Name your workspace" : "Paste your base LaTeX resume"}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {step === 1 ? (
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="wsName">Workspace name</Label>
-                <Input
-                  id="wsName"
-                  value={wsName}
-                  onChange={(e) => setWsName(e.target.value)}
-                  maxLength={100}
-                  required
-                />
-              </div>
-              <Button onClick={handleCreateWorkspace} disabled={createWs.isPending} className="w-full">
-                {createWs.isPending ? "Creating..." : "Continue"}
-              </Button>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="latex">LaTeX source (optional)</Label>
-                <Textarea
-                  id="latex"
-                  value={latexSource}
-                  onChange={(e) => setLatexSource(e.target.value)}
-                  rows={12}
-                  placeholder="Paste your LaTeX resume source here. You can skip this and add it later."
-                  className="font-mono text-sm"
-                />
-              </div>
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={handleSaveResume} className="w-full">
-                  Skip for now
-                </Button>
-                <Button onClick={handleSaveResume} disabled={saveResume.isPending} className="w-full">
-                  {saveResume.isPending ? "Saving..." : "Save & Continue"}
-                </Button>
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+    <div className="min-h-screen bg-muted/30 p-6">
+      <div className="mx-auto max-w-2xl">
+        <div className="mb-6 flex items-center gap-2 text-sm text-muted-foreground">
+          <Sparkles className="h-4 w-4 text-primary" />
+          JobForge setup — step {step} of 2
+        </div>
+        <Progress value={progress} className="mb-6" />
+
+        {step === 1 && <Step1 onDone={(_ws) => { qc.invalidateQueries({ queryKey: ["ws"] }); setStep(2); }} />}
+        {step === 2 && <Step3
+          onBack={() => setStep(1)}
+          onDone={async () => {
+            qc.invalidateQueries({ queryKey: ["ws"] });
+            navigate("/jobs");
+          }}
+        />}
+      </div>
     </div>
+  );
+}
+
+function Step1({ onDone }: { onDone: (ws: any) => void }) {
+  const [name, setName] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => { setName(`${new Date().getFullYear()} Job Search`); }, []);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      const ws = await workspaceApi.createWorkspace({ name, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone });
+      toast.success("Workspace created");
+      onDone(ws);
+    } catch (err: any) { toast.error(err.message ?? "Failed"); }
+    finally { setBusy(false); }
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Your private workspace is ready.</CardTitle>
+        <CardDescription>Give it a name — you can change this later.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={submit} className="space-y-4">
+          <div>
+            <Label htmlFor="wname">Workspace name</Label>
+            <Input id="wname" value={name} onChange={(e) => setName(e.target.value)} maxLength={100} required />
+          </div>
+          <Button type="submit" disabled={busy}>{busy ? "Creating..." : "Continue"}</Button>
+        </form>
+      </CardContent>
+    </Card>
+  );
+}
+
+function Step3({ onBack, onDone }: { onBack: () => void; onDone: () => void }) {
+  const [tex, setTex] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (tex.length < 100) { toast.error("Paste your full LaTeX resume"); return; }
+    setBusy(true);
+    try {
+      await resumesApi.saveBaseResume({ latex_source: tex });
+      await workspaceApi.updateOnboarding(4, true);
+      toast.success("Setup complete!");
+      onDone();
+    } catch (err: any) { toast.error(err.message ?? "Failed"); }
+    finally { setBusy(false); }
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Upload your base resume</CardTitle>
+        <CardDescription>Paste the complete LaTeX source, or import from a PDF and we'll convert it into our LaTeX template using your AI provider.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={submit} className="space-y-4">
+          <div className="flex items-center justify-between rounded-md border border-dashed bg-muted/30 p-3">
+            <div className="text-xs text-muted-foreground">
+              Only have a PDF? Import it and we'll rewrite it into LaTeX for you.
+            </div>
+            <PdfToLatexButton onLatex={(l) => setTex(l)} />
+          </div>
+          <Textarea
+            className="h-80 font-mono text-xs"
+            value={tex}
+            onChange={(e) => setTex(e.target.value)}
+            placeholder="\documentclass[letterpaper,11pt]{article}&\#10;..."
+          />
+          <div className="flex items-center justify-between">
+            <Button type="button" variant="outline" onClick={onBack} disabled={busy}>
+              <ArrowLeft className="mr-1.5 h-4 w-4" /> Back
+            </Button>
+            <Button type="submit" disabled={busy}>
+              {busy ? "Saving..." : (<><CheckCircle2 className="mr-1.5 h-4 w-4" />Finish setup</>)}
+            </Button>
+          </div>
+        </form>
+      </CardContent>
+    </Card>
   );
 }
