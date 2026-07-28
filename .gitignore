@@ -57,3 +57,5 @@ pgadmindata/
 # Backend specific
 backend/alembic/versions/*.py
 !backend/alembic/versions/.gitkeep
+backend/celerybeat-schedule
+jobforgex_260728.backup.zip

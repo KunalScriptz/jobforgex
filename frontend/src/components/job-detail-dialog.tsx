@@ -50,7 +50,7 @@ import { jobsApi, type JobDetail } from "@/api/jobs";
 import { aiApi } from "@/api/ai";
 import { resumesApi } from "@/api/resumes";
 import { billingApi } from "@/api/billing";
-import { AI_TOOLS_META } from "@/lib/ai-tools.functions";
+import { AI_TOOLS_META } from "@/lib/ai-tools";
 
 type Status = "wishlist" | "applied" | "interview" | "offer" | "rejected";
 const STATUSES: Status[] = ["wishlist","applied","interview","offer","rejected"];
