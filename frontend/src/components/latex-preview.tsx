@@ -1,7 +1,6 @@
 import { useEffect, useImperativeHandle, useRef, useState, forwardRef } from "react";
 import { Loader2, AlertTriangle, FileText, RefreshCw } from "lucide-react";
-
-const LATEX_COMPILE_URL = import.meta.env.VITE_LATEX_COMPILE_URL || "";
+import apiClient from "@/api/client";
 
 // Module-level cache — survives component unmount so navigating away and back
 // doesn't force a recompile of an unchanged source.
@@ -17,20 +16,9 @@ function base64ToBlobUrl(b64: string): string {
 }
 
 async function compileLatexSource(source: string): Promise<string> {
-  const url = LATEX_COMPILE_URL.replace(/\/$/, "") + "/compile";
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ source }),
-  });
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(`LaTeX compile failed (${res.status}). ${text.slice(0, 4000) || "No log returned."}`);
-  }
-  const buf = new Uint8Array(await res.arrayBuffer());
-  let bin = "";
-  for (let i = 0; i < buf.length; i++) bin += String.fromCharCode(buf[i]);
-  return btoa(bin);
+  const { data } = await apiClient.post("/api/v1/resumes/latex-compile", { source });
+  if (!data.ok) throw new Error(data.error || "Compile failed");
+  return data.pdf_base64;
 }
 
 export type LatexPreviewHandle = { compile: () => Promise<void> };
