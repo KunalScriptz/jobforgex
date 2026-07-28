@@ -198,6 +198,7 @@ services:
     restart: unless-stopped
     environment:
       VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
+      VITE_LATEX_COMPILE_URL: ${LATEX_COMPILE_URL:-http://latex-server:8080}
     ports:
       - "5173:5173"
     volumes:

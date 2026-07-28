@@ -1,5 +1,10 @@
 import uuid
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Body
+from pydantic import BaseModel as _PydanticBase
+
+
+class LatexCompileRequest(_PydanticBase):
+    source: str
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -118,11 +123,40 @@ async def compile_artifact(
 @router.post("/pdf-url", response_model=PdfUrlResult)
 async def get_pdf_url(
     data: PdfUrlRequest,
+    user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     artifact = await jobs_service.get_artifact(db, data.artifact_id)
-    if not artifact or not artifact.pdf_storage_path:
+    if not artifact:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Artifact not found")
+
+    if not artifact.pdf_storage_path and artifact.latex_source:
+        from app.services import ai as ai_service
+        ok, result = await ai_service.compile_latex(artifact.latex_source)
+        if not ok:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Recompile failed: {str(result)[:500]}")
+        ws_id = await get_workspace_id(user, db)
+        path = await storage_service.upload_pdf(result, str(ws_id), str(artifact.id))
+        await jobs_service.update_artifact_pdf_path(db, artifact.id, path)
+        artifact.pdf_storage_path = path
+
+    if not artifact.pdf_storage_path:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No PDF stored")
+
     pdf_name = (artifact.filename or "document").replace(".tex", "") + ".pdf"
     url = await storage_service.get_pdf_url(artifact.pdf_storage_path, pdf_name, data.inline)
     return PdfUrlResult(url=url, filename=pdf_name)
+
+
+@router.post("/latex-compile")
+async def latex_compile(data: LatexCompileRequest):
+    source = data.source
+    if not source or len(source) < 10:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Source too short")
+
+    from app.services import ai as ai_service
+    import base64
+    ok, result = await ai_service.compile_latex(source)
+    if ok:
+        return {"ok": True, "pdf_base64": base64.b64encode(result).decode()}
+    return {"ok": False, "error": str(result)}

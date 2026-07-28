@@ -1,5 +1,6 @@
 import io
 import uuid
+from datetime import timedelta
 from minio import Minio
 from minio.error import S3Error
 
@@ -46,7 +47,7 @@ async def get_pdf_url(path: str, filename: str, inline: bool = False) -> str:
     if not inline:
         kwargs["response_headers"] = {"Content-Disposition": f'attachment; filename="{filename}"'}
     try:
-        url = client.presigned_get_object(bucket, path, expires=600, **kwargs)
+        url = client.presigned_get_object(bucket, path, expires=timedelta(seconds=600), **kwargs)
         return url
     except S3Error as e:
         raise RuntimeError(f"Failed to generate URL: {e}")
