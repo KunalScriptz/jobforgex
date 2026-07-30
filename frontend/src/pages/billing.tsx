@@ -60,8 +60,8 @@ export default function BillingPage() {
     features: p.features ?? [],
     razorpay_plan_id_monthly: p.razorpay_plan_id_monthly ?? null,
     razorpay_plan_id_annual: p.razorpay_plan_id_annual ?? null,
-    monthly_price_display: p.monthly_price_display ?? `${p.currency_symbol}${((p.monthly_price ?? 0) / 100).toFixed(p.currency === "INR" ? 0 : 2)}`,
-    annual_price_display: p.annual_price_display ?? `${p.currency_symbol}${((p.annual_price ?? 0) / 100).toFixed(p.currency === "INR" ? 0 : 2)}`,
+    monthly_price_display: p.monthly_price_display ?? `${p.currency_symbol}${(p.monthly_price ?? 0)}`,
+    annual_price_display: p.annual_price_display ?? `${p.currency_symbol}${(p.annual_price ?? 0)}`,
     annual_discount_pct: p.annual_discount_pct ?? 0,
     name: p.name ?? (p.plan_id === "free" ? "Free" : p.plan_id === "pro" ? "Pro" : p.plan_id),
   }));
@@ -291,7 +291,7 @@ function PlanCard({
   const highlight = isPro;
   const priceMain =
     cycle === "annual"
-      ? `${plan.currency_symbol}${(plan.annual_price / 100 / 12).toFixed(plan.currency === "INR" ? 0 : 2)}`
+      ? `${plan.currency_symbol}${Math.round(plan.annual_price / 12)}`
       : plan.monthly_price_display;
   const priceSuffix = cycle === "annual" ? "/mo billed annually" : "/mo";
   const yearNote =

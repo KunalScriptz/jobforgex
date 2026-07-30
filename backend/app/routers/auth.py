@@ -58,7 +58,7 @@ async def logout(data: RefreshRequest, db: AsyncSession = Depends(get_db)):
 async def forgot_password(data: ForgotPasswordRequest, db: AsyncSession = Depends(get_db)):
     token = await auth_service.create_password_reset_token(db, data.email)
     if token:
-        frontend_url = settings.CORS_ORIGINS[0]
+        frontend_url = settings.CORS_ORIGINS.split(",")[0].strip()
         reset_url = f"{frontend_url}/auth/reset-password?token={token}"
         await send_email(data.email, "password_reset", reset_url=reset_url)
     return {"ok": True, "message": "If the email exists, a reset link has been sent."}

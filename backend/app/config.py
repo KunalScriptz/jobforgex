@@ -48,7 +48,7 @@ class Settings(BaseSettings):
     DEEPSEEK_KEY_ENC_SECRET: str = ""
 
     # LaTeX
-    LATEX_COMPILE_URL: str = "http://latex-server:8080"
+    LATEX_COMPILE_URL: str = "http://latex-server:5959"
     LATEX_SHARED_SECRET: str = ""
 
     # Razorpay
@@ -71,7 +71,7 @@ class Settings(BaseSettings):
     # App
     ENVIRONMENT: str = "development"
     LOG_LEVEL: str = "INFO"
-    CORS_ORIGINS: str = "http://localhost:5173"
+    CORS_ORIGINS: str = "http://localhost:5173,https://*.helixos.pro"
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "ignore"}
 

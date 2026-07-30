@@ -1,11 +1,11 @@
 import structlog
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.middleware.setup import SecurityHeadersMiddleware, RequestLoggingMiddleware
 from app.middleware.logging import setup_logging
+from app.middleware.cors import WildcardCORSMiddleware
 from app.routers import auth, workspace, jobs, resumes, ai, billing, extension, webhooks, files, health
 
 setup_logging()
@@ -30,7 +30,7 @@ app = FastAPI(
 )
 
 app.add_middleware(
-    CORSMiddleware,
+    WildcardCORSMiddleware,
     allow_origins=[x.strip() for x in settings.CORS_ORIGINS.split(",") if x.strip()],
     allow_credentials=True,
     allow_methods=["*"],
