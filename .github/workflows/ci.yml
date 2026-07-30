@@ -15,18 +15,18 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           REPO="https://x-access-token:${GH_TOKEN}@github.com/KunalScriptz/jobforgex.git"
-          if [ -d $HOME/jobforgex/.git ]; then
-            cd $HOME/jobforgex
+          if [ -d $HOME/all_bots/jobforgex/.git ]; then
+            cd $HOME/all_bots/jobforgex
             git remote set-url origin "$REPO"
             git fetch origin migration/self-hosted
             git reset --hard origin/migration/self-hosted
           else
-            git clone -b migration/self-hosted "$REPO" $HOME/jobforgex
+            git clone -b migration/self-hosted "$REPO" $HOME/all_bots/jobforgex
           fi
 
       - name: Deploy services
         run: |
-          cd $HOME/jobforgex
+          cd $HOME/all_bots/jobforgex
           docker compose down --remove-orphans
           docker compose up -d --build
           docker image prune -f
