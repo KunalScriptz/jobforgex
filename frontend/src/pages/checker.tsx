@@ -12,7 +12,7 @@ import { ClipboardCheck, AlertTriangle } from "lucide-react";
 
 async function _scoreResume(args: { jd: string }) {
   const result = await aiApi.generate({
-    prompt_name: "score_resume",
+    prompt_name: "resume_scorer",
     vars: { job_description: args.jd },
     purpose: "score",
   });
