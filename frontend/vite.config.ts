@@ -13,6 +13,7 @@ export default defineConfig({
   server: {
     port: 5173,
     host: "0.0.0.0",
+    allowedHosts: ["jobforge.helixos.pro", ".helixos.pro"],
     proxy: {
       "/api": {
         target: process.env.PROXY_TARGET || "http://backend:5454",
