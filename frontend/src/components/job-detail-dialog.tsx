@@ -775,7 +775,7 @@ function DocumentCard({ art, jobId }: { art: any; jobId: string }) {
           {String(art.compile_error).slice(0, 500)}
         </div>
       )}
-      <div className="mt-2 flex flex-wrap gap-1.5">
+      <div className="mt-2 flex flex-nowrap gap-1.5 overflow-x-auto">
         {hasPdf && (
           <Button size="sm" variant="secondary" onClick={openPreview} disabled={previewLoading}>
             {previewLoading
