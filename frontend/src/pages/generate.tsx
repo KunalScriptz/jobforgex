@@ -21,7 +21,7 @@ import { TailoringLoader } from "@/components/tailoring-loader";
 
 async function _scoreResume(args: { jd: string; job_id: string }) {
   const result = await aiApi.generate({
-    prompt_name: "score_resume",
+    prompt_name: "resume_scorer",
     vars: { job_description: args.jd },
     job_id: args.job_id,
     purpose: "score",

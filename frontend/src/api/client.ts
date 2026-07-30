@@ -19,10 +19,13 @@ apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
+    const url = originalRequest?.url || "";
+    const isAuthRequest = url.includes("/api/v1/auth/");
+
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
       const refreshToken = localStorage.getItem("refresh_token");
-      if (refreshToken) {
+      if (refreshToken && !isAuthRequest) {
         try {
           const { data } = await axios.post(`${API_BASE}/api/v1/auth/refresh`, {
             refresh_token: refreshToken,
@@ -34,9 +37,9 @@ apiClient.interceptors.response.use(
         } catch {
           localStorage.removeItem("access_token");
           localStorage.removeItem("refresh_token");
-          window.location.href = "/auth";
+          if (!isAuthRequest) window.location.href = "/auth";
         }
-      } else {
+      } else if (!isAuthRequest) {
         localStorage.removeItem("access_token");
         window.location.href = "/auth";
       }

@@ -73,7 +73,8 @@ function AuthForm({ mode, busy, setBusy }: { mode: "signin" | "signup"; busy: bo
         navigate("/jobs");
       }
     } catch (err: any) {
-      toast.error(err.message ?? "Authentication failed");
+      const msg = err?.response?.data?.detail || err?.message || "Authentication failed";
+      toast.error(String(msg));
     } finally {
       setBusy(false);
     }

@@ -1,12 +1,15 @@
 import uuid
+import json
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, update as sa_update
 
 from app.database import get_db
 from app.dependencies.auth import get_current_user
 from app.schemas.ai import DeepSeekRequest, DeepSeekResult
 from app.services import ai as ai_service
 from app.services import workspace as workspace_service
+from app.models.job import Job
 
 router = APIRouter(prefix="/api/v1/ai", tags=["ai"])
 
@@ -54,6 +57,32 @@ async def ai_generate(
         total_cost=result["total_cost"],
         purpose=data.purpose,
     )
+
+    if data.job_id and data.prompt_name == "extract_insights":
+        try:
+            parsed = json.loads(result["content"])
+            if isinstance(parsed, dict):
+                await db.execute(
+                    sa_update(Job)
+                    .where(Job.id == uuid.UUID(data.job_id))
+                    .values(insights=parsed)
+                )
+                await db.flush()
+        except (json.JSONDecodeError, ValueError):
+            pass
+
+    if data.job_id and data.prompt_name == "resume_scorer":
+        try:
+            parsed = json.loads(result["content"])
+            if isinstance(parsed, dict):
+                await db.execute(
+                    sa_update(Job)
+                    .where(Job.id == uuid.UUID(data.job_id))
+                    .values(base_fit_score=parsed)
+                )
+                await db.flush()
+        except (json.JSONDecodeError, ValueError):
+            pass
 
     return result
 
