@@ -7,125 +7,22 @@ on:
     branches: [migration/self-hosted]
 
 jobs:
-  lint-frontend:
-    runs-on: [self-hosted, oracle]
+  deploy:
+    runs-on: [self-hosted, jobforge-runner]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-      - name: Install dependencies
-        run: npm ci
-        working-directory: frontend
-      - name: Type check
-        run: npx tsc --noEmit
-        working-directory: frontend
-
-  lint-backend:
-    runs-on: [self-hosted, oracle]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - name: Lint
+      - name: Pull latest code
         run: |
-          pip install ruff
-          ruff check app/ || true
-        working-directory: backend
+          if [ -d /home/ghostops/ghostops_workspace/jobforgex ]; then
+            cd /home/ghostops/ghostops_workspace/jobforgex
+            git pull origin migration/self-hosted
+          else
+            git clone -b migration/self-hosted https://github.com/KunalScriptz/jobforgex.git /home/ghostops/ghostops_workspace/jobforgex
+            cd /home/ghostops/ghostops_workspace/jobforgex
+          fi
 
-  test-backend:
-    runs-on: [self-hosted, oracle]
-    needs: lint-backend
-    services:
-      postgres:
-        image: postgres:17-alpine
-        env:
-          POSTGRES_DB: jobforgex_test
-          POSTGRES_USER: jobforgex
-          POSTGRES_PASSWORD: testpassword
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - name: Install dependencies
+      - name: Deploy services
         run: |
-          python -m pip install --upgrade pip
-          pip install pytest pytest-asyncio httpx
-          pip install fastapi uvicorn sqlalchemy asyncpg python-jose passlib bcrypt pydantic pydantic-settings
-        working-directory: backend
-      - name: Run tests
-        env:
-          DATABASE_URL: postgresql+asyncpg://jobforgex:testpassword@localhost:5432/jobforgex_test
-          JWT_SECRET: test-secret
-        run: |
-          pytest -v || echo "No tests found - skipping"
-        working-directory: backend
-
-  build-and-deploy:
-    runs-on: [self-hosted, oracle]
-    needs: [lint-frontend, lint-backend, test-backend]
-    if: github.event_name == 'push'
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Create .env file
-        run: |
-          cat > .env << 'ENVEOF'
-          DB_HOST=postgres
-          DB_PORT=5432
-          DB_NAME=jobforgex
-          DB_USER=jobforgex
-          DB_PASSWORD=${{ secrets.DB_PASSWORD }}
-          REDIS_URL=redis://redis:6379/0
-          JWT_SECRET=${{ secrets.JWT_SECRET }}
-          JWT_ALGORITHM=HS256
-          ACCESS_TOKEN_EXPIRE_MINUTES=15
-          REFRESH_TOKEN_EXPIRE_DAYS=7
-          MINIO_ENDPOINT=minio:9000
-          MINIO_PUBLIC_ENDPOINT=localhost:9000
-          MINIO_ACCESS_KEY=minioadmin
-          MINIO_SECRET_KEY=minioadmin
-          MINIO_BUCKET=job-artifacts
-          MINIO_SECURE=false
-          PGADMIN_EMAIL=admin@jobforge.local
-          PGADMIN_PASSWORD=admin
-          DEEPSEEK_API_KEY=${{ secrets.DEEPSEEK_API_KEY }}
-          DEEPSEEK_BASE_URL=https://api.deepseek.com/v1
-          DEEPSEEK_MODEL=deepseek-chat
-          DEEPSEEK_INPUT_PRICE_PER_1M=0.14
-          DEEPSEEK_OUTPUT_PRICE_PER_1M=0.28
-          DEEPSEEK_KEY_ENC_SECRET=${{ secrets.DEEPSEEK_KEY_ENC_SECRET }}
-          LATEX_COMPILE_URL=http://latex-server:5959
-          LATEX_SHARED_SECRET=${{ secrets.LATEX_SHARED_SECRET }}
-          RAZORPAY_KEY_ID=${{ secrets.RAZORPAY_KEY_ID }}
-          RAZORPAY_KEY_SECRET=${{ secrets.RAZORPAY_KEY_SECRET }}
-          RAZORPAY_WEBHOOK_SECRET=${{ secrets.RAZORPAY_WEBHOOK_SECRET }}
-          SMTP_HOST=smtp.gmail.com
-          SMTP_PORT=465
-          SMTP_USER=${{ secrets.SMTP_USER }}
-          SMTP_PASS=${{ secrets.SMTP_PASS }}
-          SMTP_FROM=JobForge <noreply@jobforge.local>
-          GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
-          GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
-          GOOGLE_REDIRECT_URI=http://localhost:8000/api/v1/auth/google/callback
-          ENVIRONMENT=production
-          LOG_LEVEL=INFO
-          CORS_ORIGINS=http://localhost:5173,https://*.helixos.pro
-          VITE_API_URL=http://localhost:8000
-          ENVEOF
-
-      - name: Build and deploy
-        run: |
+          cd /home/ghostops/ghostops_workspace/jobforgex
           docker compose down --remove-orphans
-          docker compose build --no-cache
-          docker compose up -d
+          docker compose up -d --build
           docker image prune -f
