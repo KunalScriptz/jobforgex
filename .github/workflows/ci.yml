@@ -6,27 +6,33 @@ on:
   pull_request:
     branches: [migration/self-hosted]
 
+permissions:
+  contents: read
+
 jobs:
   deploy:
     runs-on: [self-hosted, Linux, ARM64]
     steps:
-      - name: Pull latest code
+      - name: Clone repo
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          REPO="https://x-access-token:${GH_TOKEN}@github.com/KunalScriptz/jobforgex.git"
-          if [ -d $HOME/all_bots/jobforgex/.git ]; then
-            cd $HOME/all_bots/jobforgex
-            git remote set-url origin "$REPO"
-            git fetch origin migration/self-hosted
-            git reset --hard origin/migration/self-hosted
-          else
-            git clone -b migration/self-hosted "$REPO" $HOME/all_bots/jobforgex
+          git clone -b migration/self-hosted \
+            "https://x-access-token:${GH_TOKEN}@github.com/KunalScriptz/jobforgex.git" \
+            /tmp/jobforgex-build
+
+      - name: Copy .env from persistent location
+        run: |
+          if [ -f $HOME/all_bots/jobforgex/.env ]; then
+            cp $HOME/all_bots/jobforgex/.env /tmp/jobforgex-build/.env
           fi
 
       - name: Deploy services
         run: |
-          cd $HOME/all_bots/jobforgex
+          cd /tmp/jobforgex-build
           docker compose down --remove-orphans
           docker compose up -d --build
           docker image prune -f
+
+      - name: Cleanup
+        run: rm -rf /tmp/jobforgex-build
