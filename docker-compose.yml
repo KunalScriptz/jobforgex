@@ -89,7 +89,7 @@ services:
       PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@jobforge.local}
       PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
     ports:
-      - "5050:80"
+      - "5051:80"
     volumes:
       - pgadmindata:/var/lib/pgadmin
       - ./infrastructure/servers.json:/pgadmin4/servers.json:ro
