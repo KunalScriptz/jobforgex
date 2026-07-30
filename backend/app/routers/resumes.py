@@ -144,7 +144,7 @@ async def get_pdf_url(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No PDF stored")
 
     pdf_name = (artifact.filename or "document").replace(".tex", "") + ".pdf"
-    url = await storage_service.get_pdf_url(artifact.pdf_storage_path, pdf_name, data.inline)
+    url = f"/api/v1/files/stream/{data.artifact_id}?inline={'true' if data.inline else 'false'}"
     return PdfUrlResult(url=url, filename=pdf_name)
 
 

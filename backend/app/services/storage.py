@@ -53,15 +53,23 @@ async def get_pdf_url(path: str, filename: str, inline: bool = False) -> str:
     if not inline:
         kwargs["response_headers"] = {"Content-Disposition": f'attachment; filename="{filename}"'}
     try:
-        url = client.presigned_get_object(bucket, path, expires=timedelta(seconds=600), **kwargs)
+        return client.presigned_get_object(bucket, path, expires=timedelta(seconds=600), **kwargs)
     except S3Error as e:
         raise RuntimeError(f"Failed to generate URL: {e}")
 
-    public_endpoint = settings.MINIO_PUBLIC_ENDPOINT or settings.MINIO_ENDPOINT
-    internal_endpoint = settings.MINIO_ENDPOINT
-    if public_endpoint != internal_endpoint:
-        url = url.replace(internal_endpoint, public_endpoint)
-    return url
+
+async def get_pdf_bytes(path: str) -> bytes:
+    client = _get_internal()
+    bucket = settings.MINIO_BUCKET
+    try:
+        response = client.get_object(bucket, path)
+        return response.read()
+    except S3Error as e:
+        raise RuntimeError(f"Failed to read PDF: {e}")
+    finally:
+        if 'response' in locals():
+            response.close()
+            response.release_conn()
 
 
 async def delete_pdf(path: str) -> None:

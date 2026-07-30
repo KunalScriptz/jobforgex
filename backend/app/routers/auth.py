@@ -1,5 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, Query
+from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
+from urllib.parse import urlencode
 
 from app.database import get_db
 from app.schemas.auth import (
@@ -81,3 +83,34 @@ async def verify_email(data: VerifyEmailRequest, db: AsyncSession = Depends(get_
 @router.get("/me")
 async def me(user: dict = Depends(auth_service.decode_access_token)):
     return {"user_id": user.get("sub"), "email": user.get("email"), "role": user.get("role")}
+
+
+@router.get("/google/login")
+async def google_login():
+    if not settings.GOOGLE_CLIENT_ID:
+        raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED, detail="Google OAuth not configured")
+    params = {
+        "client_id": settings.GOOGLE_CLIENT_ID,
+        "redirect_uri": settings.GOOGLE_REDIRECT_URI,
+        "response_type": "code",
+        "scope": "openid email profile",
+        "access_type": "offline",
+        "prompt": "consent",
+    }
+    auth_url = f"https://accounts.google.com/o/oauth2/v2/auth?{urlencode(params)}"
+    return RedirectResponse(url=auth_url)
+
+
+@router.get("/google/callback")
+async def google_callback(code: str = Query(...), db: AsyncSession = Depends(get_db)):
+    try:
+        result = await auth_service.google_auth_user(db, code)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+    auth_url = settings.CORS_ORIGINS.split(",")[0].strip()
+    frontend_callback = (
+        f"{auth_url}/auth?token={result['access_token']}"
+        f"&refresh_token={result['refresh_token']}"
+    )
+    return RedirectResponse(url=frontend_callback)

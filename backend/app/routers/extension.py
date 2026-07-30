@@ -1,7 +1,11 @@
 import uuid
 import hashlib
 import secrets
+import io
+import zipfile
+import os
 from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete
 from datetime import datetime, timezone
@@ -134,3 +138,25 @@ async def submit_job_via_extension(request: Request, db: AsyncSession = Depends(
     await db.flush()
 
     return {"ok": True, "id": str(job.id)}
+
+
+@router.get("/download")
+async def download_extension():
+    ext_dir = "/extension"
+    if not os.path.isdir(ext_dir):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Extension not found")
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for root, dirs, files in os.walk(ext_dir):
+            for file in files:
+                filepath = os.path.join(root, file)
+                arcname = os.path.relpath(filepath, ext_dir)
+                zf.write(filepath, arcname)
+    buf.seek(0)
+
+    return StreamingResponse(
+        buf,
+        media_type="application/zip",
+        headers={"Content-Disposition": "attachment; filename=jobforge-extension.zip"},
+    )

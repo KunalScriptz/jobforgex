@@ -1104,9 +1104,12 @@ function AiToolRunner({ jobId, toolId, onBack, job }: { jobId: string; toolId: s
         throw err;
       }
       qc.invalidateQueries({ queryKey: ["billing"] });
+      const baseResume = await resumesApi.getBaseResume();
+      const resumeText = baseResume?.latex_source ?? "";
+      const fullContext = resumeText ? `=== CANDIDATE'S RESUME (for factual grounding) ===\n${resumeText}\n\n=== ADDITIONAL CONTEXT ===\n${ctx}` : ctx;
       return aiApi.generate({
         prompt_name: toolId,
-        vars: { jd: job?.description ?? "", context: ctx },
+        vars: { jd: job?.description ?? "", context: fullContext },
         job_id: jobId,
         purpose: "custom",
       });

@@ -12,8 +12,10 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 CREATE TABLE users (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     email           TEXT NOT NULL UNIQUE,
-    password_hash   TEXT NOT NULL,
+    password_hash   TEXT,
     full_name       TEXT,
+    google_id       VARCHAR(255) UNIQUE,
+    avatar_url      VARCHAR(1024),
     email_verified  BOOLEAN NOT NULL DEFAULT false,
     verified_at     TIMESTAMPTZ,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -446,20 +448,10 @@ INSERT INTO plans (id, name, monthly_price_usd, annual_price_usd, job_track_limi
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO geo_pricing (plan_id, country_code, currency, currency_symbol, monthly_price, annual_price, priority) VALUES
-    ('pro', 'IN', 'INR', '₹', 299.00, 1999.00, 10),
+    ('pro', 'IN', 'INR', '₹', 599.00, 3999.00, 10),
     ('pro', 'US', 'USD', '$', 14.00, 99.00, 5),
-    ('pro', 'GB', 'GBP', '£', 11.00, 78.00, 5),
-    ('pro', 'EU', 'EUR', '€', 13.00, 91.00, 5),
-    ('pro', 'CA', 'CAD', '$', 19.00, 133.00, 5),
-    ('pro', 'AU', 'AUD', '$', 21.00, 147.00, 5),
-    ('pro', 'SG', 'SGD', '$', 19.00, 133.00, 5),
     ('pro', 'DEFAULT', 'USD', '$', 14.00, 99.00, 0),
-    ('unlimited', 'IN', 'INR', '₹', 599.00, 3999.00, 10),
-    ('unlimited', 'US', 'USD', '$', 29.00, 199.00, 5),
-    ('unlimited', 'GB', 'GBP', '£', 23.00, 157.00, 5),
-    ('unlimited', 'EU', 'EUR', '€', 27.00, 183.00, 5),
-    ('unlimited', 'CA', 'CAD', '$', 39.00, 267.00, 5),
-    ('unlimited', 'AU', 'AUD', '$', 43.00, 295.00, 5),
-    ('unlimited', 'SG', 'SGD', '$', 39.00, 267.00, 5),
-    ('unlimited', 'DEFAULT', 'USD', '$', 29.00, 199.00, 0)
+    ('unlimited', 'IN', 'INR', '₹', 1299.00, 9999.00, 10),
+    ('unlimited', 'US', 'USD', '$', 29.00, 249.00, 5),
+    ('unlimited', 'DEFAULT', 'USD', '$', 29.00, 249.00, 0)
 ON CONFLICT DO NOTHING;
