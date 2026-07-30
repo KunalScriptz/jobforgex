@@ -1,6 +1,6 @@
 const $ = (id) => document.getElementById(id);
 
-const DEFAULT_HOST = "http://localhost:8000";
+const DEFAULT_HOST = "http://localhost:5454";
 
 chrome.storage.local.get(["host", "token"], (v) => {
   $("host").value = v.host || DEFAULT_HOST;
