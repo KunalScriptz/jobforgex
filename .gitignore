@@ -36,6 +36,7 @@ env/
 # Environment
 .env
 .env.local
+.env.p
 !.env.example
 
 # Editor directories and files
