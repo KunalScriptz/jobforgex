@@ -61,7 +61,7 @@ function ExtensionCard() {
 
   async function downloadExtension() {
     try {
-      const res = await fetch("/jobforge-extension.zip");
+      const res = await fetch("/api/v1/extension/download");
       if (!res.ok) throw new Error(`Download failed (${res.status})`);
       const blob = await res.blob();
       const a = document.createElement("a");

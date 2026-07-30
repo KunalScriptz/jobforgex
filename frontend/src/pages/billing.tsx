@@ -12,12 +12,6 @@ import { Sparkles, Check, Loader2 } from "lucide-react";
 const COUNTRY_OPTIONS: Array<{ code: string; label: string }> = [
   { code: "DEFAULT", label: "United States (USD)" },
   { code: "IN", label: "India (INR)" },
-  { code: "GB", label: "United Kingdom (GBP)" },
-  { code: "DE", label: "Germany (EUR)" },
-  { code: "FR", label: "France (EUR)" },
-  { code: "AU", label: "Australia (AUD)" },
-  { code: "CA", label: "Canada (CAD)" },
-  { code: "SG", label: "Singapore (SGD)" },
 ];
 
 type PricedPlan = {
