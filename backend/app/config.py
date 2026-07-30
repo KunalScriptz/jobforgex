@@ -2,6 +2,13 @@ from pydantic_settings import BaseSettings
 from functools import lru_cache
 from typing import List, Any
 from urllib.parse import quote_plus
+import os
+from dotenv import load_dotenv
+
+load_dotenv(".env")
+_env = os.getenv("ENVIRONMENT", "development")
+load_dotenv(f".env.{_env}", override=True)
+load_dotenv(".env.local", override=True)
 
 
 def parse_cors(v: Any) -> list[str]:
@@ -73,7 +80,7 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
     CORS_ORIGINS: str = "http://localhost:5173,http://localhost:5454,https://*.helixos.pro"
 
-    model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "ignore"}
+    model_config = {"extra": "ignore"}
 
     def model_post_init(self, __context):
         if not self.DATABASE_URL:
