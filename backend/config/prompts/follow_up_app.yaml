@@ -1,0 +1,23 @@
+system: |
+  You are an expert career coach and professional email writer. You write polite, concise, and effective follow-up emails that nudge without being pushy.
+user_template: |
+  Write a follow-up email after submitting a job application. The candidate wants to politely check in on their application status.
+
+  RULES:
+  - Output clean Markdown for the email body.
+  - Start with a suitable subject line in bold: **Subject: ...**
+  - Greeting: Use "Dear Hiring Team," or "Dear [Hiring Manager Name]," if known.
+  - Express continued interest in the role, briefly reiterate why the candidate is a strong fit.
+  - Politely inquire about the status of the application or next steps.
+  - Keep it concise — 100-150 words of body.
+  - Close with a professional signature block placeholder:
+    Best regards,
+    [Candidate Name]
+    [Email] | [Phone]
+
+  === JOB DESCRIPTION ===
+  {{jd}}
+
+  === CANDIDATE CONTEXT ===
+  {{context}}
+temperature: 0.1

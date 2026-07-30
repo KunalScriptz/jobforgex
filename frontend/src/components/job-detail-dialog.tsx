@@ -462,6 +462,7 @@ function NotesTab({ job }: { job: any }) {
   const save = useMutation({
     mutationFn: () => jobsApi.updateJob(job.id, { notes } as any),
     onSuccess: () => { toast.success("Notes saved"); qc.invalidateQueries({ queryKey: ["jobs", job.id] }); },
+    onError: (e: any) => toast.error(String(e?.message ?? e).slice(0, 200)),
   });
   if (!job) return null;
   return (
@@ -820,7 +821,7 @@ function DocumentCard({ art, jobId }: { art: any; jobId: string }) {
               : <><RefreshCw className="mr-1 h-3.5 w-3.5" /> {hasPdf ? "Recompile" : "Compile PDF"}</>}
           </Button>
         )}
-        <Button size="sm" variant="ghost" onClick={() => { navigator.clipboard.writeText(art.latex_source ?? ""); toast.success("Copied"); }}>
+        <Button size="sm" variant="ghost" onClick={async () => { try { await navigator.clipboard.writeText(art.latex_source ?? ""); toast.success("Copied to clipboard"); } catch { toast.error("Failed to copy"); } }}>
           <Copy className="mr-1 h-3.5 w-3.5" /> Copy
         </Button>
         <AlertDialog>
@@ -1104,7 +1105,7 @@ function AiToolRunner({ jobId, toolId, onBack, job }: { jobId: string; toolId: s
       }
       qc.invalidateQueries({ queryKey: ["billing"] });
       return aiApi.generate({
-        prompt_name: "extract_insights",
+        prompt_name: toolId,
         vars: { jd: job?.description ?? "", context: ctx },
         job_id: jobId,
         purpose: "custom",
@@ -1221,7 +1222,7 @@ function AiToolRunner({ jobId, toolId, onBack, job }: { jobId: string; toolId: s
               </div>
             </div>
             <div className="flex flex-wrap gap-1">
-              <Button size="sm" variant="ghost" onClick={() => { navigator.clipboard.writeText(result.content); toast.success("Copied"); }}>
+              <Button size="sm" variant="ghost" onClick={async () => { try { await navigator.clipboard.writeText(result.content); toast.success("Copied to clipboard"); } catch { toast.error("Failed to copy"); } }}>
                 <Copy className="mr-1 h-3.5 w-3.5" /> Copy
               </Button>
               <DropdownMenu>

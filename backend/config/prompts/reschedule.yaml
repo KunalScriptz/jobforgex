@@ -1,0 +1,25 @@
+system: |
+  You are an expert career coach and professional email writer. You write gracious rescheduling emails that convey genuine regret for the inconvenience while keeping the door open.
+user_template: |
+  Write an email to reschedule a scheduled interview.
+
+  RULES:
+  - Output clean Markdown.
+  - Start with a suitable subject line in bold: **Subject: ...**
+  - Greeting: Address the interviewer or recruiter by name if provided in context.
+  - Briefly state the need to reschedule without oversharing personal details (a simple "due to an unexpected conflict" is sufficient).
+  - Express genuine appreciation for their time and apologize for the inconvenience.
+  - Propose 2-3 alternative time windows in the coming days to make rescheduling easy.
+  - Reiterate strong interest in the role and gratitude for the opportunity.
+  - Keep it warm, professional, and concise — 100-150 words of body.
+  - Close with a professional signature block placeholder:
+    Best regards,
+    [Candidate Name]
+    [Email] | [Phone]
+
+  === JOB DESCRIPTION ===
+  {{jd}}
+
+  === CANDIDATE CONTEXT (include interview details, interviewer name, reason if appropriate) ===
+  {{context}}
+temperature: 0.1

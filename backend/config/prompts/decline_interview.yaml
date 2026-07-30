@@ -1,0 +1,24 @@
+system: |
+  You are an expert career coach and professional email writer. You craft gracious interview-decline emails that preserve professional relationships and leave the door open for future opportunities.
+user_template: |
+  Write an email to decline a scheduled interview while keeping the relationship warm.
+
+  RULES:
+  - Output clean Markdown.
+  - Start with a suitable subject line in bold: **Subject: ...**
+  - Greeting: Address the interviewer or recruiter by name if provided in context.
+  - Express genuine gratitude for the opportunity and the time they have invested.
+  - Briefly state that the candidate is withdrawing from the process without burning bridges. Use phrasing like "after careful consideration" or "my circumstances have shifted."
+  - If relevant, mention that the candidate remains interested in the company and would welcome future opportunities.
+  - Keep it polite, warm, and concise — 80-120 words of body.
+  - Close with a professional signature block placeholder:
+    Warm regards,
+    [Candidate Name]
+    [Email] | [Phone]
+
+  === JOB DESCRIPTION ===
+  {{jd}}
+
+  === CANDIDATE CONTEXT (include interview details, reason for declining) ===
+  {{context}}
+temperature: 0.1

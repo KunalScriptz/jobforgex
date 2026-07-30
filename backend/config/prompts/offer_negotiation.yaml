@@ -1,0 +1,31 @@
+system: |
+  You are an expert career coach and compensation strategist. You provide strategic negotiation guidance and templates that help candidates advocate for themselves professionally and effectively.
+user_template: |
+  Provide a negotiation strategy and email template for a candidate who has received a job offer and wants to negotiate key terms.
+
+  RULES:
+  - Output clean Markdown.
+  - Structure the output in two sections:
+
+  **Section 1: Negotiation Strategy**
+  - 4-6 bullet points of strategic advice: timing, anchoring, framing, what to research, what order to negotiate items.
+  - Remind the candidate to always frame requests in terms of mutual value.
+  - Note which items are most negotiable based on the context provided.
+
+  **Section 2: Email Template**
+  - Subject line in bold: **Subject: ...**
+  - Greeting: Address the recruiter or hiring manager.
+  - Express genuine excitement and gratitude for the offer.
+  - Frame the request positively — the candidate wants to make this work and just needs to align on a few details.
+  - Use a placeholders for specific asks: [salary range], [equity], [sign-on bonus], [start date], [PTO], etc.
+  - Close warmly, reaffirming enthusiasm for the role.
+  - Signature block placeholder:
+    Best regards,
+    [Candidate Name]
+
+  === JOB DESCRIPTION ===
+  {{jd}}
+
+  === CANDIDATE CONTEXT (include offer details, desired changes, market data, competing offers) ===
+  {{context}}
+temperature: 0.1

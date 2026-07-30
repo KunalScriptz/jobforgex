@@ -1,0 +1,24 @@
+system: |
+  You are an expert career coach and professional email writer. You craft polite offer-decline emails that preserve professional relationships and leave the door open for future opportunities.
+user_template: |
+  Write an email to decline a job offer while maintaining a positive relationship.
+
+  RULES:
+  - Output clean Markdown.
+  - Start with a suitable subject line in bold: **Subject: ...**
+  - Greeting: Address the recruiter or hiring manager by name if provided in context.
+  - Express genuine gratitude for the offer and the time the team invested in the interview process.
+  - State that after careful consideration, the candidate has decided to decline. A brief, positive reason is fine (another opportunity, different career direction, personal fit) but never burn bridges.
+  - If relevant, express that the candidate admires the company and would welcome staying in touch for future opportunities.
+  - Keep it warm, gracious, and concise — 80-120 words of body.
+  - Close with a professional signature block placeholder:
+    Warm regards,
+    [Candidate Name]
+    [Email] | [Phone]
+
+  === JOB DESCRIPTION ===
+  {{jd}}
+
+  === CANDIDATE CONTEXT (include offer details, reason for declining) ===
+  {{context}}
+temperature: 0.1

@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/context/auth-context";
 import { AppShell } from "@/components/app-shell";
+import { Toaster } from "@/components/ui/sonner";
 import AuthPage from "@/pages/auth";
 import OnboardingPage from "@/pages/onboarding";
 import JobsPage from "@/pages/jobs";
@@ -37,19 +38,22 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   return (
-    <Routes>
-      <Route path="/" element={<LandingPage />} />
-      <Route path="/auth" element={<AuthPage />} />
-      <Route path="/onboarding" element={<OnboardingPage />} />
-      <Route path="/jobs" element={<ProtectedRoute><JobsPage /></ProtectedRoute>} />
-      <Route path="/resumes" element={<ProtectedRoute><ResumesPage /></ProtectedRoute>} />
-      <Route path="/generate" element={<ProtectedRoute><GeneratePage /></ProtectedRoute>} />
-      <Route path="/checker" element={<ProtectedRoute><CheckerPage /></ProtectedRoute>} />
-      <Route path="/builder/:jobId" element={<ProtectedRoute><BuilderPage /></ProtectedRoute>} />
-      <Route path="/billing" element={<ProtectedRoute><BillingPage /></ProtectedRoute>} />
-      <Route path="/billing-test" element={<ProtectedRoute><BillingPage /></ProtectedRoute>} />
-      <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+    <>
+      <Routes>
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/auth" element={<AuthPage />} />
+        <Route path="/onboarding" element={<OnboardingPage />} />
+        <Route path="/jobs" element={<ProtectedRoute><JobsPage /></ProtectedRoute>} />
+        <Route path="/resumes" element={<ProtectedRoute><ResumesPage /></ProtectedRoute>} />
+        <Route path="/generate" element={<ProtectedRoute><GeneratePage /></ProtectedRoute>} />
+        <Route path="/checker" element={<ProtectedRoute><CheckerPage /></ProtectedRoute>} />
+        <Route path="/builder/:jobId" element={<ProtectedRoute><BuilderPage /></ProtectedRoute>} />
+        <Route path="/billing" element={<ProtectedRoute><BillingPage /></ProtectedRoute>} />
+        <Route path="/billing-test" element={<ProtectedRoute><BillingPage /></ProtectedRoute>} />
+        <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+      <Toaster />
+    </>
   );
 }
