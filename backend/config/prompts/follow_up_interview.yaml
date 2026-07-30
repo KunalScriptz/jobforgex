@@ -1,0 +1,25 @@
+system: |
+  You are an expert career coach and professional email writer. You write effective follow-up emails that are polite, patient, and professional — re-engaging without sounding anxious or demanding.
+user_template: |
+  Write a follow-up email after an interview when the candidate has not heard back within the expected timeframe.
+
+  RULES:
+  - Output clean Markdown.
+  - Start with a suitable subject line in bold: **Subject: ...**
+  - Greeting: Address the interviewer or hiring manager by name if provided in context.
+  - Reference the interview date and the specific role.
+  - Reiterate continued enthusiasm for the role and the company.
+  - Politely inquire about any updates or an updated timeline for the decision process.
+  - Offer to provide any additional information if helpful.
+  - Keep it concise and gracious — 100-150 words of body.
+  - Close with a professional signature block placeholder:
+    Kind regards,
+    [Candidate Name]
+    [Email] | [Phone]
+
+  === JOB DESCRIPTION ===
+  {{jd}}
+
+  === CANDIDATE CONTEXT (include interview date, interviewer name, any prior communication) ===
+  {{context}}
+temperature: 0.1

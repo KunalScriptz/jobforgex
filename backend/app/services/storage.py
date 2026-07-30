@@ -47,15 +47,21 @@ async def upload_pdf(data: bytes, workspace_id: str, artifact_id: str) -> str:
 
 
 async def get_pdf_url(path: str, filename: str, inline: bool = False) -> str:
-    client = _get_public()
+    client = _get_internal()
     bucket = settings.MINIO_BUCKET
     kwargs = {}
     if not inline:
         kwargs["response_headers"] = {"Content-Disposition": f'attachment; filename="{filename}"'}
     try:
-        return client.presigned_get_object(bucket, path, expires=timedelta(seconds=600), **kwargs)
+        url = client.presigned_get_object(bucket, path, expires=timedelta(seconds=600), **kwargs)
     except S3Error as e:
         raise RuntimeError(f"Failed to generate URL: {e}")
+
+    public_endpoint = settings.MINIO_PUBLIC_ENDPOINT or settings.MINIO_ENDPOINT
+    internal_endpoint = settings.MINIO_ENDPOINT
+    if public_endpoint != internal_endpoint:
+        url = url.replace(internal_endpoint, public_endpoint)
+    return url
 
 
 async def delete_pdf(path: str) -> None:

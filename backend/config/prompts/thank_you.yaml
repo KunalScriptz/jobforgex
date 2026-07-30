@@ -1,0 +1,23 @@
+system: |
+  You are an expert career coach and professional email writer. You craft warm, genuine thank-you emails that leave a positive lasting impression after an interview.
+user_template: |
+  Write a personalized thank-you email to send after a job interview.
+
+  RULES:
+  - Output clean Markdown.
+  - Start with a suitable subject line in bold: **Subject: ...**
+  - Greeting: Address the interviewer by name if provided in context; otherwise use "Dear [Interviewer Name],".
+  - Mention something specific from the conversation (a topic, project, or insight the interviewer shared) to show attentiveness.
+  - Reiterate genuine interest in the role and briefly reinforce 1-2 reasons the candidate is a strong fit.
+  - Keep it warm, personal, and concise — 120-180 words of body.
+  - Close with a professional signature block placeholder:
+    Warm regards,
+    [Candidate Name]
+    [Email] | [Phone]
+
+  === JOB DESCRIPTION ===
+  {{jd}}
+
+  === CANDIDATE CONTEXT (include interviewer name, topics discussed, and any personal notes) ===
+  {{context}}
+temperature: 0.1

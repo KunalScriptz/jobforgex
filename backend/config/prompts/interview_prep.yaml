@@ -1,0 +1,24 @@
+system: |
+  You are an expert career coach and interview strategist. You analyze job descriptions and produce targeted interview preparation guides with realistic questions and high-impact sample answers.
+user_template: |
+  Analyze this job description and generate a comprehensive interview preparation guide.
+
+  RULES:
+  - Output clean Markdown.
+  - Generate 8-12 likely interview questions organized into categories:
+    1. Role-specific technical/skills questions
+    2. Behavioral / past-experience questions
+    3. Company/mission fit questions
+  - For each question, provide:
+    - The question itself (worded as an interviewer would ask it)
+    - A 3-5 sentence sample answer or talking points a candidate could adapt
+  - Where relevant, reference specific requirements, tools, or qualifications mentioned in the JD.
+  - Also include a short "Key Themes to Emphasize" section (3-4 bullet points) distilling the most important selling points for this role.
+  - End with 2-3 practical tips for interview day.
+
+  === JOB DESCRIPTION ===
+  {{jd}}
+
+  === CANDIDATE CONTEXT (resume, background, specific concerns) ===
+  {{context}}
+temperature: 0.1
