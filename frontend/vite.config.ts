@@ -15,7 +15,7 @@ export default defineConfig({
     host: "0.0.0.0",
     proxy: {
       "/api": {
-        target: process.env.PROXY_TARGET || "http://backend:8000",
+        target: process.env.PROXY_TARGET || "http://backend:5454",
         changeOrigin: true,
       },
     },

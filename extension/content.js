@@ -2,7 +2,7 @@
   if (window.__jobforgeInjected) return;
   window.__jobforgeInjected = true;
 
-  const HOST_FALLBACK = "https://localhost:8000";
+  const HOST_FALLBACK = "https://localhost:5454";
 
   // Don't inject on the JobForge app itself.
   const selfHosts = [/^localhost$/i, /^127\.0\.0\.1$/i, /^0\.0\.0\.0$/i];
