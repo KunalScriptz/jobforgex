@@ -1,1 +1,1 @@
-{"version":"1.3.3","download":"https://jobforgex.lovable.app/jobforge-extension.zip","notes":"Location field now shows suggestions (recent + common cities) as you type, even when auto-detection fails."}
+{"version":"1.3.3","download":"/api/v1/extension/download","notes":"Location field now shows suggestions (recent + common cities) as you type, even when auto-detection fails."}

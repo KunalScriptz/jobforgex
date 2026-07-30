@@ -1,7 +1,7 @@
 
 services:
   postgres:
-    image: postgres:16-alpine
+    image: postgres:17-alpine
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${DB_NAME:-jobforgex}
@@ -21,7 +21,7 @@ services:
       - jobforge
 
   redis:
-    image: redis:7-alpine
+    image: redis:8-alpine
     restart: unless-stopped
     ports:
       - "6379:6379"
@@ -36,7 +36,7 @@ services:
       - jobforge
 
   minio:
-    image: minio/minio:RELEASE.2025-02-18T16-25-55Z
+    image: minio/minio:latest
     restart: unless-stopped
     command: server /data --console-address ":9001"
     environment:
@@ -70,8 +70,20 @@ services:
     networks:
       - jobforge
 
+  latex-server:
+    build:
+      context: ./latex-server
+    restart: unless-stopped
+    environment:
+      PORT: "5959"
+      SHARED_SECRET: ${LATEX_SHARED_SECRET:-}
+    ports:
+      - "5959:5959"
+    networks:
+      - jobforge
+
   pgadmin:
-    image: dpage/pgadmin4:8.14
+    image: dpage/pgadmin4:latest
     restart: unless-stopped
     environment:
       PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@jobforge.local}
@@ -115,7 +127,7 @@ services:
       DEEPSEEK_INPUT_PRICE_PER_1M: ${DEEPSEEK_INPUT_PRICE_PER_1M:-0.14}
       DEEPSEEK_OUTPUT_PRICE_PER_1M: ${DEEPSEEK_OUTPUT_PRICE_PER_1M:-0.28}
       DEEPSEEK_KEY_ENC_SECRET: ${DEEPSEEK_KEY_ENC_SECRET}
-      LATEX_COMPILE_URL: ${LATEX_COMPILE_URL:-http://latex-server:8080}
+      LATEX_COMPILE_URL: ${LATEX_COMPILE_URL:-http://latex-server:5959}
       LATEX_SHARED_SECRET: ${LATEX_SHARED_SECRET:-}
       RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:-}
       RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET:-}
@@ -130,7 +142,7 @@ services:
       GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-http://localhost:8000/api/v1/auth/google/callback}
       ENVIRONMENT: ${ENVIRONMENT:-development}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
-      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,https://*.helixos.pro}
     ports:
       - "8000:8000"
     volumes:
@@ -203,7 +215,7 @@ services:
     restart: unless-stopped
     environment:
       VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
-      VITE_LATEX_COMPILE_URL: ${LATEX_COMPILE_URL:-http://latex-server:8080}
+      VITE_LATEX_COMPILE_URL: ${LATEX_COMPILE_URL:-http://latex-server:5959}
     ports:
       - "5173:5173"
     volumes:

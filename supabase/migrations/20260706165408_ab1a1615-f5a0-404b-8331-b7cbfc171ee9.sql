@@ -1,2 +1,0 @@
-UPDATE public.ai_models SET name='deepseek-v4-flash', display_name='DeepSeek V4 Flash' WHERE name IN ('deepseek-chat','deepseek/deepseek-chat');
-UPDATE public.ai_models SET name='deepseek-v4-pro', display_name='DeepSeek V4 Pro' WHERE name IN ('deepseek-coder','deepseek/deepseek-chat-v3.1','deepseek-reasoner','deepseek/deepseek-r1');

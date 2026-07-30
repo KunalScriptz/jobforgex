@@ -51,7 +51,7 @@ async def razorpay_webhook(request: Request, db: AsyncSession = Depends(get_db))
     status_val = entity.get("status") or sub_entity.get("status")
     notes = entity.get("notes", {}) or {}
 
-    user_id = notes.get("user_id") or notes.get("supabase_user_id")
+    user_id = notes.get("user_id")
 
     if user_id and rp_sub_id:
         import uuid
