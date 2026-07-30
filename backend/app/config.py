@@ -2,13 +2,9 @@ from pydantic_settings import BaseSettings
 from functools import lru_cache
 from typing import List, Any
 from urllib.parse import quote_plus
-import os
 from dotenv import load_dotenv
 
 load_dotenv(".env")
-_env = os.getenv("ENVIRONMENT", "development")
-load_dotenv(f".env.{_env}", override=True)
-load_dotenv(".env.local", override=True)
 
 
 def parse_cors(v: Any) -> list[str]:
