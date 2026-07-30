@@ -11,13 +11,17 @@ jobs:
     runs-on: [self-hosted, Linux, ARM64]
     steps:
       - name: Pull latest code
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          if [ -d $HOME/jobforgex ]; then
+          REPO="https://x-access-token:${GH_TOKEN}@github.com/KunalScriptz/jobforgex.git"
+          if [ -d $HOME/jobforgex/.git ]; then
             cd $HOME/jobforgex
-            git pull origin migration/self-hosted
+            git remote set-url origin "$REPO"
+            git fetch origin migration/self-hosted
+            git reset --hard origin/migration/self-hosted
           else
-            git clone -b migration/self-hosted https://github.com/KunalScriptz/jobforgex.git $HOME/jobforgex
-            cd $HOME/jobforgex
+            git clone -b migration/self-hosted "$REPO" $HOME/jobforgex
           fi
 
       - name: Deploy services
