@@ -13,26 +13,20 @@ jobs:
   deploy:
     runs-on: [self-hosted, Linux, ARM64]
     steps:
-      - name: Clone repo
+      - name: Fix permissions
+        run: sudo chown -R ubuntu:ubuntu $HOME/all_bots/jobforgex
+
+      - name: Pull latest
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          git clone -b migration/self-hosted \
-            "https://x-access-token:${GH_TOKEN}@github.com/KunalScriptz/jobforgex.git" \
-            /tmp/jobforgex-build
-
-      - name: Copy .env from persistent location
-        run: |
-          if [ -f $HOME/all_bots/jobforgex/.env ]; then
-            cp $HOME/all_bots/jobforgex/.env /tmp/jobforgex-build/.env
-          fi
+          cd $HOME/all_bots/jobforgex
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/KunalScriptz/jobforgex.git"
+          git pull origin migration/self-hosted
 
       - name: Deploy services
         run: |
-          cd /tmp/jobforgex-build
+          cd $HOME/all_bots/jobforgex
           docker compose down --remove-orphans
           docker compose up -d --build
           docker image prune -f
-
-      - name: Cleanup
-        run: rm -rf /tmp/jobforgex-build
