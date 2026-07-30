@@ -213,8 +213,6 @@ services:
       dockerfile: Dockerfile
       target: ${BUILD_TARGET:-development}
     restart: unless-stopped
-    environment:
-      VITE_LATEX_COMPILE_URL: ${LATEX_COMPILE_URL:-http://latex-server:5959}
     ports:
       - "5173:5173"
     volumes:
