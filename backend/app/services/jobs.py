@@ -155,3 +155,16 @@ async def update_artifact_pdf_path(
 async def delete_artifact(db: AsyncSession, artifact_id: uuid.UUID) -> None:
     await db.execute(delete(JobArtifact).where(JobArtifact.id == artifact_id))
     await db.flush()
+
+
+async def update_artifact_source(
+    db: AsyncSession, artifact_id: uuid.UUID, latex_source: str
+) -> JobArtifact | None:
+    result = await db.execute(select(JobArtifact).where(JobArtifact.id == artifact_id))
+    art = result.scalar_one_or_none()
+    if art:
+        art.latex_source = latex_source
+        art.pdf_storage_path = ""
+        art.compile_error = None
+        await db.flush()
+    return art
