@@ -40,7 +40,7 @@ export default function OnboardingPage() {
     <div className="min-h-screen bg-muted/30 p-6">
       <div className="mx-auto max-w-2xl">
         <div className="mb-6 flex items-center gap-2 text-sm text-muted-foreground">
-          <Sparkles className="h-4 w-4 text-primary" />
+          <img src="/logo.png" alt="JobForge" className="h-4 w-4" />
           JobForge setup — step {step} of 2
         </div>
         <Progress value={progress} className="mb-6" />

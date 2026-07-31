@@ -49,7 +49,7 @@ export default function Landing() {
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/40">
       <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
         <div className="flex items-center gap-2 font-semibold">
-          <Sparkles className="h-5 w-5 text-primary" />
+          <img src="/logo.png" alt="JobForge" className="h-5 w-5" />
           JobForge
         </div>
         <nav className="flex items-center gap-3">
@@ -142,7 +142,7 @@ export default function Landing() {
         <div className="mx-auto grid max-w-6xl gap-8 px-6 py-12 sm:grid-cols-2 lg:grid-cols-4">
           <div>
             <div className="flex items-center gap-2 font-semibold">
-              <Sparkles className="h-5 w-5 text-primary" /> JobForge
+              <img src="/logo.png" alt="JobForge" className="h-5 w-5" /> JobForge
             </div>
             <p className="mt-3 text-sm text-muted-foreground">
               Your AI-powered job search command center.

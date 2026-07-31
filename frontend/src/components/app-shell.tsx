@@ -39,7 +39,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           to="/jobs"
           className="flex h-14 items-center gap-2 border-b px-4 font-semibold transition-colors hover:bg-muted/50"
         >
-          <Sparkles className="h-4 w-4 text-primary" />
+          <img src="/logo.png" alt="JobForge" className="h-5 w-5" />
           JobForge
         </Link>
         <nav className="flex-1 space-y-1 overflow-y-auto p-2">
