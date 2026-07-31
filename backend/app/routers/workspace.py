@@ -42,7 +42,7 @@ async def create_workspace(
     return ws
 
 
-@router.post("/onboarding", response_model=WorkspaceOut)
+@router.post("/onboarding")
 async def update_onboarding(
     step: int,
     complete: bool = False,
@@ -57,7 +57,7 @@ async def update_onboarding(
     )
     if not ws:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found")
-    return ws
+    return {"ok": True, "step": step, "complete": complete}
 
 
 @router.get("/boards", response_model=list[BoardOut])
