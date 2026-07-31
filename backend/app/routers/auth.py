@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, Query
 from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import delete
+from sqlalchemy import delete, select
 from urllib.parse import urlencode
 import uuid as uuid_mod
 
@@ -120,6 +120,11 @@ async def google_callback(code: str = Query(...), db: AsyncSession = Depends(get
     ]
     if result.get("is_new"):
         params.append("new_user=1")
+        try:
+            from app.tasks.email import send_welcome_email
+            send_welcome_email.delay(result["user"]["email"])
+        except Exception:
+            pass
     frontend_callback = f"{auth_url}/auth?{'&'.join(params)}"
     return RedirectResponse(url=frontend_callback)
 
@@ -135,7 +140,15 @@ async def delete_account(
     if not existing:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
-    await db.execute(delete(Workspace).where(Workspace.owner_user_id == user_id))
+    user_email = existing.email
+
     await db.delete(existing)
     await db.flush()
+
+    try:
+        from app.tasks.email import send_account_deleted
+        send_account_deleted.delay(user_email)
+    except Exception:
+        pass
+
     return {"ok": True, "message": "Account and all associated data permanently deleted."}

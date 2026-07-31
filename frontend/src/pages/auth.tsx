@@ -4,7 +4,6 @@ import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useAuth } from "@/context/auth-context";
-import { Sparkles } from "lucide-react";
 
 export default function AuthPage() {
   const navigate = useNavigate();
@@ -36,11 +35,11 @@ export default function AuthPage() {
     <div className="flex min-h-screen items-center justify-center bg-muted/30 p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-            <Sparkles className="h-5 w-5 text-primary" />
+          <div className="mx-auto flex h-12 w-12 items-center justify-center">
+            <img src="/logo.png" alt="JobForge" className="h-12 w-12" />
           </div>
           <CardTitle className="mt-2">Welcome to JobForge</CardTitle>
-          <CardDescription>Sign in with Google to manage your job applications.</CardDescription>
+          <CardDescription>Sign in or create your account with Google.</CardDescription>
         </CardHeader>
         <CardContent>
           <Button
