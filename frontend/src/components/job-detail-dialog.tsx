@@ -685,7 +685,7 @@ function DocumentCard({ art, jobId }: { art: any; jobId: string }) {
   const chat = useMutation({
     mutationFn: async (question: string) => {
       const res = await aiApi.generate({
-        prompt_name: "extract_insights",
+        prompt_name: "resume_chat",
         vars: { jd: art.latex_source ?? "", question },
         job_id: jobId,
         purpose: "custom",
