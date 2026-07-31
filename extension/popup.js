@@ -21,7 +21,7 @@ $("test").addEventListener("click", async () => {
   if (!host || !token) { setStatus("Enter host and token.", "err"); return; }
   setStatus("Testing…");
   try {
-    const res = await fetch(`${host}/api/public/extension/jobs`, {
+    const res = await fetch(`${host}/api/v1/extension/jobs`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({ company: "__test__", title: "__test__" }),
