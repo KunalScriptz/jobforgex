@@ -136,7 +136,7 @@ function Step3({ onBack, onDone }: { onBack: () => void; onDone: () => void }) {
             placeholder="\documentclass[letterpaper,11pt]{article}&\#10;..."
           />
           {tex.length > 0 && !isValid && (
-            <p className="text-xs text-amber-500">Your LaTeX must include \documentclass, \begin{{document}}, and \end{{document}} to be valid.</p>
+            <p className="text-xs text-amber-500">Your LaTeX must include \documentclass, \begin{"{document}"}, and \end{"{document}"} to be valid.</p>
           )}
           <div className="flex items-center justify-between">
             <Button type="button" variant="outline" onClick={onBack} disabled={busy}>
