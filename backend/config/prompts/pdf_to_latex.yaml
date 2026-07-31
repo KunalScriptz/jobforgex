@@ -1,17 +1,195 @@
 system: |
-  You are an expert LaTeX resume formatter. You convert raw resume text into a clean, professional, compilable LaTeX resume.
+  You are an expert LaTeX resume formatter. You convert raw resume text into a compilable LaTeX resume using a specific template.
   You output ONLY compilable LaTeX code — no markdown, no code fences, no commentary, no JSON. Just the raw LaTeX document.
-user_template: |
-  Convert the following resume text into a clean LaTeX resume. Follow these rules:
 
-  1. Use the article documentclass with letterpaper, 11pt.
-  2. Structure: Name (large, bold at top), contact info below (email, phone, location, LinkedIn, GitHub), then sections: Professional Summary, Skills, Experience, Education, Projects, Certifications (only if present).
-  3. Use standard LaTeX formatting commands (\section*{}, \textbf{}, \textit{}, itemize, etc.).
-  4. Use a clean, modern color scheme (dark blue #00008c for headings, teal #00a698 for accent).
-  5. Keep the document to 1-2 pages. Be concise.
-  6. Preserve all factual information — never fabricate or remove real experience or skills.
-  7. Output the COMPLETE LaTeX document starting with \documentclass and ending with \end{document}.
+  CRITICAL: The template structure (packages, custom commands, colors, section style) is FIXED and must be preserved exactly as shown.
+  CRITICAL: Replace ALL sample content (name, contact info, job entries, education, skills, projects, certifications, etc.) with the ACTUAL candidate's information extracted from the resume text.
+  CRITICAL: The sample name "Kunal K" and all sample contact info must NEVER appear in the output. Replace with the real person's data.
+  CRITICAL: If the resume text does not contain a certain section (e.g. Projects, Certifications, Conferences), omit that entire section.
+
+user_template: |
+  Convert the following resume text into the LaTeX template shown below.
+  Extract the candidate's actual name, contact details, professional summary, experience, skills, education, projects, certifications, and any other sections from the text.
+  Replace every piece of sample content with the real information. Preserve the exact template structure, custom commands, colors, and formatting.
 
   === RESUME TEXT ===
   {{resume_text}}
+
+  === LATEX TEMPLATE (STRUCTURE IS FIXED — REPLACE CONTENT ONLY) ===
+
+  \documentclass[letterpaper,11pt]{article}
+
+  \usepackage{latexsym}
+  \usepackage[empty]{fullpage}
+  \usepackage{titlesec}
+  \usepackage{marvosym}
+  \usepackage[usenames,dvipsnames]{color}
+  \usepackage{verbatim}
+  \usepackage{enumitem}
+  \usepackage[hidelinks]{hyperref}
+  \usepackage{fancyhdr}
+  \usepackage[english]{babel}
+  \usepackage{tabularx}
+  \usepackage{fontawesome}
+  \input{glyphtounicode}
+
+  \pagestyle{fancy}
+  \fancyhf{}
+  \fancyfoot{}
+  \renewcommand{\headrulewidth}{0pt}
+  \renewcommand{\footrulewidth}{0pt}
+
+  \addtolength{\oddsidemargin}{-0.5in}
+  \addtolength{\evensidemargin}{-0.5in}
+  \addtolength{\textwidth}{1in}
+  \addtolength{\topmargin}{-.5in}
+  \addtolength{\textheight}{1.0in}
+
+  \urlstyle{same}
+
+  \raggedbottom
+  \raggedright
+  \setlength{\tabcolsep}{0in}
+
+  \definecolor{darkturquoise}{rgb}{0.0, 0.65, 0.60}
+  \definecolor{darkblue}{rgb}{0.0, 0.0, 0.55}
+
+  \titleformat{\section}{
+    \vspace{-4pt}\scshape\raggedright\large\bfseries\color{darkturquoise}
+  }{}{0em}{}[\color{darkturquoise}\titlerule \vspace{-5pt}]
+
+  \pdfgentounicode=1
+
+  \newcommand{\resumeItem}[1]{
+    \item\normalsize{
+      {#1 \vspace{-2pt}}
+    }
+  }
+
+  \newcommand{\resumeSubheading}[4]{
+    \vspace{-2pt}\item
+    \begin{tabular*}{0.97\textwidth}[t]{l@{\extracolsep{\fill}}r}
+      \textbf{\color{darkblue}#1} & #2 \\
+      \textit{\small#3} & \textit{\small #4} \\
+    \end{tabular*}\vspace{-7pt}
+  }
+
+  \newcommand{\resumeSubSubheading}[2]{
+      \item
+      \begin{tabular*}{0.97\textwidth}{l@{\extracolsep{\fill}}r}
+        \textit{\small#1} & \textit{\small #2} \\
+      \end{tabular*}\vspace{-7pt}
+  }
+
+  \newcommand{\resumeProjectHeading}[2]{%
+      \item
+      \begin{tabular*}{0.97\textwidth}{p{0.78\textwidth}@{\extracolsep{\fill}}r}
+        \small\color{darkblue}#1 & #2 \\
+      \end{tabular*}\vspace{-7pt}
+  }
+
+  \newcommand{\resumeSubItem}[1]{\resumeItem{#1}\vspace{-4pt}}
+
+  \renewcommand\labelitemii{$\vcenter{\hbox{\tiny$\bullet$}}$}
+
+  \newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0.15in, label={}]}
+  \newcommand{\resumeSubHeadingListEnd}{\end{itemize}}
+  \newcommand{\resumeItemListStart}{\begin{itemize}}
+  \newcommand{\resumeItemListEnd}{\end{itemize}\vspace{-5pt}}
+
+  \begin{document}
+
+  %--- HEADER (extract real name, phone, email, location, LinkedIn, GitHub, portfolio from resume text) ---
+
+  \begin{center}
+    \textbf{\Huge \scshape \color{darkturquoise} [FULL NAME]} \\ \vspace{3pt}
+    \small
+    \faMobile \hspace{.5pt} \href{tel:[PHONE]}{[PHONE DISPLAY]}
+    $|$
+    \faAt \hspace{.5pt} \href{mailto:[EMAIL]}{[EMAIL]}
+    $|$
+    \faLinkedinSquare \hspace{.5pt} \href{[LINKEDIN URL]}{LinkedIn}
+    $|$
+    \faGithub \hspace{.5pt} \href{[GITHUB URL]}{GitHub}
+    $|$
+    \faGlobe \hspace{.5pt} \href{[PORTFOLIO URL]}{Portfolio}
+    $|$
+    \faMapMarker \hspace{.5pt}  
+    {[CITY, COUNTRY]}
+    \\
+    \vspace{2pt}
+    \textbf{[RELOCATION PREFERENCE — omit if not stated]}
+  \end{center}
+
+  %--- PROFESSIONAL SUMMARY (extract from resume text) ---
+  \section{Professional Summary}
+  \noindent [2-3 sentence summary of the candidate's experience, key skills, and domain expertise — extract this from the resume.]
+
+  %--- EXPERIENCE (extract all jobs from resume text) ---
+  \section{Experience}
+    \resumeSubHeadingListStart
+      % For each job in the resume:
+      \resumeSubheading
+        {[JOB TITLE]}{[START DATE -- END DATE]}
+        {[COMPANY NAME]}{[LOCATION]}
+        \resumeItemListStart
+          \resumeItem{[Bullet point describing a key achievement or responsibility — use the EXACT wording from the resume, do not invent.]}
+          % ... repeat for each bullet
+        \resumeItemListEnd
+    \resumeSubHeadingListEnd
+
+  %--- PROJECTS (only if resume text mentions projects) ---
+  \section{Projects}
+    \resumeSubHeadingListStart
+      \resumeProjectHeading
+        {\textbf{\color{darkblue}\href{[PROJECT URL]}{[PROJECT NAME] --- [ONE-LINE DESCRIPTION]}} $|$ \emph{[TECH STACK]}}
+        {[DATE RANGE]}
+        \resumeItemListStart
+          \resumeItem{[Key achievement or feature]}
+        \resumeItemListEnd
+    \resumeSubHeadingListEnd
+
+  %--- TECHNICAL SKILLS (extract from resume text) ---
+  \section{Technical Skills}
+  \begin{itemize}[leftmargin=0.15in, label={}]
+    \item{
+        \textbf{\color{darkblue}Programming Languages}{: [comma-separated list]} \\
+        \textbf{\color{darkblue}Frameworks \& Libraries}{: [comma-separated list]} \\
+        \textbf{\color{darkblue}ML \& Analytics}{: [comma-separated list]} \\
+        \textbf{\color{darkblue}Generative AI Technologies}{: [comma-separated list]} \\
+        \textbf{\color{darkblue}Vector \& Graph Databases}{: [comma-separated list]} \\
+        \textbf{\color{darkblue}LLMOps \& Deployment}{: [comma-separated list]} \\
+        \textbf{\color{darkblue}Cloud Platforms}{: [comma-separated list]}
+    }
+  \end{itemize}
+
+  %--- EDUCATION (extract from resume text) ---
+  \section{Education}
+    \resumeSubHeadingListStart
+      \resumeSubheading
+        {[UNIVERSITY NAME]}{[START DATE -- END DATE]}
+        {\textbf{[DEGREE]} | \textbf{\color{darkblue}CGPA}: [CGPA/10.00]}{[LOCATION]}
+    \resumeSubHeadingListEnd
+
+  %--- ACHIEVEMENTS (only if resume mentions awards/honors) ---
+  \section{Achievements}
+    \resumeSubHeadingListStart
+      \resumeItem{\textbf{\color{darkblue}[ACHIEVEMENT TITLE]} $|$ [Description]}
+    \resumeSubHeadingListEnd
+
+  %--- CERTIFICATIONS (only if resume mentions certifications) ---
+  \section{Certifications}
+  \vspace{-2pt}
+  \begin{tabular*}{\textwidth}{p{0.49\textwidth} p{0.49\textwidth}}
+    \textbf{\color{darkblue}[ISSUER]} --- [Certification Name] & \textbf{\color{darkblue}[ISSUER]} --- [Certification Name]\\
+  \end{tabular*}
+
+  %--- CONFERENCES (only if resume mentions conferences/workshops) ---
+  \section{Conferences \& Workshops}
+  \resumeSubHeadingListStart
+    \resumeItem{\textbf{\color{darkblue}[EVENT NAME], [LOCATION]} $|$ [Description]}
+  \resumeSubHeadingListEnd
+
+  \end{document}
+
 temperature: 0.3
