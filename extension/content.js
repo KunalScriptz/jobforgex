@@ -3,6 +3,7 @@
   window.__jobforgeInjected = true;
 
   const HOST_FALLBACK = "https://jobforgeapi.helixos.pro";
+  const WEB_FALLBACK = "https://jobforge.helixos.pro";
 
   // Don't inject on the JobForge app itself.
   const selfHosts = [/^localhost$/i, /^127\.0\.0\.1$/i, /^0\.0\.0\.0$/i];
@@ -680,12 +681,13 @@
 
   function showSavedScreen(host, listName) {
     if (!panel) return;
+    const webHost = host.includes("jobforgeapi") ? host.replace("jobforgeapi.", "jobforge.") : host;
     panel.innerHTML = `
       <button class="close" title="Close">×</button>
       <div style="text-align:center; padding: 18px 8px 8px;">
         <div style="font-size:12px; color:#64748b; margin-bottom:6px;">Your job was saved to</div>
         <div style="font-size:26px; font-weight:800; color:#0f172a; margin-bottom:14px;">${listName}</div>
-        <a id="jf-open" href="${host}/jobs" target="_blank"
+        <a id="jf-open" href="${webHost}/jobs" target="_blank"
            style="display:inline-block; background:#0f172a; color:white; text-decoration:none;
                   padding:9px 18px; border-radius:999px; font-weight:600; font-size:12px;">
           Open in JobForge
