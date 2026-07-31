@@ -28,6 +28,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogT
 import { CompanyAutocomplete } from "@/components/company-autocomplete";
 import { JobDetailDialog } from "@/components/job-detail-dialog";
 import { CompanyLogo } from "@/components/company-logo";
+import { PageTitle } from "@/components/page-title";
 import { OnboardingGuide } from "@/components/onboarding-guide";
 
 type Status = "wishlist" | "applied" | "interview" | "offer" | "rejected";
@@ -230,6 +231,7 @@ export default function JobsPage() {
 
   return (
     <div className="flex h-full flex-col p-4">
+      <PageTitle title="Dashboard" />
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <h1 className="mr-4 text-2xl font-bold">Job Board</h1>
         <Input

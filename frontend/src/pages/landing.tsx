@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { Sparkles, FileText, LayoutDashboard, ClipboardCheck, Mail, Wand2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { PageTitle } from "@/components/page-title";
 import screenshotKanban from "@/assets/screenshot-kanban.png";
 import screenshotResume from "@/assets/screenshot-resume.png";
 
@@ -47,6 +48,7 @@ export default function Landing() {
   const typed = useTypewriter(PHRASES);
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/40">
+      <PageTitle title="Home" />
       <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
         <div className="flex items-center gap-2 font-semibold">
           <img src="/logo.png" alt="JobForge" className="h-5 w-5" />

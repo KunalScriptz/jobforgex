@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Sparkles, Check, Loader2 } from "lucide-react";
+import { PageTitle } from "@/components/page-title";
 
 const COUNTRY_OPTIONS: Array<{ code: string; label: string }> = [
   { code: "DEFAULT", label: "United States (USD)" },
@@ -210,6 +211,7 @@ export default function BillingPage() {
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 p-6">
+      <PageTitle title="Billing" />
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">Billing</h1>

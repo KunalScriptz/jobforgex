@@ -1,8 +1,10 @@
 import { Link } from "react-router-dom";
+import { PageTitle } from "@/components/page-title";
 
 export default function PrivacyPage() {
   return (
     <div className="min-h-screen bg-muted/30">
+      <PageTitle title="Privacy Policy" />
       <div className="mx-auto max-w-3xl px-4 py-12">
         <div className="mb-8 flex items-center gap-3">
           <Link to="/" className="text-sm text-muted-foreground hover:text-foreground">&larr; Back to Home</Link>
