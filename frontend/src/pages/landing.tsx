@@ -133,7 +133,7 @@ export default function Landing() {
 
         <section className="mt-20 rounded-2xl border bg-card p-10 text-center">
           <h3 className="text-2xl font-semibold">Ready to end the copy-paste chaos?</h3>
-          <p className="mt-2 text-muted-foreground">Start free with 2 applications. Upgrade to Pro for unlimited generations.</p>
+          <p className="mt-2 text-muted-foreground">Start free with 2 applications. No credit card required.</p>
           <Button asChild size="lg" className="mt-6"><Link to="/auth">Get started</Link></Button>
         </section>
       </main>
@@ -161,7 +161,7 @@ export default function Landing() {
               <li>
                 <a
                   className="hover:text-foreground"
-                  href={`mailto:support@jobforgex.com?subject=${encodeURIComponent("JobForge support request")}&body=${encodeURIComponent(
+                  href={`mailto:murkyaxe@gmail.com?subject=${encodeURIComponent("JobForge support request")}&body=${encodeURIComponent(
                     "Hi JobForge team,\n\n• What I was trying to do:\n• What happened instead:\n• Workspace email:\n• Steps to reproduce (if any):\n\nThanks!"
                   )}`}
                 >
@@ -171,23 +171,15 @@ export default function Landing() {
               <li>
                 <a
                   className="hover:text-foreground"
-                  href={`mailto:support@jobforgex.com?subject=${encodeURIComponent("JobForge feedback")}&body=${encodeURIComponent(
+                  href={`mailto:murkyaxe@gmail.com?subject=${encodeURIComponent("JobForge feedback")}&body=${encodeURIComponent(
                     "Hi JobForge team,\n\nHere's some feedback:\n\n"
                   )}`}
                 >
                   Send feedback
                 </a>
               </li>
-              <li>
-                <a
-                  className="hover:text-foreground"
-                  href={`mailto:support@jobforgex.com?subject=${encodeURIComponent("JobForge Pro upgrade request")}&body=${encodeURIComponent(
-                    "Hi JobForge team,\n\nI'd like to upgrade to:\n• Plan: (Starter / Pro Monthly / Pro Yearly)\n• Currency: (INR / USD)\n• Workspace email:\n\nThanks!"
-                  )}`}
-                >
-                  Upgrade plan
-                </a>
-              </li>
+              <li><Link to="/billing" className="hover:text-foreground">Pricing</Link></li>
+              <li><Link to="/privacy" className="hover:text-foreground">Privacy policy</Link></li>
             </ul>
           </div>
           <div>
@@ -195,8 +187,8 @@ export default function Landing() {
             <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
               <li className="flex items-center gap-2">
                 <Mail className="h-4 w-4" />
-                <a className="hover:text-foreground" href="mailto:support@jobforgex.com">
-                  support@jobforgex.com
+                <a className="hover:text-foreground" href="mailto:murkyaxe@gmail.com">
+                  murkyaxe@gmail.com
                 </a>
               </li>
             </ul>

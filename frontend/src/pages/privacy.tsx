@@ -35,7 +35,7 @@ export default function PrivacyPage() {
           <section>
             <h2 className="text-lg font-semibold">3. AI Processing</h2>
             <p>
-              When you generate a resume or cover letter, your base resume (LaTeX) and job description are sent to the DeepSeek AI API for processing. DeepSeek does not use your data for model training. We do not share your data with any other third-party AI providers.
+              When you generate a resume or cover letter, your base resume (LaTeX) and job description are sent to a third-party AI provider for processing. The AI provider does not use your data for model training. We do not share your data with any other third parties.
             </p>
           </section>
 
@@ -64,7 +64,7 @@ export default function PrivacyPage() {
             <h2 className="text-lg font-semibold">7. Contact</h2>
             <p>
               If you have questions about this privacy policy or your data, reach out to us at{" "}
-              <a href="mailto:support@helixos.pro" className="text-primary underline">support@helixos.pro</a>.
+              <a href="mailto:murkyaxe@gmail.com" className="text-primary underline">murkyaxe@gmail.com</a>.
             </p>
           </section>
         </div>
