@@ -28,26 +28,48 @@ type PricedPlan = {
   features: string[];
 };
 
-const FALLBACK_PLANS: PricedPlan[] = [
-  {
-    plan_id: "free", name: "Free", currency: "USD", currency_symbol: "$",
-    monthly_price: 0, annual_price: 0, monthly_price_display: "$0", annual_price_display: "$0",
-    annual_discount_pct: 0, razorpay_plan_id_monthly: null, razorpay_plan_id_annual: null,
-    features: ["2 job tracks", "2 cover letters", "ATS checker", "Chrome extension"],
-  } as any,
-  {
-    plan_id: "pro", name: "Pro", currency: "USD", currency_symbol: "$",
-    monthly_price: 14, annual_price: 99, monthly_price_display: "$14", annual_price_display: "$99/yr",
-    annual_discount_pct: 41, razorpay_plan_id_monthly: null, razorpay_plan_id_annual: null,
-    features: ["30 job tracks", "30 cover letters", "Structured resume builder", "ATS checker", "Chrome extension", "Priority support"],
-  } as any,
-  {
-    plan_id: "unlimited", name: "Unlimited", currency: "USD", currency_symbol: "$",
-    monthly_price: 29, annual_price: 199, monthly_price_display: "$29", annual_price_display: "$199/yr",
-    annual_discount_pct: 43, razorpay_plan_id_monthly: null, razorpay_plan_id_annual: null,
-    features: ["Unlimited job tracks", "Unlimited cover letters", "Structured resume builder", "ATS checker", "Chrome extension", "Priority support"],
-  } as any,
-];
+const FALLBACK_PLANS: Record<string, PricedPlan[]> = {
+  DEFAULT: [
+    {
+      plan_id: "free", name: "Free", currency: "USD", currency_symbol: "$",
+      monthly_price: 0, annual_price: 0, monthly_price_display: "$0", annual_price_display: "$0",
+      annual_discount_pct: 0, razorpay_plan_id_monthly: null, razorpay_plan_id_annual: null,
+      features: ["2 job tracks", "2 cover letters", "ATS checker", "Chrome extension"],
+    } as any,
+    {
+      plan_id: "pro", name: "Pro", currency: "USD", currency_symbol: "$",
+      monthly_price: 14, annual_price: 99, monthly_price_display: "$14", annual_price_display: "$99/yr",
+      annual_discount_pct: 41, razorpay_plan_id_monthly: null, razorpay_plan_id_annual: null,
+      features: ["30 job tracks", "30 cover letters", "Structured resume builder", "ATS checker", "Chrome extension", "Priority support"],
+    } as any,
+    {
+      plan_id: "unlimited", name: "Unlimited", currency: "USD", currency_symbol: "$",
+      monthly_price: 29, annual_price: 199, monthly_price_display: "$29", annual_price_display: "$199/yr",
+      annual_discount_pct: 43, razorpay_plan_id_monthly: null, razorpay_plan_id_annual: null,
+      features: ["Unlimited job tracks", "Unlimited cover letters", "Structured resume builder", "ATS checker", "Chrome extension", "Priority support"],
+    } as any,
+  ],
+  IN: [
+    {
+      plan_id: "free", name: "Free", currency: "INR", currency_symbol: "₹",
+      monthly_price: 0, annual_price: 0, monthly_price_display: "₹0", annual_price_display: "₹0",
+      annual_discount_pct: 0, razorpay_plan_id_monthly: null, razorpay_plan_id_annual: null,
+      features: ["2 job tracks", "2 cover letters", "ATS checker", "Chrome extension"],
+    } as any,
+    {
+      plan_id: "pro", name: "Pro", currency: "INR", currency_symbol: "₹",
+      monthly_price: 599, annual_price: 3999, monthly_price_display: "₹599", annual_price_display: "₹3,999/yr",
+      annual_discount_pct: 44, razorpay_plan_id_monthly: null, razorpay_plan_id_annual: null,
+      features: ["30 job tracks", "30 cover letters", "Structured resume builder", "ATS checker", "Chrome extension", "Priority support"],
+    } as any,
+    {
+      plan_id: "unlimited", name: "Unlimited", currency: "INR", currency_symbol: "₹",
+      monthly_price: 1299, annual_price: 9999, monthly_price_display: "₹1,299", annual_price_display: "₹9,999/yr",
+      annual_discount_pct: 36, razorpay_plan_id_monthly: null, razorpay_plan_id_annual: null,
+      features: ["Unlimited job tracks", "Unlimited cover letters", "Structured resume builder", "ATS checker", "Chrome extension", "Priority support"],
+    } as any,
+  ],
+};
 
 export default function BillingPage() {
   const { data } = useQuery({ queryKey: ["billing"], queryFn: () => billingApi.getStatus() });
@@ -76,7 +98,8 @@ export default function BillingPage() {
     queryFn: () => billingApi.getPricing(country),
   });
 
-  const plans: PricedPlan[] = (pricing && pricing.length > 0 ? pricing : FALLBACK_PLANS).map((p: any) => ({
+  const fallback = FALLBACK_PLANS[country] || FALLBACK_PLANS.DEFAULT;
+  const plans: PricedPlan[] = (pricing && pricing.length > 0 ? pricing : fallback).map((p: any) => ({
     ...p,
     features: p.features ?? [],
     razorpay_plan_id_monthly: p.razorpay_plan_id_monthly ?? null,
