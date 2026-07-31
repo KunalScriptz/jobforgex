@@ -1,18 +1,23 @@
 #!/usr/bin/env python3
 """
-Migrate Supabase backup data into self-hosted PostgreSQL.
-Run from the backend container:
-  docker exec jobforgex-backend-1 python /app/scripts/migrate_supabase.py
+Migrate data from a Supabase dump (restored to jobforgex_restore) → production jobforgex.
 
-Requires: backup zip at /app/jobforgex_260730.backup.zip
-The backup must be mounted/copied to the backend container first.
+Run AFTER restoring the backup to the temp database:
+  docker exec jobforgex-postgres-1 pg_restore -U jobforgex -d jobforgex_restore --no-acl --no-owner --schema=auth --schema=public <backup_file>
+
+Usage:
+  docker cp <backup_file> jobforgex-postgres-1:/tmp/
+  docker exec jobforgex-postgres-1 dropdb -U jobforgex --if-exists jobforgex_restore
+  docker exec jobforgex-postgres-1 createdb -U jobforgex jobforgex_restore
+  docker exec jobforgex-postgres-1 psql -U jobforgex -d jobforgex_restore -c "CREATE ROLE authenticated NOLOGIN"
+  docker exec jobforgex-postgres-1 psql -U jobforgex -d jobforgex_restore -c "CREATE SCHEMA IF NOT EXISTS storage"
+  docker exec jobforgex-postgres-1 pg_restore -U jobforgex -d jobforgex_restore --no-acl --no-owner --schema=auth --schema=public /tmp/<backup_file>
+  docker exec jobforgex-backend-1 python /app/scripts/migrate_supabase.py
 """
 
 import os
-import subprocess
 import sys
 import json
-from urllib.parse import quote_plus
 
 import psycopg2
 
@@ -21,96 +26,44 @@ DB_PORT = os.getenv("DB_PORT", "5432")
 DB_USER = os.getenv("DB_USER", "jobforgex")
 DB_PASSWORD = os.getenv("DB_PASSWORD", "jobforgex")
 DB_NAME = os.getenv("DB_NAME", "jobforgex")
-
 SRC_DB = "jobforgex_restore"
-BACKUP_ZIP = os.getenv("BACKUP_ZIP", "/app/jobforgex_260730.backup.zip")
 
 
-def run_psql(db, sql, ignore_errors=False):
-    """Run SQL via psql in the postgres container."""
-    cmd = [
-        "psql", "-U", DB_USER, "-d", db,
-        "-h", DB_HOST, "-p", DB_PORT,
-        "-c", sql
-    ]
-    env = {**os.environ, "PGPASSWORD": DB_PASSWORD}
-    r = subprocess.run(cmd, capture_output=True, text=True, env=env)
-    if r.returncode != 0 and not ignore_errors:
-        print(f"psql error ({db}): {r.stderr}")
-    return r.stdout
+def connect(db):
+    return psycopg2.connect(host=DB_HOST, port=DB_PORT, user=DB_USER, password=DB_PASSWORD, dbname=db)
 
 
-def step1_create_temp_db(conn):
-    """Drop and recreate temp database."""
-    cur = conn.cursor()
-    conn.autocommit = True
-    cur.execute(f"DROP DATABASE IF EXISTS {SRC_DB}")
-    cur.execute(f"CREATE DATABASE {SRC_DB}")
-    cur.close()
-    print("[1/6] Temp database created")
-
-
-def step2_restore_backup():
-    """Extract zip and restore to temp DB."""
-    import zipfile
-    import tempfile
-
-    if not os.path.exists(BACKUP_ZIP):
-        print(f"ERROR: Backup zip not found at {BACKUP_ZIP}")
+def step1_check_temp_db():
+    """Verify restore DB exists and has data."""
+    try:
+        src = connect(SRC_DB)
+        cur = src.cursor()
+        cur.execute("SELECT count(*) FROM auth.users")
+        n_users = cur.fetchone()[0]
+        cur.execute("SELECT count(*) FROM public.workspaces")
+        n_ws = cur.fetchone()[0]
+        cur.close()
+        src.close()
+        if n_users == 0:
+            print(f"ERROR: {SRC_DB} has no auth.users — was the backup restored?")
+            sys.exit(1)
+        print(f"[1/4] Restore DB verified: {n_users} users, {n_ws} workspaces")
+    except psycopg2.OperationalError:
+        print(f"ERROR: Database '{SRC_DB}' does not exist. Restore the backup first.")
         sys.exit(1)
 
-    tmpdir = tempfile.mkdtemp()
-    with zipfile.ZipFile(BACKUP_ZIP) as zf:
-        zf.extractall(tmpdir)
-        backup_file = os.path.join(tmpdir, zf.namelist()[0])
 
-    # Restore auth + public schemas only, ignore errors
-    env = {**os.environ, "PGPASSWORD": DB_PASSWORD}
-    subprocess.run([
-        "pg_restore", "-U", DB_USER, "-h", DB_HOST, "-p", DB_PORT,
-        "-d", SRC_DB, "--no-acl", "--no-owner",
-        "--schema=auth", "--schema=public",
-        "-f", "/tmp/restore_data.sql", backup_file
-    ], check=True, env=env)
-
-    # Create necessary roles/schemas before applying
-    run_psql(SRC_DB, "CREATE ROLE authenticated NOLOGIN", ignore_errors=True)
-    run_psql(SRC_DB, "CREATE SCHEMA IF NOT EXISTS storage", ignore_errors=True)
-
-    env_pw = {**os.environ, "PGPASSWORD": DB_PASSWORD}
-    subprocess.run([
-        "psql", "-U", DB_USER, "-h", DB_HOST, "-p", DB_PORT,
-        "-d", SRC_DB, "-f", "/tmp/restore_data.sql"
-    ], capture_output=True, text=True, env=env_pw)
-
-    os.unlink("/tmp/restore_data.sql")
-    import shutil
-    shutil.rmtree(tmpdir)
-
-    # Verify
-    src = psycopg2.connect(host=DB_HOST, port=DB_PORT, user=DB_USER, password=DB_PASSWORD, dbname=SRC_DB)
-    cur = src.cursor()
-    cur.execute("SELECT count(*) FROM auth.users")
-    n = cur.fetchone()[0]
-    cur.execute("SELECT count(*) FROM public.workspaces")
-    w = cur.fetchone()[0]
-    src.close()
-    print(f"[2/6] Backup restored: {n} users, {w} workspaces")
-
-
-def step3_migrate_users():
+def step2_migrate_users():
     """Copy auth.users → public.users, preserving IDs. Map existing emails."""
-    src = psycopg2.connect(host=DB_HOST, port=DB_PORT, user=DB_USER, password=DB_PASSWORD, dbname=SRC_DB)
-    dst = psycopg2.connect(host=DB_HOST, port=DB_PORT, user=DB_USER, password=DB_PASSWORD, dbname=DB_NAME)
+    src = connect(SRC_DB)
+    dst = connect(DB_NAME)
 
     sc = src.cursor()
     dc = dst.cursor()
 
-    # Get existing emails in production
     dc.execute("SELECT id, email FROM public.users")
     existing = {row[1]: str(row[0]) for row in dc.fetchall()}
 
-    # Get old auth.users
     sc.execute("""
         SELECT id, email, encrypted_password,
                raw_user_meta_data->>'full_name' AS full_name,
@@ -118,9 +71,8 @@ def step3_migrate_users():
         FROM auth.users
     """)
 
-    user_map = {}  # old_uuid → new_uuid
-    added = 0
-    mapped = 0
+    user_map = {}
+    added = mapped = 0
 
     for row in sc.fetchall():
         old_id, email, pw, name, verified, created, updated = row
@@ -138,30 +90,30 @@ def step3_migrate_users():
                 ON CONFLICT (email) DO NOTHING""",
                 (old_id, email, pw, name, verified, created, updated)
             )
-            added += 1
+            added += dc.rowcount
 
     dst.commit()
     sc.close(); dc.close()
     src.close(); dst.close()
 
-    print(f"[3/6] Users: {added} new, {mapped} mapped to existing")
+    print(f"[2/4] Users: {added} new, {mapped} mapped to existing")
     return user_map
 
 
-def step4_migrate_data(user_map):
+def step3_migrate_data(user_map):
     """Copy all public schema tables with FK remapping."""
-    src = psycopg2.connect(host=DB_HOST, port=DB_PORT, user=DB_USER, password=DB_PASSWORD, dbname=SRC_DB)
-    dst = psycopg2.connect(host=DB_HOST, port=DB_PORT, user=DB_USER, password=DB_PASSWORD, dbname=DB_NAME)
+    src = connect(SRC_DB)
+    dst = connect(DB_NAME)
 
     sc = src.cursor()
     dc = dst.cursor()
 
-    # Delete existing seed data that might conflict
+    # Clear existing seed data that conflicts
     dc.execute("DELETE FROM public.geo_pricing")
     dc.execute("DELETE FROM public.plans")
     dst.commit()
 
-    # Tables in dependency order
+    # Tables in FK dependency order
     tables = [
         "plans",
         "geo_pricing",
@@ -186,7 +138,6 @@ def step4_migrate_data(user_map):
     user_fk_cols = {"user_id", "owner_user_id"}
 
     for table in tables:
-        # Get column info from source
         sc.execute(f"""
             SELECT column_name FROM information_schema.columns
             WHERE table_schema = 'public' AND table_name = %s
@@ -207,7 +158,6 @@ def step4_migrate_data(user_map):
         for row in rows:
             d = dict(zip(cols, row))
 
-            # Remap user FK columns
             for col in user_fk_cols:
                 if col in d and d[col] is not None:
                     old = str(d[col])
@@ -220,7 +170,6 @@ def step4_migrate_data(user_map):
             if d is None:
                 continue
 
-            # Convert Python dicts to JSON strings for jsonb
             for k, v in list(d.items()):
                 if isinstance(v, dict):
                     d[k] = json.dumps(v)
@@ -245,51 +194,31 @@ def step4_migrate_data(user_map):
 
     sc.close(); dc.close()
     src.close(); dst.close()
-    print(f"[4/6] Data migrated")
 
 
-def step5_verify():
-    """Check row counts."""
-    dst = psycopg2.connect(host=DB_HOST, port=DB_PORT, user=DB_USER, password=DB_PASSWORD, dbname=DB_NAME)
+def step4_verify():
+    """Show final row counts."""
+    dst = connect(DB_NAME)
     cur = dst.cursor()
     tables = [
         "users", "workspaces", "boards", "jobs", "resumes", "resume_versions",
         "builder_resumes", "builder_resume_versions", "job_artifacts",
         "user_roles", "subscriptions", "extension_tokens", "prompt_logs",
-        "ai_providers", "ai_models", "ai_cost_logs", "plans", "geo_pricing",
+        "ai_providers", "ai_models", "ai_cost_logs",
     ]
     for t in tables:
         cur.execute(f"SELECT count(*) FROM {t}")
         print(f"  {t}: {cur.fetchone()[0]}")
     cur.close()
     dst.close()
-    print(f"[5/6] Verified")
-
-
-def step6_cleanup():
-    """Drop temp database."""
-    conn = psycopg2.connect(host=DB_HOST, port=DB_PORT, user=DB_USER, password=DB_PASSWORD, dbname=DB_NAME)
-    conn.autocommit = True
-    cur = conn.cursor()
-    cur.execute(f"DROP DATABASE IF EXISTS {SRC_DB}")
-    cur.close()
-    conn.close()
-    print(f"[6/6] Temp DB cleaned up")
+    print("[4/4] Done!")
 
 
 def main():
-    conn = psycopg2.connect(host=DB_HOST, port=DB_PORT, user=DB_USER, password=DB_PASSWORD, dbname=DB_NAME)
-
-    step1_create_temp_db(conn)
-    conn.close()
-
-    step2_restore_backup()
-    user_map = step3_migrate_users()
-    step4_migrate_data(user_map)
-    step5_verify()
-    step6_cleanup()
-
-    print("\nMigration complete!")
+    step1_check_temp_db()
+    user_map = step2_migrate_users()
+    step3_migrate_data(user_map)
+    step4_verify()
 
 
 if __name__ == "__main__":
