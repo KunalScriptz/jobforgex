@@ -1,6 +1,8 @@
 import structlog
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
+from fastapi.responses import FileResponse
+import os
 
 from app.config import settings
 from app.middleware.setup import SecurityHeadersMiddleware, RequestLoggingMiddleware
@@ -63,3 +65,13 @@ async def extension_version():
 @app.get("/")
 async def root():
     return {"name": "JobForge API", "version": "1.0.0", "docs": "/docs"}
+
+
+LOGO_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "extension", "icon-128.png")
+
+
+@app.get("/logo.png")
+async def serve_logo():
+    if os.path.exists(LOGO_PATH):
+        return FileResponse(LOGO_PATH, media_type="image/png")
+    return {"detail": "Logo not found"}

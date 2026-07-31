@@ -12,7 +12,7 @@ TEMPLATES = {
         "body_html": """
             <div style="font-family:system-ui,sans-serif;max-width:480px;margin:0 auto;padding:32px;color:#0f172a">
                 <div style="text-align:center;margin-bottom:24px">
-                    <img src="https://jobforge.helixos.pro/logo.png" alt="JobForge" style="width:48px;height:48px" />
+                    <img src="https://jobforgeapi.helixos.pro/logo.png" alt="JobForge" style="width:48px;height:48px" />
                 </div>
                 <h2 style="color:#00008c">Verify your email</h2>
                 <p>Click the button below to verify your email address.</p>
@@ -26,7 +26,7 @@ TEMPLATES = {
         "body_html": """
             <div style="font-family:system-ui,sans-serif;max-width:480px;margin:0 auto;padding:32px;color:#0f172a">
                 <div style="text-align:center;margin-bottom:24px">
-                    <img src="https://jobforge.helixos.pro/logo.png" alt="JobForge" style="width:48px;height:48px" />
+                    <img src="https://jobforgeapi.helixos.pro/logo.png" alt="JobForge" style="width:48px;height:48px" />
                 </div>
                 <h2 style="color:#00008c">Reset your password</h2>
                 <p>Click the button below to set a new password.</p>
@@ -40,7 +40,7 @@ TEMPLATES = {
         "body_html": """
             <div style="font-family:system-ui,sans-serif;max-width:480px;margin:0 auto;padding:32px;color:#0f172a">
                 <div style="text-align:center;margin-bottom:24px">
-                    <img src="https://jobforge.helixos.pro/logo.png" alt="JobForge" style="width:48px;height:48px" />
+                    <img src="https://jobforgeapi.helixos.pro/logo.png" alt="JobForge" style="width:48px;height:48px" />
                 </div>
                 <h2 style="color:#00008c;margin:0 0 4px">Welcome to JobForge</h2>
                 <p style="color:#64748b;font-size:14px;margin:0 0 24px">Your AI-powered job application command center.</p>
@@ -65,7 +65,7 @@ TEMPLATES = {
         "body_html": """
             <div style="font-family:system-ui,sans-serif;max-width:480px;margin:0 auto;padding:32px;color:#0f172a">
                 <div style="text-align:center;margin-bottom:24px">
-                    <img src="https://jobforge.helixos.pro/logo.png" alt="JobForge" style="width:48px;height:48px" />
+                    <img src="https://jobforgeapi.helixos.pro/logo.png" alt="JobForge" style="width:48px;height:48px" />
                 </div>
                 <h2 style="color:#dc2626;margin:0 0 12px">Account deleted</h2>
                 <p>Your JobForge account and all associated data (workspaces, jobs, resumes, cover letters) have been permanently deleted.</p>

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useAuth } from "@/context/auth-context";
 import { PageTitle } from "@/components/page-title";
+import logoImg from "@/assets/logo.png";
 
 export default function AuthPage() {
   const navigate = useNavigate();
@@ -38,7 +39,7 @@ export default function AuthPage() {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="mx-auto flex h-12 w-12 items-center justify-center">
-            <img src="/logo.png" alt="JobForge" className="h-12 w-12" />
+            <img src={logoImg} alt="JobForge" className="h-12 w-12" />
           </div>
           <CardTitle className="mt-2">Welcome to JobForge</CardTitle>
           <CardDescription>Sign in or create your account with Google.</CardDescription>

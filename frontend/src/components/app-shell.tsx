@@ -2,6 +2,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { ListTodo, Wand2, FileText, ClipboardCheck, CreditCard, Settings, Sparkles, LogOut } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
+import logoImg from "@/assets/logo.png";
 
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -39,7 +40,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           to="/jobs"
           className="flex h-14 items-center gap-2 border-b px-4 font-semibold transition-colors hover:bg-muted/50"
         >
-          <img src="/logo.png" alt="JobForge" className="h-5 w-5" />
+          <img src={logoImg} alt="JobForge" className="h-5 w-5" />
           JobForge
         </Link>
         <nav className="flex-1 space-y-1 overflow-y-auto p-2">

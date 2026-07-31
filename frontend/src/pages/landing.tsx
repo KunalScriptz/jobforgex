@@ -4,6 +4,7 @@ import { Sparkles, FileText, LayoutDashboard, ClipboardCheck, Mail, Wand2 } from
 
 import { Button } from "@/components/ui/button";
 import { PageTitle } from "@/components/page-title";
+import logoImg from "@/assets/logo.png";
 import screenshotKanban from "@/assets/screenshot-kanban.png";
 import screenshotResume from "@/assets/screenshot-resume.png";
 
@@ -51,7 +52,7 @@ export default function Landing() {
       <PageTitle title="Home" />
       <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
         <div className="flex items-center gap-2 font-semibold">
-          <img src="/logo.png" alt="JobForge" className="h-5 w-5" />
+          <img src={logoImg} alt="JobForge" className="h-5 w-5" />
           JobForge
         </div>
         <nav className="flex items-center gap-3">
@@ -144,7 +145,7 @@ export default function Landing() {
         <div className="mx-auto grid max-w-6xl gap-8 px-6 py-12 sm:grid-cols-2 lg:grid-cols-4">
           <div>
             <div className="flex items-center gap-2 font-semibold">
-              <img src="/logo.png" alt="JobForge" className="h-5 w-5" /> JobForge
+              <img src={logoImg} alt="JobForge" className="h-5 w-5" /> JobForge
             </div>
             <p className="mt-3 text-sm text-muted-foreground">
               Your AI-powered job search command center.
