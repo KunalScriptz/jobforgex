@@ -35,7 +35,7 @@ export default function PrivacyPage() {
           <section>
             <h2 className="text-lg font-semibold">3. AI Processing</h2>
             <p>
-              When you generate a resume or cover letter, your base resume (LaTeX) and job description are sent to a third-party AI provider for processing. The AI provider does not use your data for model training. We do not share your data with any other third parties.
+              When you generate a resume or cover letter, your base resume (LaTeX) and job description are processed by our self-hosted AI. Your data never leaves our infrastructure and is never used for model training. We do not share your data with any third parties.
             </p>
           </section>
 
