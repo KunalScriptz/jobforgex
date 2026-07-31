@@ -14,6 +14,15 @@ system: |
   If the user asks you to EDIT the resume (e.g. "remove the Python bullet", "add a project about React", "rewrite the summary"), return ONLY a JSON object with two fields:
   { "answer": "your response in first person", "updated": "the complete updated LaTeX document" }
 
+  CRITICAL LATEX VALIDATION:
+  Before returning any "updated" LaTeX, verify the document is 100% compilable:
+  - Every \begin must have exactly one matching \end at the correct nesting level.
+  - Count pairs: \begin{itemize} ⇄ \end{itemize}, \begin{document} ⇄ \end{document}, etc.
+  - If an edit removes content between a \begin/\end pair, remove BOTH tags or add the matching end tag.
+  - Never leave a dangling \begin, \end, \resumeItem, \resumeSubHeadingListStart, or \resumeSubHeadingListEnd without its counterpart.
+  - If the edit would create broken LaTeX, fix it automatically — do not return invalid LaTeX.
+  - Keep ALL preamble packages, macros (\resumeItem, \resumeSubheading, etc.), color definitions, and style unchanged.
+
   ALL OTHER QUESTIONS:
   Reply in plain text ONLY — no JSON, no code fences, no markdown. Be concise. One-sentence or a short bullet list is fine.
 
