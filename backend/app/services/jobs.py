@@ -160,9 +160,25 @@ async def delete_artifact(db: AsyncSession, artifact_id: uuid.UUID) -> None:
 async def update_artifact_source(
     db: AsyncSession, artifact_id: uuid.UUID, latex_source: str
 ) -> JobArtifact | None:
+    import re
+
     result = await db.execute(select(JobArtifact).where(JobArtifact.id == artifact_id))
     art = result.scalar_one_or_none()
     if art:
+        errors = []
+        for tag in ["itemize", "document", "center"]:
+            opens = len(re.findall(rf"\\begin\{{{tag}\}}", latex_source))
+            closes = len(re.findall(rf"\\end\{{{tag}\}}", latex_source))
+            if opens != closes:
+                errors.append(f"\\begin{{{tag}}} ({opens}) != \\end{{{tag}}} ({closes})")
+        for pair in [("resumeSubHeadingListStart", "resumeSubHeadingListEnd"), ("resumeItemListStart", "resumeItemListEnd")]:
+            opens = latex_source.count(f"\\{pair[0]}")
+            closes = latex_source.count(f"\\{pair[1]}")
+            if opens != closes:
+                errors.append(f"\\{pair[0]} ({opens}) != \\{pair[1]} ({closes})")
+        if errors:
+            raise ValueError(f"Unbalanced LaTeX tags: {'; '.join(errors)}")
+
         art.latex_source = latex_source
         art.pdf_storage_path = ""
         art.compile_error = None

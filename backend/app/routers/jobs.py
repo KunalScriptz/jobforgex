@@ -159,7 +159,10 @@ async def update_artifact(
     data: ArtifactUpdateRequest,
     db: AsyncSession = Depends(get_db),
 ):
-    art = await jobs_service.update_artifact_source(db, artifact_id, data.latex_source)
+    try:
+        art = await jobs_service.update_artifact_source(db, artifact_id, data.latex_source)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     if not art:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Artifact not found")
     return {"ok": True}
