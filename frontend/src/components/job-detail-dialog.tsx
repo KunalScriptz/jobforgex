@@ -590,7 +590,7 @@ function DocumentsTab({ artifacts, jobId, job }: { artifacts: any[]; jobId: stri
 
   return (
     <div className="space-y-4">
-      {job && job.description && job.description.length >= 30 && (
+      {job && job.description && job.description.length >= 30 ? (
         <div className="rounded-xl border bg-card p-4">
           <div className="mb-3 text-sm font-semibold">Generate documents</div>
           <div className="flex flex-wrap items-center gap-4">
@@ -621,9 +621,22 @@ function DocumentsTab({ artifacts, jobId, job }: { artifacts: any[]; jobId: stri
             </div>
           )}
         </div>
+      ) : (
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
+          <div className="flex items-start gap-2">
+            <Info className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-500" />
+            <div>
+              <div className="text-sm font-medium">Job description needed</div>
+              <p className="mt-1 text-xs text-muted-foreground">
+                This job doesn't have a full description yet. A job description is required to generate tailored resumes and cover letters.
+                {job ? " Edit the job to paste the full JD from the listing." : ""}
+              </p>
+            </div>
+          </div>
+        </div>
       )}
 
-      {!artifacts.length && <Empty text="No documents yet. Generate tailored resume or cover letter above." />}
+      {!artifacts.length && <Empty text="No documents yet. Generate a tailored resume or cover letter for this job." />}
 
       {!!artifacts.length && (
         <>

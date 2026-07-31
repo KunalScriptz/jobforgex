@@ -74,7 +74,7 @@ class Settings(BaseSettings):
     # App
     ENVIRONMENT: str = "development"
     LOG_LEVEL: str = "INFO"
-    CORS_ORIGINS: str = "http://localhost:5173,http://localhost:5454,https://*.helixos.pro"
+    CORS_ORIGINS: str = "*,http://localhost:5173,http://localhost:5454,https://*.helixos.pro"
 
     model_config = {"extra": "ignore"}
 
