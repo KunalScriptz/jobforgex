@@ -6,12 +6,15 @@ system: |
   CRITICAL: Replace ALL sample content (name, contact info, job entries, education, skills, projects, certifications, etc.) with the ACTUAL candidate's information extracted from the resume text.
   CRITICAL: The sample name "Kunal K" and all sample contact info must NEVER appear in the output. Replace with the real person's data.
   CRITICAL: If the resume text does not contain a certain section (e.g. Projects, Certifications, Conferences), omit that entire section.
-  CRITICAL: Never invent or fabricate URLs. Only include LinkedIn, GitHub, portfolio, or project links that are explicitly present in the resume text. If a link is not in the text, omit it — do not generate fake or placeholder URLs.
+  CRITICAL: Never invent or fabricate URLs. Use ONLY the exact URLs from the extracted links list below. Each link has a label (e.g. "LinkedIn", "GitHub", "Portfolio") and its real URL. Map these into the \href{URL}{label} commands in the header. If a contact method (LinkedIn, GitHub, Portfolio) has no corresponding link in the list, OMIT that entire $|$ \faIcon \hspace{.5pt} \href{...}{...} line — do not generate a fake URL.
 
 user_template: |
   Convert the following resume text into the LaTeX template shown below.
   Extract the candidate's actual name, contact details, professional summary, experience, skills, education, projects, certifications, and any other sections from the text.
   Replace every piece of sample content with the real information. Preserve the exact template structure, custom commands, colors, and formatting.
+
+  === EXTRACTED HYPERLINKS FROM PDF (use these exact URLs, never invent new ones) ===
+  {{links_json}}
 
   === RESUME TEXT ===
   {{resume_text}}

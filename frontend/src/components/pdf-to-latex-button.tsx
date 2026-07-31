@@ -25,12 +25,15 @@ export function PdfToLatexButton({ onLatex, size = "sm", variant = "outline", la
     const t = toast.loading("Reading your PDF…");
     try {
       const { extractPdfText } = await import("@/lib/pdf-extract.client");
-      const text = await extractPdfText(file);
+      const { text, links } = await extractPdfText(file);
       if (!text) throw new Error("PDF extraction is only available in the browser.");
       toast.loading("Converting to editable LaTeX…", { id: t });
       const res = await aiApi.generate({
         prompt_name: "pdf_to_latex",
-        vars: { resume_text: text },
+        vars: {
+          resume_text: text,
+          links_json: JSON.stringify(links),
+        },
       });
       onLatex(res.content);
       toast.success("Converted! Your resume is now in LaTeX format.", { id: t });
