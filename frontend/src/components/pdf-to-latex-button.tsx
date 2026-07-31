@@ -22,18 +22,18 @@ export function PdfToLatexButton({ onLatex, size = "sm", variant = "outline", la
 
   async function handleFile(file: File) {
     setBusy(true);
-    const t = toast.loading("Reading PDF…");
+    const t = toast.loading("Reading your PDF…");
     try {
       const { extractPdfText } = await import("@/lib/pdf-extract.client");
       const text = await extractPdfText(file);
       if (!text) throw new Error("PDF extraction is only available in the browser.");
-      toast.loading("Converting to LaTeX with your AI model…", { id: t });
+      toast.loading("Converting to editable LaTeX…", { id: t });
       const res = await aiApi.generate({
-        prompt_name: "parse_jd",
-        vars: { jd: text },
+        prompt_name: "pdf_to_latex",
+        vars: { resume_text: text },
       });
       onLatex(res.content);
-      toast.success(`Converted (${res.model_name}, $${res.total_cost.toFixed(4)})`, { id: t });
+      toast.success("Converted! Your resume is now in LaTeX format.", { id: t });
     } catch (e: any) {
       toast.error(e?.message ?? String(e), { id: t });
     } finally {
