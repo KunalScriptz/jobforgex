@@ -51,4 +51,7 @@ export const authApi = {
     apiClient
       .post("/api/v1/auth/reset-password", { token, new_password: newPassword })
       .then((r) => r.data),
+
+  deleteAccount: () =>
+    apiClient.delete("/api/v1/auth/account").then((r) => r.data),
 };

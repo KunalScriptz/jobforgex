@@ -1,9 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, Query
 from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import delete
 from urllib.parse import urlencode
+import uuid as uuid_mod
 
 from app.database import get_db
+from app.dependencies.auth import get_current_user
 from app.schemas.auth import (
     UserRegister,
     UserLogin,
@@ -17,6 +20,8 @@ from app.schemas.auth import (
 from app.services import auth as auth_service
 from app.services.email import send_email
 from app.config import settings
+from app.models.user import User
+from app.models.workspace import Workspace
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 
@@ -109,8 +114,28 @@ async def google_callback(code: str = Query(...), db: AsyncSession = Depends(get
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
     auth_url = settings.CORS_ORIGINS.split(",")[0].strip()
-    frontend_callback = (
-        f"{auth_url}/auth?token={result['access_token']}"
-        f"&refresh_token={result['refresh_token']}"
-    )
+    params = [
+        f"token={result['access_token']}",
+        f"refresh_token={result['refresh_token']}",
+    ]
+    if result.get("is_new"):
+        params.append("new_user=1")
+    frontend_callback = f"{auth_url}/auth?{'&'.join(params)}"
     return RedirectResponse(url=frontend_callback)
+
+
+@router.delete("/account")
+async def delete_account(
+    user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    user_id = uuid_mod.UUID(user["user_id"])
+    result = await db.execute(select(User).where(User.id == user_id))
+    existing = result.scalar_one_or_none()
+    if not existing:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    await db.execute(delete(Workspace).where(Workspace.owner_user_id == user_id))
+    await db.delete(existing)
+    await db.flush()
+    return {"ok": True, "message": "Account and all associated data permanently deleted."}
