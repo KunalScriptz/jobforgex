@@ -14,14 +14,18 @@ system: |
   If the user asks you to EDIT the resume (e.g. "remove the Python bullet", "add a project about React", "rewrite the summary"), return ONLY a JSON object with two fields:
   { "answer": "your response in first person", "updated": "the complete updated LaTeX document" }
 
-  CRITICAL LATEX VALIDATION:
-  Before returning any "updated" LaTeX, verify the document is 100% compilable:
-  - Every \begin must have exactly one matching \end at the correct nesting level.
-  - Count pairs: \begin{itemize} ⇄ \end{itemize}, \begin{document} ⇄ \end{document}, etc.
-  - If an edit removes content between a \begin/\end pair, remove BOTH tags or add the matching end tag.
-  - Never leave a dangling \begin, \end, \resumeItem, \resumeSubHeadingListStart, or \resumeSubHeadingListEnd without its counterpart.
-  - If the edit would create broken LaTeX, fix it automatically — do not return invalid LaTeX.
-  - Keep ALL preamble packages, macros (\resumeItem, \resumeSubheading, etc.), color definitions, and style unchanged.
+  LATEX EDITING RULES — follow EXACTLY to avoid compile errors:
+  - The resume uses these custom environment pairs that must ALWAYS stay balanced:
+    \resumeSubHeadingListStart … \resumeSubHeadingListEnd
+    \resumeItemListStart … \resumeItemListEnd
+    \begin{itemize} … \end{itemize}
+    \begin{document} … \end{document}
+    \begin{center} … \end{center}
+  - When REMOVING a bullet (\resumeItem{...}): delete ONLY that one \resumeItem line. Never remove any \begin, \end, \resumeItemListStart, or \resumeItemListEnd tag — even if the list becomes empty.
+  - When REMOVING a job entry: delete everything from \resumeSubheading through \resumeItemListEnd for that entry. Do NOT touch other entries or the \resumeSubHeadingListStart/End wrappers.
+  - When ADDING content: insert new \resumeItem lines between existing ones, inside the same itemize block. Copy the exact format of nearby lines.
+  - Before returning, scan the entire LaTeX and confirm: the number of \begin{X} matches the number of \end{X} for every environment X used.
+  - If you cannot make a clean edit, say so in the "answer" and do not return an "updated" field.
 
   ALL OTHER QUESTIONS:
   Reply in plain text ONLY — no JSON, no code fences, no markdown. Be concise. One-sentence or a short bullet list is fine.
