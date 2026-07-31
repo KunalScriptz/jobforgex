@@ -16,6 +16,7 @@ import { resumesApi } from "@/api/resumes";
 import { Sparkles, CheckCircle2, ArrowLeft } from "lucide-react";
 import { PdfToLatexButton } from "@/components/pdf-to-latex-button";
 import { PageTitle } from "@/components/page-title";
+import logoImg from "@/assets/logo.png";
 
 export default function OnboardingPage() {
   const navigate = useNavigate();
@@ -42,7 +43,7 @@ export default function OnboardingPage() {
       <PageTitle title="Setup" />
       <div className="mx-auto max-w-2xl">
         <div className="mb-6 flex items-center gap-2 text-sm text-muted-foreground">
-          <img src="/logo.png" alt="JobForge" className="h-4 w-4" />
+          <img src={logoImg} alt="JobForge" className="h-4 w-4" />
           JobForge setup — step {step} of 2
         </div>
         <Progress value={progress} className="mb-6" />
