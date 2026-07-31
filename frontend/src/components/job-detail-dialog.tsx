@@ -691,22 +691,27 @@ function DocumentCard({ art, jobId }: { art: any; jobId: string }) {
         purpose: "custom",
       });
       let answer = res.content;
-      let updated = false;
+      let updatedLatex: string | null = null;
       try {
         const parsed = JSON.parse(res.content);
-        answer = parsed.answer ?? res.content;
-        updated = !!parsed.updated;
+        if (parsed.answer) answer = parsed.answer;
+        if (parsed.updated && typeof parsed.updated === "string" && parsed.updated.length > 100) {
+          updatedLatex = parsed.updated;
+        }
       } catch {}
-      return { answer, updated };
+      return { answer, updatedLatex };
     },
     onSuccess: async (r) => {
-      setChatLog((l) => [...l, { role: "assistant", text: r.answer, updated: r.updated }]);
-      if (r.updated) {
+      setChatLog((l) => [...l, { role: "assistant", text: r.answer, updated: !!r.updatedLatex }]);
+      if (r.updatedLatex) {
         toast.success("Resume updated — recompiling PDF…");
-        qc.invalidateQueries({ queryKey: ["jobs", jobId] });
-        try { await resumesApi.compileArtifact(art.id); }
-        catch (e: any) { toast.error(String(e?.message ?? e).slice(0, 200)); }
-        qc.invalidateQueries({ queryKey: ["jobs", jobId] });
+        try {
+          await apiClient.patch(`/api/v1/jobs/artifacts/${art.id}`, { latex_source: r.updatedLatex });
+          await resumesApi.compileArtifact(art.id);
+          qc.invalidateQueries({ queryKey: ["jobs", jobId] });
+        } catch (e: any) {
+          toast.error(String(e?.message ?? e).slice(0, 200));
+        }
       }
     },
     onError: (e: any) => toast.error(String(e?.message ?? e).slice(0, 200)),

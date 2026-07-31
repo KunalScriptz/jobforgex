@@ -18,6 +18,7 @@ from app.schemas.job import (
 from app.models.job import JobStatus, ArtifactKind
 from app.services import jobs as jobs_service
 from app.services import workspace as workspace_service
+from pydantic import BaseModel
 
 router = APIRouter(prefix="/api/v1/jobs", tags=["jobs"])
 
@@ -145,4 +146,20 @@ async def delete_artifact(
     db: AsyncSession = Depends(get_db),
 ):
     await jobs_service.delete_artifact(db, artifact_id)
+    return {"ok": True}
+
+
+class ArtifactUpdateRequest(BaseModel):
+    latex_source: str
+
+
+@router.patch("/artifacts/{artifact_id}")
+async def update_artifact(
+    artifact_id: uuid.UUID,
+    data: ArtifactUpdateRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    art = await jobs_service.update_artifact_source(db, artifact_id, data.latex_source)
+    if not art:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Artifact not found")
     return {"ok": True}
