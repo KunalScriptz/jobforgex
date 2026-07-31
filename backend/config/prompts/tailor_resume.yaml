@@ -17,7 +17,7 @@ user_template: |
   5. Keep every bullet outcome-oriented; preserve or add quantified metrics where the base resume implies them.
   6. ROLE TITLE ADAPTATION (Summary only):
      - In the Professional Summary, adapt the candidate's self-descriptor to align with the JD's target role. For example, if the base resume says "AI Engineer" and the JD is for a "Machine Learning Engineer" or "Data Scientist", rewrite the Summary to use the JD's terminology — e.g., "Machine Learning Engineer with X years of experience..."
-     - This applies ONLY to the Summary section. NEVER change the actual job titles in the Experience section (e.g., "Data Scientist I" at Worley stays "Data Scientist I"). Verified employment titles must remain untouched.
+     - This applies ONLY to the Summary section. NEVER change the actual job titles in the Experience section — the person's verified employment titles at each company must remain exactly as written in the base resume.
   7. Return the COMPLETE LaTeX document starting with \documentclass and ending with \end{document}. No markdown, no commentary.
 
   === JOB DESCRIPTION ===
