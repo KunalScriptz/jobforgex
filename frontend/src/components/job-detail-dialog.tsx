@@ -51,6 +51,7 @@ import { aiApi } from "@/api/ai";
 import { resumesApi } from "@/api/resumes";
 import { billingApi } from "@/api/billing";
 import { AI_TOOLS_META } from "@/lib/ai-tools";
+import { extractResumeName, tailoredDocFilename } from "@/lib/filenames";
 
 type Status = "wishlist" | "applied" | "interview" | "offer" | "rejected";
 const STATUSES: Status[] = ["wishlist","applied","interview","offer","rejected"];
@@ -475,22 +476,6 @@ function NotesTab({ job }: { job: any }) {
   );
 }
 
-function sanitizeFilenamePart(s: string) {
-  return s.replace(/[^A-Za-z0-9]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 60) || "unknown";
-}
-
-function extractResumeName(latexSource: string): string {
-  const m = latexSource.match(/\\resumeName\s*\{([^}]*)\}/);
-  return m?.[1]?.trim() ?? "resume";
-}
-
-function buildDocFilename(opts: { name: string; company: string; title: string; suffix: string }) {
-  const parts = [opts.name, opts.company, opts.title, opts.suffix]
-    .map(sanitizeFilenamePart)
-    .filter((s) => s && s !== "unknown");
-  return parts.join("_") + ".tex";
-}
-
 function DocumentsTab({ artifacts, jobId, job }: { artifacts: any[]; jobId: string; job?: any }) {
   const [zipping, setZipping] = useState(false);
   const qc = useQueryClient();
@@ -508,7 +493,7 @@ function DocumentsTab({ artifacts, jobId, job }: { artifacts: any[]; jobId: stri
       const compileJobs: Promise<any>[] = [];
       const baseResume = await resumesApi.getBaseResume();
       const resumeLatex = baseResume?.latex_source ?? "";
-      const resumeName = resumeLatex ? extractResumeName(resumeLatex) : "resume";
+      const resumeName = resumeLatex ? (extractResumeName(resumeLatex) || baseResume?.name || "resume") : "resume";
 
       if (doTailor) {
         t = await aiApi.generate({
@@ -517,7 +502,7 @@ function DocumentsTab({ artifacts, jobId, job }: { artifacts: any[]; jobId: stri
           job_id: job.id,
           purpose: "resume_tailoring",
         });
-        const filename = buildDocFilename({ name: resumeName, company: job.company, title: job.title, suffix: "Resume" });
+        const filename = tailoredDocFilename({ name: resumeName, company: job.company, title: job.title, suffix: "Resume" });
         const savedT = await apiClient.post("/api/v1/jobs/artifacts", {
           job_id: job.id,
           kind: "tailored_resume",
@@ -543,7 +528,7 @@ function DocumentsTab({ artifacts, jobId, job }: { artifacts: any[]; jobId: stri
           job_id: job.id,
           purpose: "cover_letter",
         });
-        const filename = buildDocFilename({ name: resumeName, company: job.company, title: job.title, suffix: "Cover_Letter" });
+        const filename = tailoredDocFilename({ name: resumeName, company: job.company, title: job.title, suffix: "Cover_Letter" });
         const savedC = await apiClient.post("/api/v1/jobs/artifacts", {
           job_id: job.id,
           kind: "cover_letter",

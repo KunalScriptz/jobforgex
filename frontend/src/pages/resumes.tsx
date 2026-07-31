@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 import CodeMirror from "@uiw/react-codemirror";
 import { useEffect, useRef, useState } from "react";
 import { HexColorPicker } from "react-colorful";
@@ -12,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Download, Save, History, RotateCcw, LayoutList } from "lucide-react";
+import { Download, Save, History, RotateCcw, LayoutList, FileText } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { LatexPreview, type LatexPreviewHandle } from "@/components/latex-preview";
 import { PdfToLatexButton } from "@/components/pdf-to-latex-button";
@@ -76,6 +77,7 @@ function useIsDark(): "dark" | "light" {
 }
 
 export default function ResumesPage() {
+  const navigate = useNavigate();
   const qc = useQueryClient();
   const cmTheme = useIsDark();
   const previewRef = useRef<LatexPreviewHandle>(null);
@@ -143,7 +145,18 @@ export default function ResumesPage() {
     link.click();
   }
 
-  if (!resume) return <div className="p-6 text-sm text-muted-foreground">No base resume — finish onboarding.</div>;
+  if (!resume) return (
+    <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
+      <FileText className="h-10 w-10 text-muted-foreground" />
+      <div className="text-sm font-medium">No base resume found</div>
+      <p className="max-w-sm text-xs text-muted-foreground">
+        Upload your resume to start tailoring. You can paste LaTeX or import a PDF.
+      </p>
+      <Button onClick={() => navigate("/onboarding")}>
+        Complete your setup
+      </Button>
+    </div>
+  );
 
   return (
     <div className="flex h-[calc(100vh-0px)] flex-col p-6">

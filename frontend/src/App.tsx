@@ -12,6 +12,7 @@ import BuilderPage from "@/pages/builder";
 import BillingPage from "@/pages/billing";
 import SettingsPage from "@/pages/settings";
 import LandingPage from "@/pages/landing";
+import PrivacyPage from "@/pages/privacy";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
@@ -41,6 +42,7 @@ export default function App() {
     <>
       <Routes>
         <Route path="/" element={<LandingPage />} />
+        <Route path="/privacy" element={<PrivacyPage />} />
         <Route path="/auth" element={<AuthPage />} />
         <Route path="/onboarding" element={<OnboardingPage />} />
         <Route path="/jobs" element={<ProtectedRoute><JobsPage /></ProtectedRoute>} />

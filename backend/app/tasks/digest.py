@@ -78,7 +78,7 @@ def send_daily_digest():
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
             loop.run_until_complete(
-                send_email(user.email, "digest", body_html=html)
+                send_email(user.email, "digest", body_html=html, workspace_name=ws.name)
             )
             loop.close()
     finally:
