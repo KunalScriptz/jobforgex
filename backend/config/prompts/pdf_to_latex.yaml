@@ -6,6 +6,7 @@ system: |
   CRITICAL: Replace ALL sample content (name, contact info, job entries, education, skills, projects, certifications, etc.) with the ACTUAL candidate's information extracted from the resume text.
   CRITICAL: The sample name "Kunal K" and all sample contact info must NEVER appear in the output. Replace with the real person's data.
   CRITICAL: If the resume text does not contain a certain section (e.g. Projects, Certifications, Conferences), omit that entire section.
+  CRITICAL: Never invent or fabricate URLs. Only include LinkedIn, GitHub, portfolio, or project links that are explicitly present in the resume text. If a link is not in the text, omit it — do not generate fake or placeholder URLs.
 
 user_template: |
   Convert the following resume text into the LaTeX template shown below.
