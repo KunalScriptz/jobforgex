@@ -100,9 +100,11 @@ function Step3({ onBack, onDone }: { onBack: () => void; onDone: () => void }) {
   const [tex, setTex] = useState("");
   const [busy, setBusy] = useState(false);
 
+  const isValid = tex.includes("\\documentclass") && tex.includes("\\begin{document}") && tex.includes("\\end{document}");
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (tex.length < 100) { toast.error("Paste your full LaTeX resume"); return; }
+    if (!isValid) { toast.error("Please upload a valid LaTeX resume before finishing."); return; }
     setBusy(true);
     try {
       await resumesApi.saveBaseResume({ latex_source: tex });
@@ -117,7 +119,7 @@ function Step3({ onBack, onDone }: { onBack: () => void; onDone: () => void }) {
     <Card>
       <CardHeader>
         <CardTitle>Upload your base resume</CardTitle>
-        <CardDescription>Paste the complete LaTeX source, or import from a PDF and we'll convert it into our LaTeX template using your AI provider.</CardDescription>
+        <CardDescription>Paste the complete LaTeX source, or import from a PDF and we'll convert it into our LaTeX template.</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={submit} className="space-y-4">
@@ -133,11 +135,14 @@ function Step3({ onBack, onDone }: { onBack: () => void; onDone: () => void }) {
             onChange={(e) => setTex(e.target.value)}
             placeholder="\documentclass[letterpaper,11pt]{article}&\#10;..."
           />
+          {tex.length > 0 && !isValid && (
+            <p className="text-xs text-amber-500">Your LaTeX must include \documentclass, \begin{{document}}, and \end{{document}} to be valid.</p>
+          )}
           <div className="flex items-center justify-between">
             <Button type="button" variant="outline" onClick={onBack} disabled={busy}>
               <ArrowLeft className="mr-1.5 h-4 w-4" /> Back
             </Button>
-            <Button type="submit" disabled={busy}>
+            <Button type="submit" disabled={busy || !isValid}>
               {busy ? "Saving..." : (<><CheckCircle2 className="mr-1.5 h-4 w-4" />Finish setup</>)}
             </Button>
           </div>
