@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import delete, select
 from urllib.parse import urlencode
 import uuid as uuid_mod
+import asyncio
 
 from app.database import get_db
 from app.dependencies.auth import get_current_user
@@ -24,6 +25,20 @@ from app.models.user import User
 from app.models.workspace import Workspace
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
+
+
+def _send_email_background(to: str, template_name: str, **kwargs):
+    """Send email in a background thread so it never blocks the response."""
+    import threading
+    def _run():
+        import asyncio as _asyncio
+        loop = _asyncio.new_event_loop()
+        _asyncio.set_event_loop(loop)
+        try:
+            loop.run_until_complete(send_email(to, template_name, **kwargs))
+        finally:
+            loop.close()
+    threading.Thread(target=_run, daemon=True).start()
 
 
 @router.post("/register", response_model=TokenResponse)
@@ -120,11 +135,8 @@ async def google_callback(code: str = Query(...), db: AsyncSession = Depends(get
     ]
     if result.get("is_new"):
         params.append("new_user=1")
-        try:
-            from app.tasks.email import send_welcome_email
-            send_welcome_email.delay(result["user"]["email"])
-        except Exception:
-            pass
+        frontend_url = settings.CORS_ORIGINS.split(",")[0].strip()
+        _send_email_background(result["user"]["email"], "welcome", frontend_url=frontend_url)
     frontend_callback = f"{auth_url}/auth?{'&'.join(params)}"
     return RedirectResponse(url=frontend_callback)
 
@@ -145,10 +157,7 @@ async def delete_account(
     await db.delete(existing)
     await db.flush()
 
-    try:
-        from app.tasks.email import send_account_deleted
-        send_account_deleted.delay(user_email)
-    except Exception:
-        pass
+    frontend_url = settings.CORS_ORIGINS.split(",")[0].strip()
+    _send_email_background(user_email, "account_deleted", frontend_url=frontend_url)
 
     return {"ok": True, "message": "Account and all associated data permanently deleted."}
