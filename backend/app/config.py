@@ -76,6 +76,16 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
     CORS_ORIGINS: str = "*,http://localhost:5173,http://localhost:5454,https://*.helixos.pro"
 
+    @property
+    def FRONTEND_URL(self) -> str:
+        """First non-wildcard entry from CORS_ORIGINS (skips '*' and glob patterns)."""
+        for origin in self.CORS_ORIGINS.split(","):
+            stripped = origin.strip()
+            if "*" in stripped:
+                continue
+            return stripped
+        return "http://localhost:5173"
+
     model_config = {"extra": "ignore"}
 
     def model_post_init(self, __context):

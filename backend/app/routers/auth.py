@@ -78,7 +78,7 @@ async def logout(data: RefreshRequest, db: AsyncSession = Depends(get_db)):
 async def forgot_password(data: ForgotPasswordRequest, db: AsyncSession = Depends(get_db)):
     token = await auth_service.create_password_reset_token(db, data.email)
     if token:
-        frontend_url = settings.CORS_ORIGINS.split(",")[0].strip()
+        frontend_url = settings.FRONTEND_URL
         reset_url = f"{frontend_url}/auth/reset-password?token={token}"
         await send_email(data.email, "password_reset", reset_url=reset_url)
     return {"ok": True, "message": "If the email exists, a reset link has been sent."}
@@ -128,14 +128,14 @@ async def google_callback(code: str = Query(...), db: AsyncSession = Depends(get
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
-    auth_url = settings.CORS_ORIGINS.split(",")[0].strip()
+    auth_url = settings.FRONTEND_URL
     params = [
         f"token={result['access_token']}",
         f"refresh_token={result['refresh_token']}",
     ]
     if result.get("is_new"):
         params.append("new_user=1")
-        frontend_url = settings.CORS_ORIGINS.split(",")[0].strip()
+        frontend_url = settings.FRONTEND_URL
         _send_email_background(result["user"]["email"], "welcome", frontend_url=frontend_url)
     frontend_callback = f"{auth_url}/auth?{'&'.join(params)}"
     return RedirectResponse(url=frontend_callback)
@@ -157,7 +157,7 @@ async def delete_account(
     await db.delete(existing)
     await db.flush()
 
-    frontend_url = settings.CORS_ORIGINS.split(",")[0].strip()
+    frontend_url = settings.FRONTEND_URL
     _send_email_background(user_email, "account_deleted", frontend_url=frontend_url)
 
     return {"ok": True, "message": "Account and all associated data permanently deleted."}
