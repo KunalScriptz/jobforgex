@@ -61,9 +61,11 @@ async def save_base_resume(
     db: AsyncSession = Depends(get_db),
 ):
     ws_id = await get_workspace_id(user, db)
-    return await resumes_service.create_or_update_base_resume(
+    resume = await resumes_service.create_or_update_base_resume(
         db, ws_id, data.latex_source, data.name
     )
+    await db.refresh(resume)
+    return resume
 
 
 @router.put("/{resume_id}/colors")
