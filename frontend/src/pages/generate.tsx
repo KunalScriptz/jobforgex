@@ -16,6 +16,7 @@ import { Progress } from "@/components/ui/progress";
 import { Wand2, Download, FileText, Sparkles } from "lucide-react";
 import { LatexPreview } from "@/components/latex-preview";
 import { TailoringLoader } from "@/components/tailoring-loader";
+import { extractResumeName, tailoredDocFilename } from "@/lib/filenames";
 
 // ---- wrapper functions that match original server fn shapes ----
 
@@ -29,7 +30,7 @@ async function _scoreResume(args: { jd: string; job_id: string }) {
   return { report: JSON.parse(result.content), cost: result.total_cost };
 }
 
-async function _tailorResume(args: { jd: string; company: string; title: string; job_id: string }) {
+async function _tailorResume(args: { jd: string; company: string; title: string; job_id: string; resumeName: string }) {
   const result = await aiApi.generate({
     prompt_name: "tailor_resume",
     vars: { job_description: args.jd, company: args.company, job_title: args.title },
@@ -38,12 +39,12 @@ async function _tailorResume(args: { jd: string; company: string; title: string;
   });
   return {
     latex: result.content,
-    filename: `Tailored_Resume_${(args.company || "job").replace(/\s+/g, "_")}.tex`,
+    filename: tailoredDocFilename({ name: args.resumeName, company: args.company, title: args.title, suffix: "Resume" }),
     cost: result.total_cost,
   };
 }
 
-async function _generateCoverLetter(args: { jd: string; company: string; title: string; job_id: string }) {
+async function _generateCoverLetter(args: { jd: string; company: string; title: string; job_id: string; resumeName: string }) {
   const result = await aiApi.generate({
     prompt_name: "generate_cover_letter",
     vars: { job_description: args.jd, company: args.company, job_title: args.title },
@@ -52,7 +53,7 @@ async function _generateCoverLetter(args: { jd: string; company: string; title: 
   });
   return {
     latex: result.content,
-    filename: `Cover_Letter_${(args.company || "job").replace(/\s+/g, "_")}.tex`,
+    filename: tailoredDocFilename({ name: args.resumeName, company: args.company, title: args.title, suffix: "Cover_Letter" }),
     cost: result.total_cost,
   };
 }
@@ -70,6 +71,14 @@ export default function GeneratePage() {
   const qc = useQueryClient();
 
   const { data: allJobs = [] } = useQuery({ queryKey: ["jobs", "all"], queryFn: () => jobsApi.listJobs() });
+
+  const { data: baseResume } = useQuery({
+    queryKey: ["baseResume"],
+    queryFn: () => resumesApi.getBaseResume(),
+  });
+  const resumeName = baseResume?.latex_source
+    ? extractResumeName(baseResume.latex_source) || baseResume.name || "resume"
+    : "resume";
 
   const [selectedJobId, setSelectedJobId] = useState<string>("");
   const selectedJob = allJobs.find((j: any) => j.id === selectedJobId);
@@ -102,13 +111,13 @@ export default function GeneratePage() {
       let t: any = null, c: any = null;
       const compileJobs: Promise<any>[] = [];
       if (doTailor) {
-        t = await _tailorResume({ jd, company: selectedJob.company, title: selectedJob.title, job_id: selectedJob.id });
+        t = await _tailorResume({ jd, company: selectedJob.company, title: selectedJob.title, job_id: selectedJob.id, resumeName });
         const savedT = await _saveArtifact({ job_id: selectedJob.id, kind: "tailored_resume", filename: t.filename, latex_source: t.latex });
         compileJobs.push(_compileArtifactPdf({ artifact_id: savedT.id }).catch(() => null));
         localCost += Number(t.cost);
       }
       if (doCover) {
-        c = await _generateCoverLetter({ jd, company: selectedJob.company, title: selectedJob.title, job_id: selectedJob.id });
+        c = await _generateCoverLetter({ jd, company: selectedJob.company, title: selectedJob.title, job_id: selectedJob.id, resumeName });
         const savedC = await _saveArtifact({ job_id: selectedJob.id, kind: "cover_letter", filename: c.filename, latex_source: c.latex });
         compileJobs.push(_compileArtifactPdf({ artifact_id: savedC.id }).catch(() => null));
         localCost += Number(c.cost);

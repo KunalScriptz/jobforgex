@@ -724,10 +724,18 @@ function DocumentCard({ art, jobId }: { art: any; jobId: string }) {
 
   async function downloadPdf() {
     try {
+      const token = localStorage.getItem("access_token");
       const { url, filename } = await resumesApi.getPdfUrl(art.id);
+      const response = await fetch(url, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!response.ok) throw new Error(`Failed to download: ${response.status}`);
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
       const link = document.createElement("a");
-      link.href = url; link.download = filename; link.target = "_blank";
+      link.href = blobUrl; link.download = filename;
       link.click();
+      URL.revokeObjectURL(blobUrl);
     } catch (e: any) {
       toast.error(String(e?.message ?? e).slice(0, 200));
     }
@@ -736,8 +744,15 @@ function DocumentCard({ art, jobId }: { art: any; jobId: string }) {
   async function openPreview() {
     setPreviewLoading(true);
     try {
+      const token = localStorage.getItem("access_token");
       const { url } = await resumesApi.getPdfUrl(art.id, true);
-      setPreviewUrl(url);
+      const response = await fetch(url, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!response.ok) throw new Error(`Failed to load PDF: ${response.status}`);
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      setPreviewUrl(blobUrl);
     } catch (e: any) {
       toast.error(String(e?.message ?? e).slice(0, 200));
     } finally {

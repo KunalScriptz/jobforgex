@@ -1,5 +1,5 @@
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ export default function AuthPage() {
   const [searchParams] = useSearchParams();
   const { isAuthenticated } = useAuth();
   const [busy, setBusy] = useState(false);
+  const signedUpRef = useRef(false);
 
   useEffect(() => {
     const token = searchParams.get("token");
@@ -25,7 +26,10 @@ export default function AuthPage() {
       navigate("/jobs");
       return;
     }
-    if (isAuthenticated) navigate("/jobs");
+    if (!signedUpRef.current && isAuthenticated) {
+      navigate("/jobs");
+    }
+    signedUpRef.current = false;
   }, [isAuthenticated, navigate, searchParams]);
 
   return (
@@ -45,10 +49,10 @@ export default function AuthPage() {
               <TabsTrigger value="signup">Sign up</TabsTrigger>
             </TabsList>
             <TabsContent value="signin" className="mt-4">
-              <AuthForm mode="signin" busy={busy} setBusy={setBusy} />
+              <AuthForm mode="signin" busy={busy} setBusy={setBusy} onSignup={() => {}} />
             </TabsContent>
             <TabsContent value="signup" className="mt-4">
-              <AuthForm mode="signup" busy={busy} setBusy={setBusy} />
+              <AuthForm mode="signup" busy={busy} setBusy={setBusy} onSignup={() => { signedUpRef.current = true; }} />
             </TabsContent>
           </Tabs>
         </CardContent>
@@ -57,7 +61,7 @@ export default function AuthPage() {
   );
 }
 
-function AuthForm({ mode, busy, setBusy }: { mode: "signin" | "signup"; busy: boolean; setBusy: (v: boolean) => void }) {
+function AuthForm({ mode, busy, setBusy, onSignup }: { mode: "signin" | "signup"; busy: boolean; setBusy: (v: boolean) => void; onSignup: () => void }) {
   const navigate = useNavigate();
   const { login, register } = useAuth();
   const [email, setEmail] = useState("");
@@ -69,6 +73,7 @@ function AuthForm({ mode, busy, setBusy }: { mode: "signin" | "signup"; busy: bo
     setBusy(true);
     try {
       if (mode === "signup") {
+        onSignup();
         await register({
           email,
           password,
