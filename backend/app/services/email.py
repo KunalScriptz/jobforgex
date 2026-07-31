@@ -1,5 +1,6 @@
 import smtplib
 import ssl
+import textwrap
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
@@ -87,7 +88,7 @@ async def send_email(to: str, template_name: str, **kwargs) -> bool:
         return False
 
     subject = template["subject"].format(**kwargs)
-    body = template["body_html"].format(**kwargs)
+    body = textwrap.dedent(template["body_html"]).format(**kwargs).strip()
 
     msg = MIMEMultipart("alternative")
     msg["From"] = settings.SMTP_FROM
