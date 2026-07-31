@@ -1,14 +1,21 @@
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 
 import { workspaceApi } from "@/api/workspace";
 import { extensionApi } from "@/api/extension";
+import { authApi } from "@/api/auth";
 
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Trash2, Plus, Chrome, Download, Copy } from "lucide-react";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Trash2, Plus, Chrome, Download, Copy, AlertTriangle } from "lucide-react";
 
 export default function SettingsPage() {
   return (
@@ -16,6 +23,7 @@ export default function SettingsPage() {
       <h1 className="text-2xl font-bold">Settings</h1>
       <BoardsCard />
       <ExtensionCard />
+      <DeleteAccountCard />
     </div>
   );
 }
@@ -117,6 +125,60 @@ function ExtensionCard() {
             </div>
           ))}
         </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function DeleteAccountCard() {
+  const navigate = useNavigate();
+  const del = useMutation({
+    mutationFn: () => authApi.deleteAccount(),
+    onSuccess: () => {
+      localStorage.removeItem("access_token");
+      localStorage.removeItem("refresh_token");
+      toast.success("Account deleted");
+      navigate("/");
+    },
+    onError: (e: any) => toast.error(String(e?.response?.data?.detail || e?.message || "Failed").slice(0, 300)),
+  });
+
+  return (
+    <Card className="border-destructive/30">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-destructive">
+          <AlertTriangle className="h-4 w-4" />
+          Danger zone
+        </CardTitle>
+        <CardDescription>
+          Permanently delete your account and all associated data — workspaces, jobs, resumes, and generated documents.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button variant="destructive" disabled={del.isPending}>
+              {del.isPending ? "Deleting…" : "Delete my account"}
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete your account?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This action is permanent and cannot be undone. All your workspaces, boards, jobs, resumes, cover letters, and generated documents will be permanently deleted.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => del.mutate()}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Yes, delete everything
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </CardContent>
     </Card>
   );

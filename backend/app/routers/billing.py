@@ -201,7 +201,47 @@ async def get_pricing(
     country_code: str = "DEFAULT",
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(
-        select(GeoPricing).where(GeoPricing.country_code.in_([country_code.upper(), "DEFAULT"]))
+    plans_result = await db.execute(select(Plan).order_by(Plan.sort_order))
+    all_plans = list(plans_result.scalars().all())
+
+    geo_result = await db.execute(
+        select(GeoPricing).where(
+            GeoPricing.country_code.in_([country_code.upper(), "DEFAULT"])
+        )
     )
-    return list(result.scalars().all())
+    geo_rows = list(geo_result.scalars().all())
+
+    geo_by_plan: dict[str, list] = {}
+    for g in geo_rows:
+        geo_by_plan.setdefault(g.plan_id, []).append(g)
+
+    result = []
+    for plan in all_plans:
+        candidates = geo_by_plan.get(plan.id, [])
+        specific = next((g for g in candidates if g.country_code == country_code.upper()), None)
+        default_geo = next((g for g in candidates if g.country_code == "DEFAULT"), None)
+        geo = specific or default_geo
+
+        monthly = geo.monthly_price if geo else plan.monthly_price_usd
+        annual = geo.annual_price if geo else plan.annual_price_usd
+        currency = geo.currency if geo else "USD"
+        symbol = geo.currency_symbol if geo else "$"
+        discount = round((1 - annual / (monthly * 12)) * 100) if monthly > 0 and annual > 0 else 0
+
+        result.append(PricingOut(
+            plan_id=plan.id,
+            name=plan.name,
+            country_code=country_code.upper(),
+            currency=currency,
+            currency_symbol=symbol,
+            monthly_price=monthly,
+            annual_price=annual,
+            monthly_price_display=f"{symbol}{monthly}",
+            annual_price_display=f"{symbol}{annual}",
+            annual_discount_pct=discount,
+            razorpay_plan_id_monthly=geo.razorpay_plan_id_monthly if geo else None,
+            razorpay_plan_id_annual=geo.razorpay_plan_id_annual if geo else None,
+            features=plan.features if isinstance(plan.features, list) else [],
+        ))
+
+    return result

@@ -4,6 +4,7 @@ import yaml
 import httpx
 import hashlib
 import hmac
+import asyncio
 from pathlib import Path
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -63,20 +64,40 @@ async def call_deepseek(
     if prompt.get("response_format") == "json_object":
         body["response_format"] = {"type": "json_object"}
 
-    async with httpx.AsyncClient(timeout=120) as client:
-        res = await client.post(
-            f"{base_url}/chat/completions",
-            headers={"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"},
-            json=body,
-        )
-        if res.status_code != 200:
-            text = res.text[:500]
-            raise RuntimeError(f"AI provider error {res.status_code}: {text}")
+    max_retries = 3
+    last_error = None
+    for attempt in range(max_retries):
+        try:
+            async with httpx.AsyncClient(timeout=120) as client:
+                res = await client.post(
+                    f"{base_url}/chat/completions",
+                    headers={"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"},
+                    json=body,
+                )
+                if res.status_code == 200:
+                    data = res.json()
+                    content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+                    in_tok = data.get("usage", {}).get("prompt_tokens", 0)
+                    out_tok = data.get("usage", {}).get("completion_tokens", 0)
+                    break
 
-        data = res.json()
-        content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
-        in_tok = data.get("usage", {}).get("prompt_tokens", 0)
-        out_tok = data.get("usage", {}).get("completion_tokens", 0)
+                text = res.text[:500]
+                if res.status_code in (429, 503) and attempt < max_retries - 1:
+                    wait = (2 ** attempt) * 1.5
+                    await asyncio.sleep(wait)
+                    last_error = RuntimeError(f"AI provider busy (attempt {attempt + 1}/{max_retries}), retrying in {wait}s...")
+                    continue
+                raise RuntimeError(f"AI provider error {res.status_code}: {text}")
+        except (httpx.TimeoutException, httpx.ConnectError, httpx.RemoteProtocolError) as e:
+            if attempt < max_retries - 1:
+                wait = (2 ** attempt) * 1.5
+                await asyncio.sleep(wait)
+                last_error = RuntimeError(f"AI provider connection error (attempt {attempt + 1}/{max_retries}): {e}")
+                continue
+            raise
+
+    if last_error and not 'data' in locals():
+        raise last_error
 
     in_cost = (in_tok / 1_000_000) * settings.DEEPSEEK_INPUT_PRICE_PER_1M
     out_cost = (out_tok / 1_000_000) * settings.DEEPSEEK_OUTPUT_PRICE_PER_1M

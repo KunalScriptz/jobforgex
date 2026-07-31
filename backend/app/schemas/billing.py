@@ -37,8 +37,15 @@ class SubscriptionOut(BaseModel):
 
 class PricingOut(BaseModel):
     plan_id: str
+    name: str = ""
     country_code: str
     currency: str
     currency_symbol: str
     monthly_price: float
     annual_price: float
+    monthly_price_display: str = ""
+    annual_price_display: str = ""
+    annual_discount_pct: int = 0
+    razorpay_plan_id_monthly: Optional[str] = None
+    razorpay_plan_id_annual: Optional[str] = None
+    features: list[str] = Field(default_factory=list)

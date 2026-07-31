@@ -290,6 +290,7 @@ async def google_auth_user(db: AsyncSession, code: str) -> dict:
 
     result = await db.execute(select(User).where(User.google_id == google_id))
     user = result.scalar_one_or_none()
+    is_new = False
 
     if not user:
         result = await db.execute(select(User).where(User.email == email))
@@ -325,6 +326,7 @@ async def google_auth_user(db: AsyncSession, code: str) -> dict:
             )
             db.add(subscription)
             await db.flush()
+            is_new = True
 
     role_result = await db.execute(select(UserRole).where(UserRole.user_id == user.id))
     user_role = role_result.scalar_one_or_none()
@@ -350,6 +352,7 @@ async def google_auth_user(db: AsyncSession, code: str) -> dict:
         "access_token": access_token_jwt,
         "refresh_token": raw_token,
         "token_type": "bearer",
+        "is_new": is_new,
         "user": {
             "id": str(user.id),
             "email": user.email,
