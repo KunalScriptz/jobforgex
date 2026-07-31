@@ -16,7 +16,7 @@ def send_email_task(to: str, template_name: str, **kwargs):
 
 @celery_app.task(name="send_welcome_email")
 def send_welcome_email(user_email: str):
-    frontend_url = settings.CORS_ORIGINS.split(",")[0].strip()
+    frontend_url = settings.FRONTEND_URL
     import asyncio
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
@@ -30,7 +30,7 @@ def send_welcome_email(user_email: str):
 
 @celery_app.task(name="send_account_deleted")
 def send_account_deleted(user_email: str):
-    frontend_url = settings.CORS_ORIGINS.split(",")[0].strip()
+    frontend_url = settings.FRONTEND_URL
     import asyncio
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
