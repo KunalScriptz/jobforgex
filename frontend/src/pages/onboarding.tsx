@@ -15,6 +15,7 @@ import { workspaceApi } from "@/api/workspace";
 import { resumesApi } from "@/api/resumes";
 import { Sparkles, CheckCircle2, ArrowLeft } from "lucide-react";
 import { PdfToLatexButton } from "@/components/pdf-to-latex-button";
+import { PageTitle } from "@/components/page-title";
 
 export default function OnboardingPage() {
   const navigate = useNavigate();
@@ -38,6 +39,7 @@ export default function OnboardingPage() {
 
   return (
     <div className="min-h-screen bg-muted/30 p-6">
+      <PageTitle title="Setup" />
       <div className="mx-auto max-w-2xl">
         <div className="mb-6 flex items-center gap-2 text-sm text-muted-foreground">
           <img src="/logo.png" alt="JobForge" className="h-4 w-4" />

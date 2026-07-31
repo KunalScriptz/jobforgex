@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { ClipboardCheck, AlertTriangle } from "lucide-react";
+import { PageTitle } from "@/components/page-title";
 
 async function _scoreResume(args: { jd: string }) {
   const result = await aiApi.generate({
@@ -71,6 +72,7 @@ export default function CheckerPage() {
 
   return (
     <div className="p-6">
+      <PageTitle title="ATS Checker" />
       <h1 className="mb-1 text-2xl font-bold">Resume checker</h1>
       <p className="mb-4 text-sm text-muted-foreground">Score your base resume against a specific job description.</p>
 

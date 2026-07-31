@@ -7,6 +7,8 @@ import {
   Wand2, CheckCircle2, XCircle, Loader2, FileText,
 } from "lucide-react";
 
+import { PageTitle } from "@/components/page-title";
+
 import { jobsApi } from "@/api/jobs";
 import { resumesApi } from "@/api/resumes";
 import { aiApi } from "@/api/ai";
@@ -184,6 +186,7 @@ export default function BuilderPage() {
 
   return (
     <div className="flex h-screen flex-col">
+      <PageTitle title="Resume Builder" />
         {/* Top bar */}
         <div className="flex h-12 items-center gap-3 border-b bg-card px-4 text-sm">
           <button onClick={() => navigate("/jobs")} className="flex items-center gap-1 text-muted-foreground hover:text-foreground">

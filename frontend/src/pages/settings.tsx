@@ -16,10 +16,12 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Trash2, Plus, Chrome, Download, Copy, AlertTriangle } from "lucide-react";
+import { PageTitle } from "@/components/page-title";
 
 export default function SettingsPage() {
   return (
     <div className="space-y-6 p-6">
+      <PageTitle title="Settings" />
       <h1 className="text-2xl font-bold">Settings</h1>
       <BoardsCard />
       <ExtensionCard />

@@ -142,7 +142,7 @@ services:
       GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-http://localhost:5454/api/v1/auth/google/callback}
       ENVIRONMENT: ${ENVIRONMENT:-development}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
-      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://localhost:5454,https://*.helixos.pro}
+      CORS_ORIGINS: ${CORS_ORIGINS:-*,http://localhost:5173,http://localhost:5454,https://*.helixos.pro}
     ports:
       - "5454:5454"
     volumes:

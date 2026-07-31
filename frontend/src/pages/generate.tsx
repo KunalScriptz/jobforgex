@@ -16,6 +16,7 @@ import { Progress } from "@/components/ui/progress";
 import { Wand2, Download, FileText, Sparkles } from "lucide-react";
 import { LatexPreview } from "@/components/latex-preview";
 import { TailoringLoader } from "@/components/tailoring-loader";
+import { PageTitle } from "@/components/page-title";
 import { extractResumeName, tailoredDocFilename } from "@/lib/filenames";
 
 // ---- wrapper functions that match original server fn shapes ----
@@ -149,6 +150,7 @@ export default function GeneratePage() {
 
   return (
     <div className="p-6">
+      <PageTitle title="Generate" />
       <div className="mb-6">
         <h1 className="text-2xl font-bold">Generate</h1>
         <p className="text-sm text-muted-foreground">Select a saved job, score your fit, and generate documents.</p>

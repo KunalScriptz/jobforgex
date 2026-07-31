@@ -17,6 +17,7 @@ import { Download, Save, History, RotateCcw, LayoutList, FileText } from "lucide
 import { Textarea } from "@/components/ui/textarea";
 import { LatexPreview, type LatexPreviewHandle } from "@/components/latex-preview";
 import { PdfToLatexButton } from "@/components/pdf-to-latex-button";
+import { PageTitle } from "@/components/page-title";
 
 // Convert "r,g,b" (0..1) rgb string used by LaTeX \definecolor into hex #rrggbb
 function rgbTupleToHex(t: string): string {
@@ -160,6 +161,7 @@ export default function ResumesPage() {
 
   return (
     <div className="flex h-[calc(100vh-0px)] flex-col p-6">
+      <PageTitle title="Resume" />
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <h1 className="text-2xl font-bold">Base resume</h1>
         <div className="ml-auto flex items-center gap-2">
