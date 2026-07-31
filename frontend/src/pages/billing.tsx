@@ -69,7 +69,7 @@ export default function BillingPage() {
 
   const used = data?.trial_used ?? 0;
   const limit = data?.trial_limit ?? 2;
-  const subPlanId = ((sub as any)?.plan_id as string | undefined) ?? "free";
+  const subPlanId = ((sub as any)?.plan as string | undefined) ?? "free";
   const subStatus = (sub?.subscription_status as string | undefined) ?? null;
   const subEnd = sub?.current_period_end ? new Date(sub.current_period_end as string) : null;
   const isPaidActive =

@@ -82,7 +82,11 @@ async def register_user(db: AsyncSession, email: str, password: str, full_name: 
 async def login_user(db: AsyncSession, email: str, password: str) -> dict:
     result = await db.execute(select(User).where(User.email == email))
     user = result.scalar_one_or_none()
-    if not user or not verify_password(password, user.password_hash):
+    if not user:
+        raise ValueError("Invalid email or password")
+    if not user.password_hash:
+        raise ValueError("This account was created with Google Sign-In. Please sign in with Google, or use 'Forgot password' to set a password.")
+    if not verify_password(password, user.password_hash):
         raise ValueError("Invalid email or password")
 
     role_result = await db.execute(select(UserRole).where(UserRole.user_id == user.id))

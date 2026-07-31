@@ -89,6 +89,19 @@ export type ResumeNameArgs = {
   ext: "tex" | "pdf";
 };
 
+/** `Kunal_Liberty_Data_Scientist_Resume.tex` — used for AI-generated documents. */
+export function tailoredDocFilename(opts: {
+  name: string;
+  company: string;
+  title: string;
+  suffix: string;
+}): string {
+  const parts = [opts.name, opts.company, opts.title, opts.suffix]
+    .map((s) => slug(s) || "unknown")
+    .filter(Boolean);
+  return `${parts.join("_")}.tex`;
+}
+
 /** `John_Doe_Base_Resume.tex` — always ends in `_Base_Resume.<ext>`. */
 export function baseResumeFilename(a: ResumeNameArgs): string {
   const rawName = a.fallbackName || extractResumeName(a.latex ?? "");

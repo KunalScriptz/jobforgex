@@ -51,6 +51,15 @@ app.include_router(webhooks.router)
 app.include_router(files.router)
 
 
+@app.get("/extension-version.json")
+async def extension_version():
+    return {
+        "version": "1.3.3",
+        "download": "/api/v1/extension/download",
+        "changelog": "Job scraping improvements and performance fixes.",
+    }
+
+
 @app.get("/")
 async def root():
     return {"name": "JobForge API", "version": "1.0.0", "docs": "/docs"}

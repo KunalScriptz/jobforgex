@@ -160,12 +160,16 @@ async def create_subscription(
     rp_sub_id = rp_data.get("id")
 
     if existing:
+        existing.plan = data.plan_id
+        existing.plan_id = data.plan_id
         existing.razorpay_subscription_id = rp_sub_id
         existing.subscription_status = rp_data.get("status")
         existing.billing_cycle = data.billing_cycle
     else:
         sub = Subscription(
             user_id=uuid.UUID(user["user_id"]),
+            plan=data.plan_id,
+            plan_id=data.plan_id,
             razorpay_subscription_id=rp_sub_id,
             subscription_status=rp_data.get("status"),
             billing_cycle=data.billing_cycle,

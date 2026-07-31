@@ -59,11 +59,17 @@ async def razorpay_webhook(request: Request, db: AsyncSession = Depends(get_db))
             select(Subscription).where(Subscription.razorpay_subscription_id == rp_sub_id)
         )
         sub = sub_result.scalar_one_or_none()
+        plan_from_notes = notes.get("plan_id", "pro")
         if sub:
             sub.subscription_status = status_val
+            if sub.plan == "free":
+                sub.plan = plan_from_notes
+                sub.plan_id = plan_from_notes
         else:
             sub = Subscription(
                 user_id=uuid.UUID(user_id),
+                plan=plan_from_notes,
+                plan_id=plan_from_notes,
                 razorpay_subscription_id=rp_sub_id,
                 subscription_status=status_val,
             )
