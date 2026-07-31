@@ -21,6 +21,8 @@ export interface ResumeVersion {
   created_at: string;
 }
 
+const API_BASE = import.meta.env.VITE_API_URL || "";
+
 export const resumesApi = {
   listResumes: () =>
     apiClient.get<Resume[]>("/api/v1/resumes/").then((r) => r.data),
@@ -54,5 +56,5 @@ export const resumesApi = {
         artifact_id: artifactId,
         inline,
       })
-      .then((r) => r.data),
+      .then((r) => ({ ...r.data, url: `${API_BASE}${r.data.url}` })),
 };
