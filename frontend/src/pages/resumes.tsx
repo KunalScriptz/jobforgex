@@ -3,7 +3,24 @@ import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import CodeMirror from "@uiw/react-codemirror";
 import { keymap } from "@codemirror/view";
+import { StreamLanguage } from "@codemirror/language";
 import { useEffect, useRef, useState } from "react";
+
+const latexLanguage = StreamLanguage.define({
+  name: "latex",
+  token(stream) {
+    if (stream.eatSpace()) return null;
+    if (stream.match(/^%.*/)) return "comment";
+    if (stream.match(/^\\[a-zA-Z@*]+/)) return "keyword";
+    if (stream.match(/\{/)) return "bracket";
+    if (stream.match(/\}/)) return "bracket";
+    if (stream.match(/\[/)) return "bracket";
+    if (stream.match(/\]/)) return "bracket";
+    stream.next();
+    return null;
+  },
+  languageData: { commentTokens: { line: "%" } },
+});
 import { HexColorPicker } from "react-colorful";
 
 import { resumesApi } from "@/api/resumes";
@@ -210,7 +227,7 @@ export default function ResumesPage() {
                 height="calc(100vh - 320px)"
                 basicSetup={{ lineNumbers: true, foldGutter: true }}
                 theme={cmTheme}
-                extensions={[toggleCommentExtension]}
+                extensions={[latexLanguage, toggleCommentExtension]}
               />
             </div>
             <div className="overflow-hidden rounded-lg border bg-white" style={{ height: "calc(100vh - 280px)" }}>
