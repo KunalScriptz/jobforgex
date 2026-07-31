@@ -2,6 +2,7 @@ import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import CodeMirror from "@uiw/react-codemirror";
+import { keymap } from "@codemirror/view";
 import { useEffect, useRef, useState } from "react";
 import { HexColorPicker } from "react-colorful";
 
@@ -57,6 +58,27 @@ function parseSections(src: string): SectionBlock[] {
       : src.length,
   }));
 }
+
+/** Toggle % comment for selected lines on Ctrl+/. */
+const toggleCommentExtension = keymap.of([{
+  key: "Mod-/",
+  run: ({ state, dispatch }) => {
+    const changes = state.changeByRange((range) => {
+      const line = state.doc.lineAt(range.from);
+      const text = line.text;
+      const isComment = text.trimStart().startsWith("%");
+      if (isComment) {
+        const idx = text.indexOf("%");
+        return { range, changes: { from: line.from + idx, to: line.from + idx + 1, insert: "" } };
+      } else {
+        const leading = text.match(/^(\s*)/)?.[0] ?? "";
+        return { range, changes: { from: line.from + leading.length, insert: "%" } };
+      }
+    });
+    dispatch(state.update(changes, { scrollIntoView: true, userEvent: "input" }));
+    return true;
+  },
+}]);
 
 function replaceSectionBody(src: string, block: SectionBlock, newBody: string): string {
   return src.slice(0, block.bodyStart) + "\n" + newBody.replace(/^\n+|\n+$/g, "") + "\n" + src.slice(block.end);
@@ -188,6 +210,7 @@ export default function ResumesPage() {
                 height="calc(100vh - 320px)"
                 basicSetup={{ lineNumbers: true, foldGutter: true }}
                 theme={cmTheme}
+                extensions={[toggleCommentExtension]}
               />
             </div>
             <div className="overflow-hidden rounded-lg border bg-white" style={{ height: "calc(100vh - 280px)" }}>
