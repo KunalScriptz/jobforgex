@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import React, { createContext, useContext, useState, useEffect } from "react";
 import { authApi, AuthResponse, LoginData, RegisterData } from "@/api/auth";
 
 interface AuthUser {
@@ -26,34 +26,6 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-
-  const restoreSession = useCallback(async () => {
-    const accessToken = localStorage.getItem("access_token");
-    const refreshToken = localStorage.getItem("refresh_token");
-
-    if (!accessToken && !refreshToken) {
-      setIsLoading(false);
-      return;
-    }
-
-    try {
-      if (refreshToken) {
-        const data = await authApi.refresh(refreshToken);
-        localStorage.setItem("access_token", data.access_token);
-        localStorage.setItem("refresh_token", data.refresh_token);
-      }
-
-      const { data } = await authApi.login({ email: "", password: "" }).catch(() => {
-        throw new Error("Invalid session");
-      });
-    } catch {
-      localStorage.removeItem("access_token");
-      localStorage.removeItem("refresh_token");
-      setUser(null);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
 
   useEffect(() => {
     const token = localStorage.getItem("access_token");
