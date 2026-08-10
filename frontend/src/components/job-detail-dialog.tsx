@@ -43,6 +43,7 @@ import {
 import { Trash2, MessageSquare, Send } from "lucide-react";
 import { Eye } from "lucide-react";
 import { CompanyLogo } from "@/components/company-logo";
+import { resolveCompanyDomain } from "@/lib/company";
 
 import apiClient from "@/api/client";
 import { jobsApi, type JobDetail } from "@/api/jobs";
@@ -96,7 +97,7 @@ export function JobDetailDialog({ jobId, open, onOpenChange }: {
         <div className="relative border-b bg-gradient-to-br from-primary/10 via-transparent to-transparent px-6 py-5">
           <div className="flex items-start justify-between gap-4">
             <div className="flex min-w-0 flex-1 items-start gap-3">
-              {job?.company && <CompanyLogo company={job.company} size={44} />}
+              {job?.company && <CompanyLogo company={job.company} domain={job.company_domain} url={job.url} size={44} />}
               <div className="min-w-0 flex-1">
                 <div className="mb-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
                   {job?.company ?? "—"}
@@ -984,14 +985,14 @@ function CompanyTab({ job }: { job: any }) {
   }, [job?.company]);
 
   if (!job) return null;
-  const domain = job.company.toLowerCase().replace(/\b(inc|llc|ltd|corp|corporation|co|company|gmbh|plc)\b\.?/g, "").replace(/[^a-z0-9]/g, "") + ".com";
+  const domain = resolveCompanyDomain({ domain: job.company_domain, url: job.url, company: job.company });
   const website = `https://${domain}`;
 
   return (
     <div className="grid gap-4 md:grid-cols-3">
       <div className="space-y-4 md:col-span-2">
         <div className="flex items-start gap-3 rounded-xl border bg-card p-4">
-          <CompanyLogo company={job.company} size={48} />
+          <CompanyLogo company={job.company} domain={job.company_domain} url={job.url} size={48} />
           <div className="min-w-0 flex-1">
             <div className="text-xl font-bold">{job.company}</div>
             {info.loading && <div className="mt-2 text-sm text-muted-foreground">Loading background…</div>}

@@ -101,8 +101,8 @@ async def verify_email(data: VerifyEmailRequest, db: AsyncSession = Depends(get_
 
 
 @router.get("/me")
-async def me(user: dict = Depends(auth_service.decode_access_token)):
-    return {"user_id": user.get("sub"), "email": user.get("email"), "role": user.get("role")}
+async def me(user: dict = Depends(get_current_user)):
+    return {"user_id": user.get("user_id"), "email": user.get("email"), "role": user.get("role")}
 
 
 @router.get("/google/login")

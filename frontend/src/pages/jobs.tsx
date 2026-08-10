@@ -28,6 +28,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogT
 import { CompanyAutocomplete } from "@/components/company-autocomplete";
 import { JobDetailDialog } from "@/components/job-detail-dialog";
 import { CompanyLogo } from "@/components/company-logo";
+import { hostnameFromUrl } from "@/lib/company";
 import { PageTitle } from "@/components/page-title";
 import { OnboardingGuide } from "@/components/onboarding-guide";
 
@@ -499,7 +500,7 @@ function JobCard({
             <Checkbox checked={!!selected} />
           </div>
         )}
-        <CompanyLogo company={job.company} size={26} />
+        <CompanyLogo company={job.company} domain={job.company_domain} url={job.url} size={26} />
         <div className="min-w-0 flex-1">
       <div className="mb-1 text-sm font-semibold leading-tight">{job.title}</div>
       <div className="text-xs text-muted-foreground">{job.company}</div>
@@ -568,6 +569,7 @@ function JobFormDialog({
   const [form, setForm] = useState<any>({
     company: "", title: "", description: "", board_id: "",
     status: "wishlist", date_applied: "", url: "", notes: "", location: "",
+    company_domain: "",
   });
 
   // Reset/seed form when the dialog opens
@@ -584,6 +586,7 @@ function JobFormDialog({
         url: job.url ?? "",
         notes: job.notes ?? "",
         location: job.location ?? "",
+        company_domain: job.company_domain ?? "",
       });
     } else if (mode === "create" && !form.board_id && boards[0]?.id) {
       setForm((f: any) => ({ ...f, board_id: boards[0].id }));
@@ -598,6 +601,10 @@ function JobFormDialog({
       if (!payload.url) delete payload.url;
       if (!payload.notes) delete payload.notes;
       if (!payload.location) delete payload.location;
+      if (!payload.company_domain) {
+        payload.company_domain = hostnameFromUrl(payload.url) ?? undefined;
+      }
+      if (!payload.company_domain) delete payload.company_domain;
       if (mode === "edit" && job) {
         return jobsApi.updateJob(job.id, payload);
       }
@@ -626,7 +633,7 @@ function JobFormDialog({
             <CompanyAutocomplete
               value={form.company}
               onChange={(v) => setForm({ ...form, company: v })}
-              onPick={(s) => setForm({ ...form, company: s.name, url: form.url || `https://${s.domain}` })}
+              onPick={(s) => setForm({ ...form, company: s.name, url: form.url || `https://${s.domain}`, company_domain: s.domain })}
               placeholder="Start typing…"
               required
             />

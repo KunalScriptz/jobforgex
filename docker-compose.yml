@@ -12,6 +12,7 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./database/migrations/001_init.sql:/docker-entrypoint-initdb.d/001_init.sql:ro
+      - ./database/migrations/002_company_domain.sql:/docker-entrypoint-initdb.d/002_company_domain.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-jobforgex} -d ${DB_NAME:-jobforgex}"]
       interval: 5s

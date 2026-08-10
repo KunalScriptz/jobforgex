@@ -4,6 +4,7 @@ import { Sparkles, FileText, LayoutDashboard, ClipboardCheck, Mail, Wand2 } from
 
 import { Button } from "@/components/ui/button";
 import { PageTitle } from "@/components/page-title";
+import { useAuth } from "@/context/auth-context";
 import logoImg from "@/assets/logo.png";
 import screenshotKanban from "@/assets/screenshot-kanban.png";
 import screenshotResume from "@/assets/screenshot-resume.png";
@@ -47,6 +48,7 @@ function useTypewriter(words: string[], typeMs = 65, holdMs = 1400, eraseMs = 35
 
 export default function Landing() {
   const typed = useTypewriter(PHRASES);
+  const { isAuthenticated } = useAuth();
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/40">
       <PageTitle title="Home" />
@@ -56,8 +58,14 @@ export default function Landing() {
           JobForge
         </div>
         <nav className="flex items-center gap-3">
-          <Link to="/auth" className="text-sm text-muted-foreground hover:text-foreground">Sign in</Link>
-          <Button asChild size="sm"><Link to="/auth">Get started</Link></Button>
+          {isAuthenticated ? (
+            <Button asChild size="sm"><Link to="/jobs">Open Dashboard</Link></Button>
+          ) : (
+            <>
+              <Link to="/auth" className="text-sm text-muted-foreground hover:text-foreground">Sign in</Link>
+              <Button asChild size="sm"><Link to="/auth">Get started</Link></Button>
+            </>
+          )}
         </nav>
       </header>
 
@@ -73,8 +81,14 @@ export default function Landing() {
           </span>
         </p>
         <div className="mt-8 flex flex-wrap gap-3">
-          <Button asChild size="lg"><Link to="/auth">Start free</Link></Button>
-          <Button asChild size="lg" variant="outline"><Link to="/auth">Sign in</Link></Button>
+          {isAuthenticated ? (
+            <Button asChild size="lg"><Link to="/jobs">Open Dashboard</Link></Button>
+          ) : (
+            <>
+              <Button asChild size="lg"><Link to="/auth">Start free</Link></Button>
+              <Button asChild size="lg" variant="outline"><Link to="/auth">Sign in</Link></Button>
+            </>
+          )}
         </div>
 
         <div className="mt-20 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
@@ -136,8 +150,12 @@ export default function Landing() {
 
         <section className="mt-20 rounded-2xl border bg-card p-10 text-center">
           <h3 className="text-2xl font-semibold">Ready to end the copy-paste chaos?</h3>
-          <p className="mt-2 text-muted-foreground">Start free with 2 applications. No credit card required.</p>
-          <Button asChild size="lg" className="mt-6"><Link to="/auth">Get started</Link></Button>
+          <p className="mt-2 text-muted-foreground">
+            {isAuthenticated ? "Jump back into your job search." : "Start free with 2 applications. No credit card required."}
+          </p>
+          <Button asChild size="lg" className="mt-6">
+            <Link to={isAuthenticated ? "/jobs" : "/auth"}>{isAuthenticated ? "Open Dashboard" : "Get started"}</Link>
+          </Button>
         </section>
       </main>
 

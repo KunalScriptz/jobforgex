@@ -166,6 +166,7 @@ CREATE TABLE jobs (
     workspace_id    UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
     board_id        UUID NOT NULL REFERENCES boards(id) ON DELETE CASCADE,
     company         TEXT NOT NULL,
+    company_domain  TEXT,
     title           TEXT NOT NULL,
     description     TEXT NOT NULL DEFAULT '',
     url             TEXT,

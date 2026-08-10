@@ -71,6 +71,7 @@ async def create_job(
         status=data.status,
         date_applied=str(data.date_applied) if data.date_applied else None,
         resume_score=data.resume_score,
+        company_domain=data.company_domain,
     )
 
 

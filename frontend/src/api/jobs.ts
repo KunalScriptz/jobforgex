@@ -8,6 +8,7 @@ export interface Job {
   workspace_id: string;
   board_id: string;
   company: string;
+  company_domain: string | null;
   title: string;
   description: string;
   url: string | null;

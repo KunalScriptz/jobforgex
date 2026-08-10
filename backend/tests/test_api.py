@@ -62,3 +62,11 @@ async def test_ai_entitlement_without_token():
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.get("/api/v1/ai/entitlement")
         assert response.status_code == 401
+
+
+def test_token_response_accepts_refresh_payload():
+    """refresh_access_token() returns no 'user' key — TokenResponse must accept it."""
+    from app.schemas.auth import TokenResponse
+    TokenResponse.model_validate(
+        {"access_token": "a", "refresh_token": "b", "token_type": "bearer"}
+    )
