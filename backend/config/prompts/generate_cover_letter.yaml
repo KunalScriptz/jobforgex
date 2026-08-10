@@ -78,7 +78,7 @@ user_template: |
   Output the ENTIRE LaTeX document, starting with \documentclass and ending with \end{document}.
 
   === JOB DESCRIPTION ===
-  {{jd}}
+  {{location_line}}{{jd}}
 
   === CANDIDATE RESUME (LaTeX, for factual grounding only) ===
   {{resume_latex}}
