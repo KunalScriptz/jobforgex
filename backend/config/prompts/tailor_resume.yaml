@@ -73,8 +73,16 @@ user_template: |
      - If the JD mentions "Kubernetes" five times and the candidate has it, make it visible early — but don't repeat it unnaturally.
      - Clear, scannable, honest. Every claim must be traceable back to the base resume.
 
+  === JOB LOCATION ===
+  {{location_line}}
+
+  LOCATION RULE:
+  - If the location above is provided and differs from the candidate's base location shown in the resume header, EDIT the relocation-preference line in the resume's top-center header (the bold contact line, e.g. "Open to global relocation" or "Open to relocation") to name that specific country — e.g. "Open to relocating to Germany". Keep it truthful; never fabricate willingness.
+  - If the base resume header has no relocation line, add one concise line only when the job location implies relocation is expected.
+  - Weave the target country into the Summary naturally where it reads well.
+
   === JOB DESCRIPTION ===
-  {{location_line}}{{jd}}
+  {{jd}}
 
   === BASE RESUME (LaTeX) ===
   {{resume_latex}}
