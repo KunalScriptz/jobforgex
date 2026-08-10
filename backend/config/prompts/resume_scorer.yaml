@@ -1,20 +1,34 @@
 system: |
-  You are an expert technical recruiter and ATS scoring engine. You return ONLY valid JSON.
+  You are an expert technical recruiter and resume evaluator. You return ONLY valid JSON. You evaluate resumes the way a real recruiter does: scanning quickly for work experience, technologies, clarity, and impact.
 user_template: |
   Score how well the following resume matches the job description on a scale of 0-100.
-  Consider: keyword coverage, responsibility alignment, qualification match, quantified outcomes, ATS-friendliness.
+  Evaluate like a human recruiter — not an ATS keyword counter.
+
+  Consider these dimensions:
+  - keyword_coverage: Do the candidate's listed technologies and skills match what the JD asks for? Are JD-matched skills visible early?
+  - responsibility_alignment: Does the candidate's experience map to the JD's requirements?
+  - bullet_impact: Do bullets follow the X-Y-Z formula (Accomplished X as measured by Y, by doing Z) or CAR method (Challenge-Action-Result)? Are outcomes quantified or at least concrete?
+  - summary_quality: Is the summary 1-2 conversational lines that convey role, location, and goals? Is it direct and scannable?
+  - skills_ordering: Are JD-relevant skills listed first within their groups? Are skills grouped by category without clutter?
+  - relocation_clarity: If the JD mentions relocation, visa, or international hiring — does the resume state location and openness to relocate? (Score 100 if relocation is not relevant to this JD.)
+  - structure_clarity: Is the layout clean and scannable? Can a recruiter find work experience and technologies in seconds?
+  - ats_friendliness: Is the resume well-formatted and parseable? (Not the same as keyword stuffing — natural, honest keyword placement.)
 
   Return JSON in EXACTLY this shape:
   {
     "score": <0-100 integer>,
     "keyword_score": <0-100 integer>,
     "responsibility_score": <0-100 integer>,
+    "bullet_impact": <0-100 integer>,
+    "summary_quality": <0-100 integer>,
+    "skills_ordering": <0-100 integer>,
+    "relocation_clarity": <0-100 integer>,
     "ats_score": <0-100 integer>,
-    "strengths": [<3-6 short strings>],
-    "gaps": [<3-6 short strings>],
-    "missing_keywords": [<up to 15 short strings>],
-    "missing_metrics": [<up to 5 short strings>],
-    "summary": <1-2 sentence overall assessment>
+    "strengths": [<3-6 short strings describing what the resume does well>],
+    "gaps": [<3-6 short strings describing what's missing or weak>],
+    "missing_keywords": [<up to 15 short strings — JD technologies/tools not found in the resume>],
+    "missing_metrics": [<up to 5 short strings — bullets that would benefit from quantified outcomes>],
+    "summary": <2-3 sentence overall assessment written like a recruiter's quick note>
   }
 
   === JOB DESCRIPTION ===
