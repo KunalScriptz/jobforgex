@@ -12,6 +12,17 @@ from app.config import settings
 from app.services.storage import upload_pdf
 
 
+FORMATTING_RULES = (
+    "\n\nFORMATTING RULES:\n"
+    "- Never use em dashes (—), en dashes (–), or double/triple hyphens (--, ---) in any output text.\n"
+    "- Never use hyphens as list bullets or separators — use numbering, asterisks, or punctuation instead.\n"
+    "- Hyphens are allowed ONLY inside compound words or hyphenated terms "
+    '(e.g. "state-of-the-art", "co-founder", "e-commerce").'
+)
+
+LATEX_OUTPUT_PROMPTS = {"tailor_resume", "generate_cover_letter", "pdf_to_latex"}
+
+
 PROMPTS_PATHS = [
     Path(__file__).parent.parent / "config" / "prompts",          # backend/config/prompts/
     Path(os.getcwd()) / "config" / "prompts",                     # ./config/prompts/ (Docker mount)
@@ -51,12 +62,15 @@ async def call_deepseek(
     base_url = settings.DEEPSEEK_BASE_URL.rstrip("/")
     model = settings.DEEPSEEK_MODEL
 
+    system = prompt["system"]
+    if prompt_name not in LATEX_OUTPUT_PROMPTS:
+        system += FORMATTING_RULES
     body = {
         "model": model,
         "temperature": override_temperature if override_temperature is not None else prompt.get("temperature", 0.3),
         "max_tokens": 8192,
         "messages": [
-            {"role": "system", "content": prompt["system"]},
+            {"role": "system", "content": system},
             {"role": "user", "content": render_prompt(prompt["user_template"], vars)},
         ],
     }
@@ -77,8 +91,11 @@ async def call_deepseek(
                 if res.status_code == 200:
                     data = res.json()
                     content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
-                    in_tok = data.get("usage", {}).get("prompt_tokens", 0)
-                    out_tok = data.get("usage", {}).get("completion_tokens", 0)
+                    usage = data.get("usage", {})
+                    in_tok = usage.get("prompt_tokens", 0)
+                    cache_hit = usage.get("prompt_cache_hit_tokens", 0)
+                    cache_miss = usage.get("prompt_cache_miss_tokens", max(in_tok - cache_hit, 0))
+                    out_tok = usage.get("completion_tokens", 0)
                     break
 
                 text = res.text[:500]
@@ -99,13 +116,15 @@ async def call_deepseek(
     if last_error and not 'data' in locals():
         raise last_error
 
-    in_cost = (in_tok / 1_000_000) * settings.DEEPSEEK_INPUT_PRICE_PER_1M
+    in_cost = (cache_miss / 1_000_000) * settings.DEEPSEEK_INPUT_PRICE_PER_1M
+    in_cost += (cache_hit / 1_000_000) * settings.DEEPSEEK_CACHE_HIT_PRICE_PER_1M
     out_cost = (out_tok / 1_000_000) * settings.DEEPSEEK_OUTPUT_PRICE_PER_1M
     total_cost = in_cost + out_cost
 
     return {
         "content": content,
         "input_tokens": in_tok,
+        "cache_hit_tokens": cache_hit,
         "output_tokens": out_tok,
         "total_cost": total_cost,
         "model_name": settings.DEEPSEEK_MODEL,
@@ -163,7 +182,6 @@ async def log_ai_cost(
         "jd_parsing": AIPurpose.JD_PARSING,
         "ats_check": AIPurpose.ATS_CHECK,
         "custom": AIPurpose.CUSTOM,
-        "builder_seed": AIPurpose.CUSTOM,
         "builder_job_match": AIPurpose.CUSTOM,
         "builder_score": AIPurpose.CUSTOM,
         "builder_suggestions": AIPurpose.CUSTOM,

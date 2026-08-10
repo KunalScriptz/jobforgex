@@ -74,7 +74,7 @@ user_template: |
      - Clear, scannable, honest. Every claim must be traceable back to the base resume.
 
   === JOB DESCRIPTION ===
-  {{jd}}
+  {{location_line}}{{jd}}
 
   === BASE RESUME (LaTeX) ===
   {{resume_latex}}

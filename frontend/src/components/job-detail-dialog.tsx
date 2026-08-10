@@ -492,13 +492,16 @@ function DocumentsTab({ artifacts, jobId, job }: { artifacts: any[]; jobId: stri
       let t: any = null, c: any = null;
       const compileJobs: Promise<any>[] = [];
       const baseResume = await resumesApi.getBaseResume();
+      const locationLine = job.location
+        ? `The job is located in ${job.location}. If this differs from the candidate's base location on the resume, express openness to relocation there in the Summary — one concise, honest phrase. Never fabricate willingness.\n`
+        : "";
       const resumeLatex = baseResume?.latex_source ?? "";
       const resumeName = resumeLatex ? (extractResumeName(resumeLatex) || baseResume?.name || "resume") : "resume";
 
       if (doTailor) {
         t = await aiApi.generate({
           prompt_name: "tailor_resume",
-          vars: { jd, resume_latex: resumeLatex, page_count: baseResume?.page_count ?? 1, company: job.company, title: job.title },
+          vars: { jd, resume_latex: resumeLatex, page_count: baseResume?.page_count ?? 1, company: job.company, title: job.title, location_line: locationLine },
           job_id: job.id,
           purpose: "resume_tailoring",
         });
@@ -524,7 +527,7 @@ function DocumentsTab({ artifacts, jobId, job }: { artifacts: any[]; jobId: stri
       if (doCover) {
         c = await aiApi.generate({
           prompt_name: "generate_cover_letter",
-          vars: { jd, resume_latex: resumeLatex, company: job.company, title: job.title },
+          vars: { jd, resume_latex: resumeLatex, company: job.company, title: job.title, location_line: locationLine },
           job_id: job.id,
           purpose: "cover_letter",
         });

@@ -31,10 +31,10 @@ async function _scoreResume(args: { jd: string; job_id: string }) {
   return { report: JSON.parse(result.content), cost: result.total_cost };
 }
 
-async function _tailorResume(args: { jd: string; company: string; title: string; job_id: string; resumeName: string; resumeLatex: string; pageCount: number }) {
+async function _tailorResume(args: { jd: string; company: string; title: string; job_id: string; resumeName: string; resumeLatex: string; pageCount: number; locationLine: string }) {
   const result = await aiApi.generate({
     prompt_name: "tailor_resume",
-    vars: { jd: args.jd, resume_latex: args.resumeLatex, page_count: args.pageCount, company: args.company, title: args.title },
+    vars: { jd: args.jd, resume_latex: args.resumeLatex, page_count: args.pageCount, company: args.company, title: args.title, location_line: args.locationLine },
     job_id: args.job_id,
     purpose: "tailor",
   });
@@ -45,10 +45,10 @@ async function _tailorResume(args: { jd: string; company: string; title: string;
   };
 }
 
-async function _generateCoverLetter(args: { jd: string; company: string; title: string; job_id: string; resumeName: string; resumeLatex: string }) {
+async function _generateCoverLetter(args: { jd: string; company: string; title: string; job_id: string; resumeName: string; resumeLatex: string; locationLine: string }) {
   const result = await aiApi.generate({
     prompt_name: "generate_cover_letter",
-    vars: { jd: args.jd, resume_latex: args.resumeLatex, company: args.company, title: args.title },
+    vars: { jd: args.jd, resume_latex: args.resumeLatex, company: args.company, title: args.title, location_line: args.locationLine },
     job_id: args.job_id,
     purpose: "cover_letter",
   });
@@ -111,14 +111,17 @@ export default function GeneratePage() {
       let localCost = 0;
       let t: any = null, c: any = null;
       const compileJobs: Promise<any>[] = [];
+      const locationLine = selectedJob.location
+        ? `The job is located in ${selectedJob.location}. If this differs from the candidate's base location on the resume, express openness to relocation there in the Summary — one concise, honest phrase. Never fabricate willingness.\n`
+        : "";
       if (doTailor) {
-        t = await _tailorResume({ jd, company: selectedJob.company, title: selectedJob.title, job_id: selectedJob.id, resumeName, resumeLatex: baseResume?.latex_source || "", pageCount: baseResume?.page_count ?? 1 });
+        t = await _tailorResume({ jd, company: selectedJob.company, title: selectedJob.title, job_id: selectedJob.id, resumeName, resumeLatex: baseResume?.latex_source || "", pageCount: baseResume?.page_count ?? 1, locationLine });
         const savedT = await _saveArtifact({ job_id: selectedJob.id, kind: "tailored_resume", filename: t.filename, latex_source: t.latex });
         compileJobs.push(_compileArtifactPdf({ artifact_id: savedT.id }).catch(() => null));
         localCost += Number(t.cost);
       }
       if (doCover) {
-        c = await _generateCoverLetter({ jd, company: selectedJob.company, title: selectedJob.title, job_id: selectedJob.id, resumeName, resumeLatex: baseResume?.latex_source || "" });
+        c = await _generateCoverLetter({ jd, company: selectedJob.company, title: selectedJob.title, job_id: selectedJob.id, resumeName, resumeLatex: baseResume?.latex_source || "", locationLine });
         const savedC = await _saveArtifact({ job_id: selectedJob.id, kind: "cover_letter", filename: c.filename, latex_source: c.latex });
         compileJobs.push(_compileArtifactPdf({ artifact_id: savedC.id }).catch(() => null));
         localCost += Number(c.cost);

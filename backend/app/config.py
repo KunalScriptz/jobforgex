@@ -45,8 +45,9 @@ class Settings(BaseSettings):
     # DeepSeek AI
     DEEPSEEK_API_KEY: str = ""
     DEEPSEEK_BASE_URL: str = "https://api.deepseek.com/v1"
-    DEEPSEEK_MODEL: str = "deepseek-chat"
+    DEEPSEEK_MODEL: str = "deepseek-v4-flash"
     DEEPSEEK_INPUT_PRICE_PER_1M: float = 0.14
+    DEEPSEEK_CACHE_HIT_PRICE_PER_1M: float = 0.0028
     DEEPSEEK_OUTPUT_PRICE_PER_1M: float = 0.28
     DEEPSEEK_KEY_ENC_SECRET: str = ""
 
