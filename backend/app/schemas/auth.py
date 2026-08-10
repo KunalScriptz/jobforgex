@@ -19,7 +19,7 @@ class TokenResponse(BaseModel):
     access_token: str
     refresh_token: str
     token_type: str = "bearer"
-    user: "UserOut"
+    user: Optional["UserOut"] = None
 
 
 class RefreshRequest(BaseModel):

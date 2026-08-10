@@ -37,7 +37,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <div className="flex min-h-screen bg-muted/20">
       <aside className="sticky top-0 flex h-screen w-56 shrink-0 flex-col border-r bg-card">
         <Link
-          to="/jobs"
+          to="/"
           className="flex h-14 items-center gap-2 border-b px-4 font-semibold transition-colors hover:bg-muted/50"
         >
           <img src={logoImg} alt="JobForge" className="h-5 w-5" />

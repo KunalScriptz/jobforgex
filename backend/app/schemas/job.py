@@ -23,6 +23,7 @@ class ArtifactKindEnum(str, Enum):
 class JobCreate(BaseModel):
     board_id: UUID
     company: str = Field(min_length=1, max_length=200)
+    company_domain: Optional[str] = Field(None, max_length=255)
     title: str = Field(min_length=1, max_length=200)
     description: Optional[str] = Field(None, max_length=100000)
     url: Optional[str] = Field(None, max_length=1000)
@@ -35,6 +36,7 @@ class JobCreate(BaseModel):
 
 class JobUpdate(BaseModel):
     company: Optional[str] = Field(None, min_length=1, max_length=200)
+    company_domain: Optional[str] = Field(None, max_length=255)
     title: Optional[str] = Field(None, min_length=1, max_length=200)
     description: Optional[str] = Field(None, max_length=100000)
     url: Optional[str] = Field(None, max_length=1000)
@@ -65,6 +67,7 @@ class JobOut(BaseModel):
     workspace_id: UUID
     board_id: UUID
     company: str
+    company_domain: Optional[str] = None
     title: str
     description: str
     url: Optional[str] = None

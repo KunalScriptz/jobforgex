@@ -1,6 +1,27 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { authApi, AuthResponse, LoginData, RegisterData } from "@/api/auth";
 
+/** Decode a base64url JWT payload, returning null on any parse failure. */
+function decodeJwtPayload(token: string): Record<string, unknown> | null {
+  try {
+    const part = token.split(".")[1];
+    if (!part) return null;
+    // base64url → base64 (char replacement + padding)
+    const base64 = part.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, "=");
+    // Handle UTF-8 in the payload
+    const json = decodeURIComponent(
+      atob(padded)
+        .split("")
+        .map((c) => "%" + c.charCodeAt(0).toString(16).padStart(2, "0"))
+        .join("")
+    );
+    return JSON.parse(json);
+  } catch {
+    return null;
+  }
+}
+
 interface AuthUser {
   id: string;
   email: string;
@@ -30,19 +51,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const token = localStorage.getItem("access_token");
     if (token) {
-      try {
-        const payload = JSON.parse(atob(token.split(".")[1]));
+      const payload = decodeJwtPayload(token);
+      if (payload && payload.sub && (!payload.exp || (payload.exp as number) * 1000 > Date.now())) {
         setUser({
-          id: payload.sub,
-          email: payload.email,
+          id: payload.sub as string,
+          email: (payload.email as string) ?? "",
           full_name: null,
           email_verified: true,
-          role: payload.role || "user",
-          workspace_id: payload.workspace_id || null,
+          role: (payload.role as string) || "user",
+          workspace_id: (payload.workspace_id as string) || null,
           workspace_name: null,
         });
-      } catch {
-        // token invalid
+      } else {
+        // Token invalid or expired — clean up so the interceptor doesn't fire a doomed refresh
+        localStorage.removeItem("access_token");
       }
     }
     setIsLoading(false);
@@ -77,18 +99,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const refreshUser = async () => {
     const tokenPayload = localStorage.getItem("access_token");
     if (tokenPayload) {
-      try {
-        const payload = JSON.parse(atob(tokenPayload.split(".")[1]));
+      const payload = decodeJwtPayload(tokenPayload);
+      if (payload && payload.sub) {
         setUser({
-          id: payload.sub,
-          email: payload.email,
+          id: payload.sub as string,
+          email: (payload.email as string) ?? "",
           full_name: null,
           email_verified: true,
-          role: payload.role || "user",
-          workspace_id: payload.workspace_id || null,
+          role: (payload.role as string) || "user",
+          workspace_id: (payload.workspace_id as string) || null,
           workspace_name: null,
         });
-      } catch {}
+      }
     }
   };
 

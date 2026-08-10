@@ -56,6 +56,7 @@ async def create_job(
     status: JobStatus = JobStatus.WISHLIST,
     date_applied: str | None = None,
     resume_score: int | None = None,
+    company_domain: str | None = None,
 ) -> Job:
     from datetime import date as dt_date
 
@@ -63,6 +64,7 @@ async def create_job(
         workspace_id=workspace_id,
         board_id=board_id,
         company=company,
+        company_domain=company_domain,
         title=title,
         description=description,
         url=url,

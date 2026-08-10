@@ -78,7 +78,7 @@ export function CompanyAutocomplete({
               className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground"
             >
               <span className="flex min-w-0 items-center gap-2">
-                <CompanyLogo company={s.name} size={22} />
+                <CompanyLogo company={s.name} domain={s.domain} size={22} />
                 <span className="truncate font-medium">{s.name}</span>
               </span>
               <span className="shrink-0 text-xs text-muted-foreground">{s.domain}</span>
