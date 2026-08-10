@@ -77,8 +77,13 @@ user_template: |
 
   Output the ENTIRE LaTeX document, starting with \documentclass and ending with \end{document}.
 
+  === JOB LOCATION ===
+  {{location_line}}
+
+  If the location above is provided and differs from the candidate's location shown in the resume, include ONE sentence about being open to relocating there, naming the country — even if the JD itself does not mention relocation. Keep it factual, not dramatic.
+
   === JOB DESCRIPTION ===
-  {{location_line}}{{jd}}
+  {{jd}}
 
   === CANDIDATE RESUME (LaTeX, for factual grounding only) ===
   {{resume_latex}}

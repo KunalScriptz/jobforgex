@@ -493,7 +493,7 @@ function DocumentsTab({ artifacts, jobId, job }: { artifacts: any[]; jobId: stri
       const compileJobs: Promise<any>[] = [];
       const baseResume = await resumesApi.getBaseResume();
       const locationLine = job.location
-        ? `The job is located in ${job.location}. If this differs from the candidate's base location on the resume, express openness to relocation there in the Summary — one concise, honest phrase. Never fabricate willingness.\n`
+        ? `The job is located in ${job.location}.\n`
         : "";
       const resumeLatex = baseResume?.latex_source ?? "";
       const resumeName = resumeLatex ? (extractResumeName(resumeLatex) || baseResume?.name || "resume") : "resume";

@@ -112,7 +112,7 @@ export default function GeneratePage() {
       let t: any = null, c: any = null;
       const compileJobs: Promise<any>[] = [];
       const locationLine = selectedJob.location
-        ? `The job is located in ${selectedJob.location}. If this differs from the candidate's base location on the resume, express openness to relocation there in the Summary — one concise, honest phrase. Never fabricate willingness.\n`
+        ? `The job is located in ${selectedJob.location}.\n`
         : "";
       if (doTailor) {
         t = await _tailorResume({ jd, company: selectedJob.company, title: selectedJob.title, job_id: selectedJob.id, resumeName, resumeLatex: baseResume?.latex_source || "", pageCount: baseResume?.page_count ?? 1, locationLine });
