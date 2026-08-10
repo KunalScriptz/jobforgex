@@ -43,8 +43,9 @@ user_template: |
      - If the JD mentions relocation, visa sponsorship, or international hiring, add "Open to relocation" or similar.
      - If the candidate has remote work experience, mention it — it signals readiness.
      - Examples of good summaries:
-       "Full-stack engineer based in Bangalore, open to relocation. I build products with TypeScript, React, and Node.js, and I've spent the last 3 years shipping AI-powered features at a B2B SaaS company."
-       "Backend engineer in Berlin with 5 years of experience in distributed systems and a focus on Go and Kafka. Previously at a fintech startup scaling payment infrastructure to 1M+ daily transactions."
+         "Passionate about x, y, z, I am an Android Developer with n years of experience and a deep interest in a, b, c"
+         "Hi, my name is Paula/Jake and I am keen on anything QA. After focusing for x years on y, I am ready to embark on a new adventure in z."
+         "Engineering Manager with a background in x, I love building products that customers love. Meet me at the intersection of x, y and z."
 
   C. SKILLS REORDERING — JD-matched first, no expertise labels:
      - Within each skill group (Languages, Frameworks, Databases, etc.), move technologies that appear in the JD to the front of the list.
@@ -77,4 +78,4 @@ user_template: |
 
   === BASE RESUME (LaTeX) ===
   {{resume_latex}}
-temperature: 0.4
+temperature: 0.1
