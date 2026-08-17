@@ -1,3 +1,6 @@
+// JobForge Extension Content Script
+// Note: Host permissions ("<all_urls>") were removed from manifest.json for Chrome Web Store policy compliance.
+// Script injection is declaratively scoped to job portals defined under content_scripts.matches.
 (function () {
   if (window.__jobforgeInjected) return;
   window.__jobforgeInjected = true;
