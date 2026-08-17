@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Optional, Any
 from uuid import UUID
 from datetime import datetime
 
@@ -11,6 +11,7 @@ class BillingStatusOut(BaseModel):
     trial_limit: int
     has_pro: bool
     current_period_end: Optional[datetime] = None
+    cancel_at_period_end: bool = False
 
 
 class CreateSubscriptionRequest(BaseModel):
@@ -20,6 +21,10 @@ class CreateSubscriptionRequest(BaseModel):
     trial: bool = False
 
 
+class CancelSubscriptionRequest(BaseModel):
+    at_period_end: bool = True
+
+
 class SubscriptionOut(BaseModel):
     id: UUID
     user_id: UUID
@@ -27,10 +32,25 @@ class SubscriptionOut(BaseModel):
     subscription_status: Optional[str] = None
     razorpay_subscription_id: Optional[str] = None
     billing_cycle: Optional[str] = None
+    current_period_start: Optional[datetime] = None
     current_period_end: Optional[datetime] = None
+    cancel_at_period_end: bool = False
     trial_ends_at: Optional[datetime] = None
     suspended: bool
+    last_payment_status: Optional[str] = None
+    last_payment_at: Optional[datetime] = None
+    paused_at: Optional[datetime] = None
+    cancelled_at: Optional[datetime] = None
     created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class BillingHistoryItemOut(BaseModel):
+    id: UUID
+    event_type: str
+    created_at: datetime
+    summary: str
 
     model_config = {"from_attributes": True}
 

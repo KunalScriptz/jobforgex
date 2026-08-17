@@ -7,8 +7,10 @@ from sqlalchemy import select, update as sa_update
 from app.database import get_db
 from app.dependencies.auth import get_current_user
 from app.schemas.ai import DeepSeekRequest, DeepSeekResult
+from app.schemas.usage import PlanLimitErrorOut
 from app.services import ai as ai_service
 from app.services import workspace as workspace_service
+from app.services import usage as usage_service
 from app.models.job import Job
 
 router = APIRouter(prefix="/api/v1/ai", tags=["ai"])
@@ -28,10 +30,21 @@ async def ai_generate(
     db: AsyncSession = Depends(get_db),
 ):
     ws = await get_workspace_info(user, db)
+    user_id = uuid.UUID(user["user_id"])
 
-    allowed = await ai_service.check_entitlement(db, str(ws.id), data.job_id)
-    if not allowed:
-        raise HTTPException(status_code=status.HTTP_402_PAYMENT_REQUIRED, detail="Free trial limit reached")
+    is_cover_letter = data.prompt_name == "generate_cover_letter"
+    if is_cover_letter:
+        check = await usage_service.can_generate_cover_letter(db, user_id)
+        if not check.allowed:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=PlanLimitErrorOut(
+                    message=f"You've reached your {check.plan_name} plan's cover letter limit. Upgrade to generate more.",
+                    currentPlan=check.plan_name,
+                    limit=check.limit,
+                    used=check.used,
+                ).model_dump(),
+            )
 
     try:
         result = await ai_service.call_deepseek(
@@ -84,6 +97,9 @@ async def ai_generate(
         except (json.JSONDecodeError, ValueError):
             pass
 
+    if is_cover_letter:
+        await usage_service.increment_cover_letter_usage(db, user_id)
+
     return result
 
 
@@ -93,6 +109,11 @@ async def check_entitlement(
     user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    ws = await get_workspace_info(user, db)
-    allowed = await ai_service.check_entitlement(db, str(ws.id), job_id)
-    return {"allowed": allowed}
+    user_id = uuid.UUID(user["user_id"])
+    job_tracks = await usage_service.can_create_job_track(db, user_id)
+    cover_letters = await usage_service.can_generate_cover_letter(db, user_id)
+    return {
+        "allowed": job_tracks.allowed and cover_letters.allowed,
+        "job_track": {"allowed": job_tracks.allowed, "used": job_tracks.used, "limit": job_tracks.limit},
+        "cover_letter": {"allowed": cover_letters.allowed, "used": cover_letters.used, "limit": cover_letters.limit},
+    }

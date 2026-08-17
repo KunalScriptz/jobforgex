@@ -443,15 +443,57 @@ CREATE TRIGGER trg_subscriptions_updated_at
 -- ============================================================================
 INSERT INTO plans (id, name, monthly_price_usd, annual_price_usd, job_track_limit, cover_letter_limit, features, sort_order) VALUES
     ('free', 'Free', 0, 0, 2, 2, '["2 job tracks", "2 cover letters", "ATS checker", "Chrome extension"]', 0),
-    ('pro', 'Pro', 14.00, 99.00, 30, 30, '["30 job tracks", "30 cover letters", "Structured resume builder", "ATS checker", "Chrome extension", "Priority support"]', 1),
-    ('unlimited', 'Unlimited', 29.00, 199.00, NULL, NULL, '["Unlimited job tracks", "Unlimited cover letters", "Structured resume builder", "ATS checker", "Chrome extension", "Priority support"]', 2)
+    ('pro', 'Pro', 12.00, 99.00, 30, 30, '["30 job tracks", "30 cover letters", "Structured resume builder", "ATS checker", "Chrome extension", "Priority support"]', 1),
+    ('unlimited', 'Unlimited', 24.00, 199.00, NULL, NULL, '["Unlimited job tracks", "Unlimited cover letters", "Structured resume builder", "ATS checker", "Chrome extension", "Priority support"]', 2)
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO geo_pricing (plan_id, country_code, currency, currency_symbol, monthly_price, annual_price, priority) VALUES
     ('pro', 'IN', 'INR', '₹', 599.00, 3999.00, 10),
-    ('pro', 'US', 'USD', '$', 14.00, 99.00, 5),
-    ('pro', 'DEFAULT', 'USD', '$', 14.00, 99.00, 0),
+    ('pro', 'US', 'USD', '$', 12.00, 99.00, 5),
+    ('pro', 'DEFAULT', 'USD', '$', 12.00, 99.00, 0),
     ('unlimited', 'IN', 'INR', '₹', 1299.00, 9999.00, 10),
-    ('unlimited', 'US', 'USD', '$', 29.00, 249.00, 5),
-    ('unlimited', 'DEFAULT', 'USD', '$', 29.00, 249.00, 0)
+    ('unlimited', 'US', 'USD', '$', 24.00, 199.00, 5),
+    ('unlimited', 'DEFAULT', 'USD', '$', 24.00, 199.00, 0)
 ON CONFLICT DO NOTHING;
+
+-- Self-heal: fix price mismatches on DBs that already applied the seed above with old values
+UPDATE plans SET monthly_price_usd = 12.00 WHERE id = 'pro' AND monthly_price_usd <> 12.00;
+UPDATE plans SET monthly_price_usd = 24.00 WHERE id = 'unlimited' AND monthly_price_usd <> 24.00;
+UPDATE geo_pricing SET monthly_price = 12.00 WHERE plan_id = 'pro' AND country_code IN ('US', 'DEFAULT') AND monthly_price <> 12.00;
+UPDATE geo_pricing SET monthly_price = 24.00, annual_price = 199.00 WHERE plan_id = 'unlimited' AND country_code IN ('US', 'DEFAULT') AND (monthly_price <> 24.00 OR annual_price <> 199.00);
+
+-- ============================================================================
+-- USER USAGE (per billing/calendar period counters for job tracks & cover letters)
+-- ============================================================================
+CREATE TABLE user_usage (
+    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id             UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    period_start        DATE NOT NULL,
+    period_end          DATE NOT NULL,
+    job_tracks_used     INT NOT NULL DEFAULT 0,
+    cover_letters_used  INT NOT NULL DEFAULT 0,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (user_id, period_start)
+);
+CREATE INDEX idx_user_usage_user ON user_usage (user_id);
+CREATE INDEX idx_user_usage_period ON user_usage (period_start);
+
+CREATE TRIGGER trg_user_usage_updated_at
+    BEFORE UPDATE ON user_usage
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+-- ============================================================================
+-- PAYMENT EVENTS: attach to user (a Workspace may not exist yet at webhook time)
+-- ============================================================================
+ALTER TABLE payment_events ALTER COLUMN workspace_id DROP NOT NULL;
+ALTER TABLE payment_events ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id) ON DELETE SET NULL;
+CREATE INDEX IF NOT EXISTS idx_payment_events_user ON payment_events (user_id);
+
+-- ============================================================================
+-- SUBSCRIPTIONS: audit columns for billing history / webhook event tracking
+-- ============================================================================
+ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS last_payment_status TEXT;
+ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS last_payment_at TIMESTAMPTZ;
+ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS paused_at TIMESTAMPTZ;
+ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMPTZ;

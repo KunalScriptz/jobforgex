@@ -13,7 +13,7 @@ import remarkGfm from "remark-gfm";
 
 import { Checkbox } from "@/components/ui/checkbox";
 import { TailoringLoader } from "@/components/tailoring-loader";
-import { PaywallDialog, isPaywallError } from "@/components/paywall-dialog";
+import { PaywallDialog, isPaywallError, extractPaywallInfo, type PaywallInfo } from "@/components/paywall-dialog";
 
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -482,6 +482,7 @@ function DocumentsTab({ artifacts, jobId, job }: { artifacts: any[]; jobId: stri
   const [doTailor, setDoTailor] = useState(true);
   const [doCover, setDoCover] = useState(false);
   const [paywallOpen, setPaywallOpen] = useState(false);
+  const [paywallInfo, setPaywallInfo] = useState<PaywallInfo | null>(null);
 
   const gen = useMutation({
     mutationFn: async () => {
@@ -547,7 +548,7 @@ function DocumentsTab({ artifacts, jobId, job }: { artifacts: any[]; jobId: stri
       toast.success("Documents generated");
     },
     onError: (e: any) => {
-      if (isPaywallError(e)) { setPaywallOpen(true); return; }
+      if (isPaywallError(e)) { setPaywallInfo(extractPaywallInfo(e)); setPaywallOpen(true); return; }
       toast.error(e.message);
     },
   });
@@ -603,6 +604,11 @@ function DocumentsTab({ artifacts, jobId, job }: { artifacts: any[]; jobId: stri
               {gen.isPending ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Wand2 className="mr-1 h-3.5 w-3.5" />}
               {gen.isPending ? "Generating…" : "Generate"}
             </Button>
+            <Button size="sm" variant="outline" asChild className="ml-auto">
+              <Link to={`/builder/${jobId}`}>
+                <FileText className="mr-1 h-3.5 w-3.5" /> Structured Resume Builder
+              </Link>
+            </Button>
           </div>
           {gen.isPending && (
             <div className="mt-4 border-t pt-2">
@@ -644,7 +650,7 @@ function DocumentsTab({ artifacts, jobId, job }: { artifacts: any[]; jobId: stri
           </div>
         </>
       )}
-      <PaywallDialog open={paywallOpen} onOpenChange={setPaywallOpen} />
+      <PaywallDialog open={paywallOpen} onOpenChange={setPaywallOpen} info={paywallInfo} />
     </div>
   );
 }
@@ -1099,6 +1105,7 @@ function AiToolRunner({ jobId, toolId, onBack, job }: { jobId: string; toolId: s
   const [result, setResult] = useState<{ content: string; label: string } | null>(null);
   const [view, setView] = useState<"preview" | "edit">("preview");
   const [paywallOpen, setPaywallOpen] = useState(false);
+  const [paywallInfo, setPaywallInfo] = useState<PaywallInfo | null>(null);
 
   const quotaQ = useQuery({
     queryKey: ["billing"],
@@ -1107,13 +1114,6 @@ function AiToolRunner({ jobId, toolId, onBack, job }: { jobId: string; toolId: s
 
   const run = useMutation({
     mutationFn: async () => {
-      const gate = await aiApi.checkEntitlement(jobId);
-      if (!gate?.allowed) {
-        const err: any = new Error("QUOTA_REACHED");
-        err.__quota = true;
-        throw err;
-      }
-      qc.invalidateQueries({ queryKey: ["billing"] });
       const baseResume = await resumesApi.getBaseResume();
       const resumeText = baseResume?.latex_source ?? "";
       const fullContext = resumeText ? `=== CANDIDATE'S RESUME (for factual grounding) ===\n${resumeText}\n\n=== ADDITIONAL CONTEXT ===\n${ctx}` : ctx;
@@ -1126,11 +1126,7 @@ function AiToolRunner({ jobId, toolId, onBack, job }: { jobId: string; toolId: s
     },
     onSuccess: (r: any) => { setResult({ content: r.content, label: tool?.label ?? toolId }); qc.invalidateQueries({ queryKey: ["costs"] }); },
     onError: (e: any) => {
-      if (e?.__quota || String(e?.message ?? "").includes("QUOTA_REACHED")) {
-        setPaywallOpen(true);
-        return;
-      }
-      if (isPaywallError(e)) { setPaywallOpen(true); return; }
+      if (isPaywallError(e)) { setPaywallInfo(extractPaywallInfo(e)); setPaywallOpen(true); return; }
       toast.error(String(e?.message ?? e).slice(0, 200));
     },
   });
@@ -1279,7 +1275,7 @@ function AiToolRunner({ jobId, toolId, onBack, job }: { jobId: string; toolId: s
           )}
         </div>
       )}
-      <PaywallDialog open={paywallOpen} onOpenChange={setPaywallOpen} />
+      <PaywallDialog open={paywallOpen} onOpenChange={setPaywallOpen} info={paywallInfo} />
     </div>
   );
 }

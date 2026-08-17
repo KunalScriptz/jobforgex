@@ -13,6 +13,8 @@ import BillingPage from "@/pages/billing";
 import SettingsPage from "@/pages/settings";
 import LandingPage from "@/pages/landing";
 import PrivacyPage from "@/pages/privacy";
+import AdminOverviewPage from "@/pages/admin/overview";
+import AdminSubscriptionsPage from "@/pages/admin/subscriptions";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
@@ -37,6 +39,15 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   );
 }
 
+function AdminRoute({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
+  return (
+    <ProtectedRoute>
+      {user?.role === "admin" ? children : <Navigate to="/jobs" replace />}
+    </ProtectedRoute>
+  );
+}
+
 export default function App() {
   return (
     <>
@@ -53,6 +64,8 @@ export default function App() {
         <Route path="/billing" element={<ProtectedRoute><BillingPage /></ProtectedRoute>} />
         <Route path="/billing-test" element={<ProtectedRoute><BillingPage /></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+        <Route path="/admin" element={<AdminRoute><AdminOverviewPage /></AdminRoute>} />
+        <Route path="/admin/subscriptions" element={<AdminRoute><AdminSubscriptionsPage /></AdminRoute>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       <Toaster position="top-right" />

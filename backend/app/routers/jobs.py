@@ -18,9 +18,25 @@ from app.schemas.job import (
 from app.models.job import JobStatus, ArtifactKind
 from app.services import jobs as jobs_service
 from app.services import workspace as workspace_service
+from app.services import usage as usage_service
+from app.schemas.usage import PlanLimitErrorOut
 from pydantic import BaseModel
 
 router = APIRouter(prefix="/api/v1/jobs", tags=["jobs"])
+
+
+async def _raise_if_job_track_blocked(db: AsyncSession, user_id: uuid.UUID) -> None:
+    check = await usage_service.can_create_job_track(db, user_id)
+    if not check.allowed:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=PlanLimitErrorOut(
+                message=f"You've reached your {check.plan_name} plan's job track limit. Upgrade to add more.",
+                currentPlan=check.plan_name,
+                limit=check.limit,
+                used=check.used,
+            ).model_dump(),
+        )
 
 
 async def get_workspace_id(user: dict, db: AsyncSession) -> uuid.UUID:
@@ -57,8 +73,12 @@ async def create_job(
     user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    user_id = uuid.UUID(user["user_id"])
     ws_id = await get_workspace_id(user, db)
-    return await jobs_service.create_job(
+
+    await _raise_if_job_track_blocked(db, user_id)
+
+    job = await jobs_service.create_job(
         db,
         workspace_id=ws_id,
         board_id=data.board_id,
@@ -72,6 +92,8 @@ async def create_job(
         date_applied=str(data.date_applied) if data.date_applied else None,
         resume_score=data.resume_score,
     )
+    await usage_service.increment_job_track_usage(db, user_id)
+    return job
 
 
 @router.put("/{job_id}")

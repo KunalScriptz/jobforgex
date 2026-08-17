@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -7,7 +7,17 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { Sparkles, Check, Loader2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Sparkles, Check, Loader2, XCircle, RotateCcw, Receipt } from "lucide-react";
 import { PageTitle } from "@/components/page-title";
 
 const COUNTRY_OPTIONS: Array<{ code: string; label: string }> = [
@@ -73,13 +83,39 @@ const FALLBACK_PLANS: Record<string, PricedPlan[]> = {
 };
 
 export default function BillingPage() {
+  const qc = useQueryClient();
   const { data } = useQuery({ queryKey: ["billing"], queryFn: () => billingApi.getStatus() });
+  const { data: usage } = useQuery({ queryKey: ["usage"], queryFn: () => billingApi.getUsage() });
+  const { data: history } = useQuery({ queryKey: ["billing-history"], queryFn: () => billingApi.getBillingHistory() });
 
   const [pollEnabled, setPollEnabled] = useState(false);
   const { data: sub, refetch: refetchSub } = useQuery({
     queryKey: ["my-subscription"],
     queryFn: () => billingApi.getSubscription(),
     refetchInterval: pollEnabled ? 2500 : false,
+  });
+
+  const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
+  const cancelMut = useMutation({
+    mutationFn: () => billingApi.cancelSubscription(true),
+    onSuccess: () => {
+      toast.success("Subscription will cancel at the end of the current billing period");
+      qc.invalidateQueries({ queryKey: ["billing"] });
+      qc.invalidateQueries({ queryKey: ["my-subscription"] });
+      refetchSub();
+      setCancelConfirmOpen(false);
+    },
+    onError: (e: any) => toast.error(String(e?.response?.data?.detail || e?.message || "Failed to cancel").slice(0, 300)),
+  });
+  const reactivateMut = useMutation({
+    mutationFn: () => billingApi.reactivateSubscription(),
+    onSuccess: () => {
+      toast.success("Subscription reactivated");
+      qc.invalidateQueries({ queryKey: ["billing"] });
+      qc.invalidateQueries({ queryKey: ["my-subscription"] });
+      refetchSub();
+    },
+    onError: (e: any) => toast.error(String(e?.response?.data?.detail || e?.message || "Failed to reactivate").slice(0, 300)),
   });
 
   const [country, setCountry] = useState<string>(() => {
@@ -121,7 +157,6 @@ export default function BillingPage() {
     subPlanId !== "free" &&
     (subStatus === "active" || (subEnd != null && subEnd.getTime() > Date.now()));
   const isPro = Boolean(data?.has_pro) || isPaidActive;
-  const trialPct = Math.min(100, (used / Math.max(1, limit)) * 100);
 
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
   const [activating, setActivating] = useState(false);
@@ -233,38 +268,90 @@ export default function BillingPage() {
 
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <CardTitle className="flex items-center gap-2">
                 Current plan
                 <Badge variant={isPro ? "default" : "secondary"}>
-                  {isPro ? (proPlan?.name ?? "Pro") : "Free trial"}
+                  {plans.find((p) => p.plan_id === (data?.plan ?? "free"))?.name ?? (isPro ? "Pro" : "Free")}
                 </Badge>
+                {sub?.cancel_at_period_end && (
+                  <Badge variant="outline" className="text-amber-600 dark:text-amber-400">Cancelling</Badge>
+                )}
               </CardTitle>
               <CardDescription>
                 {isPro
-                  ? data?.current_period_end
-                    ? `Renews ${new Date(data.current_period_end).toLocaleDateString()}`
+                  ? sub?.cancel_at_period_end
+                    ? `Access continues until ${subEnd ? subEnd.toLocaleDateString() : "period end"}, then reverts to Free`
+                    : data?.current_period_end
+                    ? `${sub?.billing_cycle === "annual" ? "Annual" : "Monthly"} · Renews ${new Date(data.current_period_end).toLocaleDateString()}`
                     : "Active"
-                  : "2 free applications, then upgrade to keep generating."}
+                  : "2 free job tracks and cover letters, then upgrade to keep generating."}
               </CardDescription>
             </div>
+            {isPaidActive && (
+              <div className="flex gap-2">
+                {sub?.cancel_at_period_end ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => reactivateMut.mutate()}
+                    disabled={reactivateMut.isPending}
+                  >
+                    {reactivateMut.isPending ? (
+                      <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
+                    )}
+                    Resume subscription
+                  </Button>
+                ) : (
+                  <Button variant="outline" size="sm" onClick={() => setCancelConfirmOpen(true)}>
+                    <XCircle className="mr-1.5 h-3.5 w-3.5" /> Cancel subscription
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
         </CardHeader>
-        {!isPro && (
-          <CardContent className="space-y-2">
-            <div className="flex items-center justify-between text-sm">
-              <span>Applications used</span>
-              <span className="font-medium">{used} of {limit}</span>
-            </div>
-            <Progress value={trialPct} />
+        <CardContent className="space-y-4">
+          <UsageBar
+            label="Job tracks"
+            used={usage?.job_tracks.used ?? used}
+            limit={usage?.job_tracks.unlimited ? null : usage?.job_tracks.limit ?? limit}
+          />
+          <UsageBar
+            label="Cover letters"
+            used={usage?.cover_letters.used ?? 0}
+            limit={usage?.cover_letters.unlimited ? null : usage?.cover_letters.limit ?? null}
+          />
+          {!isPro && (
             <p className="text-xs text-muted-foreground">
-              An "application" = the pair of tailored resume + cover letter for one job.
-              Regenerating for the same job doesn't consume a new slot.
+              Usage resets every calendar month on the Free plan, or on your billing renewal date once you upgrade.
             </p>
-          </CardContent>
-        )}
+          )}
+        </CardContent>
       </Card>
+
+      <AlertDialog open={cancelConfirmOpen} onOpenChange={setCancelConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel your subscription?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You'll keep full access until the end of your current billing period
+              {subEnd ? ` (${subEnd.toLocaleDateString()})` : ""}. After that, your account reverts to the Free plan.
+              You can resume anytime before then.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep subscription</AlertDialogCancel>
+            <AlertDialogAction onClick={() => cancelMut.mutate()} disabled={cancelMut.isPending}>
+              {cancelMut.isPending ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : null}
+              Cancel subscription
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Billing cycle toggle */}
       <div className="flex items-center justify-center gap-1 rounded-full border bg-muted/30 p-1 w-fit mx-auto">
@@ -311,6 +398,46 @@ export default function BillingPage() {
       {activationHint && (
         <p className="text-center text-xs text-muted-foreground">{activationHint}</p>
       )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Receipt className="h-4 w-4" /> Billing history
+          </CardTitle>
+          <CardDescription>Payment and subscription events for your account.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {!history || history.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No billing events yet.</p>
+          ) : (
+            <ul className="divide-y">
+              {history.map((h) => (
+                <li key={h.id} className="flex items-center justify-between py-2 text-sm">
+                  <span>{h.summary}</span>
+                  <span className="text-xs text-muted-foreground">{new Date(h.created_at).toLocaleString()}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function UsageBar({ label, used, limit }: { label: string; used: number; limit: number | null }) {
+  const unlimited = limit == null;
+  const pct = unlimited ? 0 : Math.min(100, (used / Math.max(1, limit)) * 100);
+  const nearLimit = !unlimited && limit > 0 && used / limit >= 0.8;
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center justify-between text-sm">
+        <span>{label}</span>
+        <span className={`font-medium ${nearLimit ? "text-amber-600 dark:text-amber-400" : ""}`}>
+          {unlimited ? `${used} used · Unlimited` : `${used} of ${limit}`}
+        </span>
+      </div>
+      {!unlimited && <Progress value={pct} />}
     </div>
   );
 }

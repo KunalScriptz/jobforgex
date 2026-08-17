@@ -1,13 +1,17 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { ListTodo, Wand2, FileText, ClipboardCheck, CreditCard, Settings, Sparkles, LogOut } from "lucide-react";
+import { ListTodo, Wand2, FileText, ClipboardCheck, CreditCard, Settings, Sparkles, LogOut, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import logoImg from "@/assets/logo.png";
 
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/context/auth-context";
 import { useWorkspace } from "@/hooks/use-workspace";
+import { billingApi } from "@/api/billing";
+
+const PLAN_LABELS: Record<string, string> = { free: "Free", pro: "Pro", unlimited: "Unlimited" };
 
 const NAV = [
   { to: "/jobs", label: "Jobs", icon: ListTodo },
@@ -22,8 +26,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const { data: ws } = useWorkspace();
+  const { data: billing } = useQuery({ queryKey: ["billing"], queryFn: () => billingApi.getStatus() });
+  const nav = user?.role === "admin" ? [...NAV, { to: "/admin", label: "Admin", icon: ShieldCheck }] : NAV;
 
   async function signOut() {
     await qc.cancelQueries();
@@ -44,7 +50,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           JobForge
         </Link>
         <nav className="flex-1 space-y-1 overflow-y-auto p-2">
-          {NAV.map(({ to, label, icon: Icon }) => {
+          {nav.map(({ to, label, icon: Icon }) => {
             const active = location.pathname.startsWith(to);
             return (
               <Link key={to} to={to} className={cn(
@@ -58,7 +64,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           })}
         </nav>
         <div className="border-t p-3 text-xs">
-          <div className="truncate font-medium">{ws?.name ?? "Workspace"}</div>
+          <div className="flex items-center justify-between gap-2">
+            <div className="truncate font-medium">{ws?.name ?? "Workspace"}</div>
+            {billing?.plan && (
+              <Badge variant={billing.plan === "free" ? "secondary" : "default"} className="shrink-0 text-[10px]">
+                {PLAN_LABELS[billing.plan] ?? billing.plan}
+              </Badge>
+            )}
+          </div>
           <div className="mt-2 flex flex-col gap-1.5">
             <ThemeToggle />
             <button onClick={signOut} className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground">

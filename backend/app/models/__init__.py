@@ -12,6 +12,7 @@ from app.models.extension_token import ExtensionToken
 from app.models.builder_resume import BuilderResume, BuilderResumeVersion
 from app.models.download_log import DownloadLog
 from app.models.prompt_log import PromptLog
+from app.models.usage import UserUsage
 
 __all__ = [
     "User",
@@ -37,4 +38,5 @@ __all__ = [
     "BuilderResumeVersion",
     "DownloadLog",
     "PromptLog",
+    "UserUsage",
 ]

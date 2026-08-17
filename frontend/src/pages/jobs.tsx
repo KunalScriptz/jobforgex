@@ -1,5 +1,6 @@
-import { useQueryClient, useMutation } from "@tanstack/react-query";
+import { useQueryClient, useMutation, useQuery } from "@tanstack/react-query";
 import { useState, useMemo } from "react";
+import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import {
   DndContext,
@@ -16,6 +17,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { Briefcase, FileText, Trophy, ThumbsDown, Sparkles, Trash2, CheckSquare, X, Plus, Pencil } from "lucide-react";
 
 import { jobsApi } from "@/api/jobs";
+import { billingApi } from "@/api/billing";
 import { useJobs } from "@/hooks/use-jobs";
 import { useBoards } from "@/hooks/use-workspace";
 import { Input } from "@/components/ui/input";
@@ -40,6 +42,33 @@ const COLUMNS: { id: Status; label: string; icon: any; accent: string }[] = [
   { id: "offer",     label: "Offer",     icon: Trophy,     accent: "text-emerald-500" },
   { id: "rejected",  label: "Rejected",  icon: ThumbsDown, accent: "text-rose-500" },
 ];
+
+function UsageSummary() {
+  const { data: usage } = useQuery({ queryKey: ["usage"], queryFn: () => billingApi.getUsage() });
+  if (!usage) return null;
+
+  const metrics: { label: string; used: number; limit: number | null; unlimited: boolean }[] = [
+    { label: "Job tracks", used: usage.job_tracks.used, limit: usage.job_tracks.limit, unlimited: usage.job_tracks.unlimited },
+    { label: "Cover letters", used: usage.cover_letters.used, limit: usage.cover_letters.limit, unlimited: usage.cover_letters.unlimited },
+  ];
+  const nearLimit = metrics.some((m) => !m.unlimited && m.limit != null && m.limit > 0 && m.used / m.limit >= 0.8);
+
+  return (
+    <div className="mb-3 flex flex-wrap items-center gap-3 rounded-lg border bg-card px-3 py-2 text-xs">
+      <span className="font-medium text-muted-foreground">{usage.plan} plan</span>
+      {metrics.map((m) => (
+        <span key={m.label} className={m.unlimited ? "" : m.limit != null && m.used >= m.limit ? "font-semibold text-destructive" : m.limit != null && m.used / m.limit >= 0.8 ? "font-semibold text-amber-600 dark:text-amber-400" : ""}>
+          {m.label}: {m.used}{m.unlimited ? "" : ` / ${m.limit}`}
+        </span>
+      ))}
+      {nearLimit && (
+        <Button asChild size="sm" variant="outline" className="ml-auto h-6 px-2 text-xs">
+          <Link to="/billing">Upgrade</Link>
+        </Button>
+      )}
+    </div>
+  );
+}
 
 export default function JobsPage() {
   const qc = useQueryClient();
@@ -262,6 +291,8 @@ export default function JobsPage() {
           {selectMode ? "Tap cards to select · bulk-move below" : "Drag cards or use Select to bulk-move"}
         </span>
       </div>
+
+      <UsageSummary />
 
       {selectMode && selected.size > 0 && (
         <div className="mb-3 flex items-center gap-3 rounded-lg border border-primary/40 bg-primary/5 px-3 py-2 text-sm">

@@ -12,6 +12,7 @@ import { PageTitle } from "@/components/page-title";
 import { jobsApi } from "@/api/jobs";
 import { resumesApi } from "@/api/resumes";
 import { aiApi } from "@/api/ai";
+import { billingApi } from "@/api/billing";
 import apiClient from "@/api/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +20,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { LatexPreview } from "@/components/latex-preview";
+import { PaywallDialog } from "@/components/paywall-dialog";
 
 // ---- BuilderContent type (moved from builder-render.server) ----
 
@@ -103,6 +105,9 @@ export default function BuilderPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
 
+  const billingQ = useQuery({ queryKey: ["billing"], queryFn: () => billingApi.getStatus() });
+  const isFreePlan = billingQ.data ? billingQ.data.plan === "free" : false;
+
   const jobQ = useQuery({
     queryKey: ["job", jobId],
     queryFn: () => jobsApi.getJob(jobId!),
@@ -111,7 +116,7 @@ export default function BuilderPage() {
   const builderQ = useQuery({
     queryKey: ["builder", jobId],
     queryFn: () => _getOrSeedBuilder({ job_id: jobId! }),
-    enabled: !!jobId,
+    enabled: !!jobId && !isFreePlan,
     retry: false,
   });
 
@@ -183,6 +188,19 @@ export default function BuilderPage() {
 
   const latex = builderQ.data?.latex_source ?? "";
   const job = jobQ.data?.job;
+
+  if (isFreePlan) {
+    return (
+      <div className="flex h-screen flex-col items-center justify-center p-6">
+        <PageTitle title="Resume Builder" />
+        <PaywallDialog
+          open
+          onOpenChange={(v) => { if (!v) navigate("/jobs"); }}
+          info={{ message: "Structured Resume Builder is available on Pro and Unlimited plans.", currentPlan: "Free" }}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen flex-col">

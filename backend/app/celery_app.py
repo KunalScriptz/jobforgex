@@ -29,6 +29,10 @@ celery_app.conf.beat_schedule = {
         "task": "app.tasks.digest.send_daily_digest",
         "schedule": crontab(hour=12, minute=30),  # 6:00 PM IST = 12:30 PM UTC
     },
+    "reconcile-usage-periods": {
+        "task": "reconcile_usage_periods",
+        "schedule": crontab(hour=2, minute=0),  # 2:00 AM UTC daily
+    },
 }
 
 

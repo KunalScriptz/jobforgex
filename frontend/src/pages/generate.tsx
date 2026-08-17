@@ -6,7 +6,7 @@ import { jobsApi } from "@/api/jobs";
 import { resumesApi } from "@/api/resumes";
 import { aiApi } from "@/api/ai";
 import apiClient from "@/api/client";
-import { PaywallDialog, isPaywallError } from "@/components/paywall-dialog";
+import { PaywallDialog, isPaywallError, extractPaywallInfo, type PaywallInfo } from "@/components/paywall-dialog";
 
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -87,6 +87,7 @@ export default function GeneratePage() {
   const [doTailor, setDoTailor] = useState(true);
   const [doCover, setDoCover] = useState(false);
   const [paywallOpen, setPaywallOpen] = useState(false);
+  const [paywallInfo, setPaywallInfo] = useState<PaywallInfo | null>(null);
 
   const [report, setReport] = useState<any>(null);
   const [tailored, setTailored] = useState<{ latex: string; filename: string } | null>(null);
@@ -135,7 +136,7 @@ export default function GeneratePage() {
       toast.success("Generated and saved to job");
     },
     onError: (e: any) => {
-      if (isPaywallError(e)) { setPaywallOpen(true); return; }
+      if (isPaywallError(e)) { setPaywallInfo(extractPaywallInfo(e)); setPaywallOpen(true); return; }
       toast.error(e.message);
     },
   });
@@ -243,7 +244,7 @@ export default function GeneratePage() {
           )}
         </div>
       </div>
-      <PaywallDialog open={paywallOpen} onOpenChange={setPaywallOpen} />
+      <PaywallDialog open={paywallOpen} onOpenChange={setPaywallOpen} info={paywallInfo} />
     </div>
   );
 }
