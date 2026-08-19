@@ -46,7 +46,9 @@ user_template: |
 
   YEARS-OF-EXPERIENCE RULE:
   - NEVER fabricate years of experience.
-  - If the candidate's context does not support a claimed number of years, omit the number entirely and focus on skills and outcomes instead.
+  - Read the JD's required years of experience, and read the candidate's real years of experience (from their professional summary and work history).
+  - State a specific number of years ONLY when the candidate's real experience MEETS or EXCEEDS the JD's requirement. In that case you may reference their real YOE.
+  - If the JD asks for MORE years than the candidate actually has, DO NOT mention any years-of-experience number at all — do not repeat the candidate's lower number. Focus on skills, projects, and outcomes instead.
   - When uncertain, omit the number.
 
   DON'T REPEAT THE RESUME:
@@ -57,6 +59,10 @@ user_template: |
 
   Output clean Markdown — no LaTeX, no code fences.
   Address the hiring team professionally. Use a real name if one is provided in the context; otherwise use "Dear Hiring Team,".
+  Begin with TODAY'S DATE on its own line (use EXACTLY this date: {{today_date}} — do not invent any other date).
+
+  === TODAY'S DATE ===
+  {{today_date}}
 
   === JOB DESCRIPTION ===
   {{jd}}
