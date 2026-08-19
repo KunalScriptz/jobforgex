@@ -22,7 +22,8 @@ jobs:
         run: |
           cd $HOME/all_bots/jobforgex
           git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/KunalScriptz/jobforgex.git"
-          git pull origin migration/self-hosted
+          git fetch origin migration/self-hosted
+          git reset --hard origin/migration/self-hosted
 
       - name: Deploy services
         run: |
