@@ -58,7 +58,7 @@ async def create_job(
     db: AsyncSession = Depends(get_db),
 ):
     ws_id = await get_workspace_id(user, db)
-    return await jobs_service.create_job(
+    job = await jobs_service.create_job(
         db,
         workspace_id=ws_id,
         board_id=data.board_id,
@@ -73,6 +73,8 @@ async def create_job(
         resume_score=data.resume_score,
         company_domain=data.company_domain,
     )
+    await db.refresh(job)
+    return job
 
 
 @router.put("/{job_id}")
@@ -131,7 +133,7 @@ async def create_artifact(
     db: AsyncSession = Depends(get_db),
 ):
     ws_id = await get_workspace_id(user, db)
-    return await jobs_service.create_artifact(
+    artifact = await jobs_service.create_artifact(
         db,
         workspace_id=ws_id,
         job_id=data.job_id,
@@ -139,6 +141,8 @@ async def create_artifact(
         filename=data.filename,
         latex_source=data.latex_source,
     )
+    await db.refresh(artifact)
+    return artifact
 
 
 @router.delete("/artifacts/{artifact_id}")
