@@ -5,6 +5,7 @@ import httpx
 import hashlib
 import hmac
 import asyncio
+from datetime import datetime
 from pathlib import Path
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -65,13 +66,17 @@ async def call_deepseek(
     system = prompt["system"]
     if prompt_name not in LATEX_OUTPUT_PROMPTS:
         system += FORMATTING_RULES
+
+    render_vars = dict(vars)
+    render_vars.setdefault("today_date", f"{datetime.now():%B %-d, %Y}")
+
     body = {
         "model": model,
         "temperature": override_temperature if override_temperature is not None else prompt.get("temperature", 0.3),
         "max_tokens": 8192,
         "messages": [
             {"role": "system", "content": system},
-            {"role": "user", "content": render_prompt(prompt["user_template"], vars)},
+            {"role": "user", "content": render_prompt(prompt["user_template"], render_vars)},
         ],
     }
 
