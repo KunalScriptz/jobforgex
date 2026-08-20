@@ -6,6 +6,8 @@ export function useJobs(params?: { board_id?: string; search?: string; status?: 
     queryKey: ["jobs", params],
     queryFn: () => jobsApi.listJobs(params),
     staleTime: 30 * 1000,
+    // Poll so jobs saved from the Chrome extension appear without a manual refresh.
+    refetchInterval: 15 * 1000,
   });
 }
 
