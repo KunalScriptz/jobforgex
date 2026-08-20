@@ -40,7 +40,7 @@ user_template: |
   B. SUMMARY — 1-2 conversational lines:
      - Write in a friendly, first-person conversational tone. Not a cover letter — be direct and factual.
      - Must include: what role the candidate is targeting, where they are based.
-     - If the JD mentions relocation, visa sponsorship, or international hiring, add "Open to relocation" or similar.
+     - Do NOT mention relocation, willingness to relocate, or any target country in the Summary — relocation preference is expressed only in the top-center header (see LOCATION RULE).
      - If the candidate has remote work experience, mention it — it signals readiness.
      - Examples of good summaries:
          "Passionate about x, y, z, I am an Android Developer with n years of experience and a deep interest in a, b, c"
@@ -78,8 +78,8 @@ user_template: |
 
   LOCATION RULE:
   - If the location above is provided and differs from the candidate's base location shown in the resume header, EDIT the relocation-preference line in the resume's top-center header (the bold contact line, e.g. "Open to global relocation" or "Open to relocation") to name that specific country — e.g. "Open to relocating to Germany". Keep it truthful; never fabricate willingness.
-  - If the base resume header has no relocation line, add one concise line only when the job location implies relocation is expected.
-  - Weave the target country into the Summary naturally where it reads well.
+  - If the base resume header has no relocation line, add one concise line to the top-center header only when the job location implies relocation is expected.
+  - Never mention the target country or relocation in the Professional Summary — the top-center header line is the ONLY place relocation preference appears.
 
   === JOB DESCRIPTION ===
   {{jd}}
