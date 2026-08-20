@@ -64,6 +64,24 @@ apiClient.interceptors.response.use(
           originalRequest.headers.Authorization = `Bearer ${data.access_token}`;
           return apiClient(originalRequest);
         } catch (refreshError) {
+          // Another tab may have refreshed and rotated the token — wait briefly
+          // and retry once with the new token before giving up.
+          await new Promise((r) => setTimeout(r, 600));
+          const latestRefreshToken = localStorage.getItem("refresh_token");
+          if (latestRefreshToken && latestRefreshToken !== refreshToken) {
+            try {
+              const { data } = await axios.post(`${API_BASE}/api/v1/auth/refresh`, {
+                refresh_token: latestRefreshToken,
+              });
+              localStorage.setItem("access_token", data.access_token);
+              localStorage.setItem("refresh_token", data.refresh_token);
+              processQueue(null, data.access_token);
+              originalRequest.headers.Authorization = `Bearer ${data.access_token}`;
+              return apiClient(originalRequest);
+            } catch {
+              // fall through to logout
+            }
+          }
           processQueue(refreshError, null);
           localStorage.removeItem("access_token");
           localStorage.removeItem("refresh_token");

@@ -22,6 +22,21 @@ function decodeJwtPayload(token: string): Record<string, unknown> | null {
   }
 }
 
+/** Build the AuthUser shape from a decoded access token, or null if unusable. */
+function userFromToken(token: string): AuthUser | null {
+  const payload = decodeJwtPayload(token);
+  if (!payload || !payload.sub) return null;
+  return {
+    id: payload.sub as string,
+    email: (payload.email as string) ?? "",
+    full_name: null,
+    email_verified: true,
+    role: (payload.role as string) || "user",
+    workspace_id: (payload.workspace_id as string) || null,
+    workspace_name: null,
+  };
+}
+
 interface AuthUser {
   id: string;
   email: string;
@@ -44,30 +59,64 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Single-flight boot refresh — React StrictMode double-mounts effects in dev,
+// and two parallel refreshes with the same token would 401 on rotation.
+let bootRefreshPromise: Promise<{ access_token: string; refresh_token: string }> | null = null;
+
+function refreshSession(refreshToken: string) {
+  if (!bootRefreshPromise) {
+    bootRefreshPromise = authApi.refresh(refreshToken).finally(() => {
+      bootRefreshPromise = null;
+    });
+  }
+  return bootRefreshPromise;
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    let cancelled = false;
+
     const token = localStorage.getItem("access_token");
-    if (token) {
-      const payload = decodeJwtPayload(token);
-      if (payload && payload.sub && (!payload.exp || (payload.exp as number) * 1000 > Date.now())) {
-        setUser({
-          id: payload.sub as string,
-          email: (payload.email as string) ?? "",
-          full_name: null,
-          email_verified: true,
-          role: (payload.role as string) || "user",
-          workspace_id: (payload.workspace_id as string) || null,
-          workspace_name: null,
-        });
-      } else {
-        // Token invalid or expired — clean up so the interceptor doesn't fire a doomed refresh
-        localStorage.removeItem("access_token");
-      }
+    const payload = token ? decodeJwtPayload(token) : null;
+    const tokenValid =
+      payload && payload.sub && (!payload.exp || (payload.exp as number) * 1000 > Date.now());
+
+    if (token && tokenValid) {
+      setUser(userFromToken(token));
+      setIsLoading(false);
+      return;
     }
-    setIsLoading(false);
+
+    // Token missing or expired — try to refresh the session before giving up.
+    const refreshToken = localStorage.getItem("refresh_token");
+    if (!refreshToken) {
+      if (token) localStorage.removeItem("access_token");
+      setIsLoading(false);
+      return;
+    }
+
+    refreshSession(refreshToken)
+      .then(({ access_token, refresh_token }) => {
+        if (cancelled) return;
+        localStorage.setItem("access_token", access_token);
+        localStorage.setItem("refresh_token", refresh_token);
+        setUser(userFromToken(access_token));
+      })
+      .catch(() => {
+        if (cancelled) return;
+        localStorage.removeItem("access_token");
+        localStorage.removeItem("refresh_token");
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const login = async (data: LoginData) => {
@@ -99,18 +148,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const refreshUser = async () => {
     const tokenPayload = localStorage.getItem("access_token");
     if (tokenPayload) {
-      const payload = decodeJwtPayload(tokenPayload);
-      if (payload && payload.sub) {
-        setUser({
-          id: payload.sub as string,
-          email: (payload.email as string) ?? "",
-          full_name: null,
-          email_verified: true,
-          role: (payload.role as string) || "user",
-          workspace_id: (payload.workspace_id as string) || null,
-          workspace_name: null,
-        });
-      }
+      const user = userFromToken(tokenPayload);
+      if (user) setUser(user);
     }
   };
 
