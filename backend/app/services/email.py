@@ -1,3 +1,4 @@
+import logging
 import smtplib
 import ssl
 import textwrap
@@ -5,6 +6,8 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
 from app.config import settings
+
+logger = logging.getLogger(__name__)
 
 TEMPLATES = {
     "email_verification": {
@@ -103,4 +106,5 @@ async def send_email(to: str, template_name: str, **kwargs) -> bool:
             server.sendmail(settings.SMTP_FROM, to, msg.as_string())
         return True
     except Exception:
+        logger.exception("SMTP send failed to %s", to)
         return False

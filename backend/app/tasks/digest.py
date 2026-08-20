@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.config import settings
 
 
-@celery_app.task(name="send_daily_digest")
+@celery_app.task()
 def send_daily_digest():
     engine = create_engine(settings.DATABASE_URL_SYNC)
     session = Session(engine)
@@ -22,9 +22,9 @@ def send_daily_digest():
         from app.models.ai_cost_log import AICostLog
         from app.models.user import User
 
-        workspaces = session.query(Workspace).all()
+        workspaces = session.query(Workspace).order_by(Workspace.created_at).all()
 
-        for ws in workspaces[:50]:  # limit for safety
+        for ws in workspaces:
             user = session.query(User).filter(User.id == ws.owner_user_id).first()
             if not user or not user.email:
                 continue
@@ -57,9 +57,7 @@ def send_daily_digest():
             ).all()
             total_cost = sum(float(c.total_cost or 0) for c in costs)
 
-            if not any([jobs_added, jobs_applied, jobs_interview, resumes, total_cost]):
-                continue
-
+            # Send the digest daily even when every count is zero.
             html = f"""
             <div style="font-family:system-ui,-apple-system,sans-serif;max-width:520px;margin:0 auto;padding:24px;color:#0f172a">
                 <h2 style="margin:0 0 4px;color:#00008c">JobForge digest</h2>
