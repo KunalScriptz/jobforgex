@@ -15,7 +15,10 @@ async def list_resumes(db: AsyncSession, workspace_id: uuid.UUID) -> list[Resume
 async def get_base_resume(db: AsyncSession, workspace_id: uuid.UUID) -> Resume | None:
     """The workspace default template (legacy "base resume")."""
     result = await db.execute(
-        select(Resume).where(Resume.workspace_id == workspace_id, Resume.is_default == True).limit(1)
+        select(Resume)
+        .where(Resume.workspace_id == workspace_id, Resume.is_default == True)
+        .order_by(Resume.updated_at.desc())
+        .limit(1)
     )
     return result.scalar_one_or_none()
 
@@ -77,11 +80,11 @@ async def create_template(
     primary_color: str = "#00008c",
     secondary_color: str = "#00a698",
 ) -> Resume:
-    """Create a named template. The first template in a workspace becomes default."""
-    count = await db.execute(
-        select(func.count()).select_from(Resume).where(Resume.workspace_id == workspace_id)
+    """Create a named template. Becomes default if the workspace has none yet."""
+    has_default = await db.execute(
+        select(Resume.id).where(Resume.workspace_id == workspace_id, Resume.is_default == True).limit(1)
     )
-    is_first = count.scalar_one() == 0
+    make_default = has_default.scalar_one_or_none() is None
 
     resume = Resume(
         workspace_id=workspace_id,
@@ -90,7 +93,7 @@ async def create_template(
         primary_color=primary_color,
         secondary_color=secondary_color,
         is_base=False,
-        is_default=is_first,
+        is_default=make_default,
     )
     db.add(resume)
     await db.flush()
