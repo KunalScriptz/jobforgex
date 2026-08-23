@@ -1,4 +1,4 @@
-import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
+import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import CodeMirror from "@uiw/react-codemirror";
@@ -28,14 +28,28 @@ import apiClient from "@/api/client";
 import { baseResumeFilename } from "@/lib/filenames";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Download, Save, History, RotateCcw, LayoutList, FileText } from "lucide-react";
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
+  Download, Save, History, RotateCcw, LayoutList, FileText, Plus, Star, Pencil, Trash2,
+} from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { LatexPreview, type LatexPreviewHandle } from "@/components/latex-preview";
 import { PdfToLatexButton } from "@/components/pdf-to-latex-button";
 import { PageTitle } from "@/components/page-title";
+import TemplatePicker from "@/components/template-picker";
+import {
+  useResumes, useResumeVersions, useCreateTemplate, useDeleteTemplate, useSetDefaultTemplate,
+} from "@/hooks/use-resumes";
 
 // Convert "r,g,b" (0..1) rgb string used by LaTeX \definecolor into hex #rrggbb
 function rgbTupleToHex(t: string): string {
@@ -123,34 +137,54 @@ export default function ResumesPage() {
   const previewRef = useRef<LatexPreviewHandle>(null);
   const sectionsPreviewRef = useRef<LatexPreviewHandle>(null);
 
-  const { data: resume } = useQuery({ queryKey: ["resume","base"], queryFn: () => resumesApi.getBaseResume() });
-  const { data: versions = [] } = useQuery({
-    queryKey: ["resume","versions", resume?.id],
-    queryFn: () => resumesApi.listVersions(resume!.id),
-    enabled: Boolean(resume?.id),
+  const { data: templates = [], isLoading } = useResumes();
+  const [selectedId, setSelectedId] = useState("");
+  const selectedTemplate = templates.find((t) => t.id === selectedId)
+    ?? templates.find((t) => t.is_default)
+    ?? templates[0];
+
+  // Converge the selection onto the derived template (initial load, deletion fallback).
+  useEffect(() => {
+    if (selectedTemplate && selectedTemplate.id !== selectedId) setSelectedId(selectedTemplate.id);
+  }, [selectedTemplate?.id, selectedId]);
+
+  const { data: versions = [] } = useResumeVersions(selectedTemplate?.id ?? "");
+  const deleteMut = useDeleteTemplate();
+  const setDefaultMut = useSetDefaultTemplate();
+  const renameMut = useMutation({
+    mutationFn: ({ resumeId, name }: { resumeId: string; name: string }) =>
+      resumesApi.updateTemplate(resumeId, { name }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["resumes"] });
+      toast.success("Renamed");
+    },
+    onError: (e: any) => toast.error(e.message),
   });
 
   const [source, setSource] = useState("");
   const [primary, setPrimary] = useState("#00a698");
   const [secondary, setSecondary] = useState("#00008c");
+  const [editingName, setEditingName] = useState(false);
 
   useEffect(() => {
-    if (resume) {
-      setSource(resume.latex_source);
-      setPrimary(rgbTupleToHex(resume.primary_color ?? "0.0,0.65,0.60"));
-      setSecondary(rgbTupleToHex(resume.secondary_color ?? "0.0,0.0,0.55"));
+    if (selectedTemplate) {
+      setSource(selectedTemplate.latex_source);
+      setPrimary(rgbTupleToHex(selectedTemplate.primary_color ?? "0.0,0.65,0.60"));
+      setSecondary(rgbTupleToHex(selectedTemplate.secondary_color ?? "0.0,0.0,0.55"));
     }
-  }, [resume?.id]);
+  }, [selectedTemplate?.id]);
 
   const save = useMutation({
     mutationFn: async () => {
-      await resumesApi.saveBaseResume({ latex_source: source });
-      if (resume) {
-        await resumesApi.updateColors(resume.id, hexToRgbTuple(primary), hexToRgbTuple(secondary));
-      }
+      if (!selectedTemplate) throw new Error("No template selected");
+      await resumesApi.updateTemplate(selectedTemplate.id, {
+        latex_source: source,
+        primary_color: hexToRgbTuple(primary),
+        secondary_color: hexToRgbTuple(secondary),
+      });
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["resume"] });
+      qc.invalidateQueries({ queryKey: ["resumes"] });
       toast.success("Saved");
       previewRef.current?.compile();
       sectionsPreviewRef.current?.compile();
@@ -185,10 +219,10 @@ export default function ResumesPage() {
     link.click();
   }
 
-  if (!resume) return (
+  if (!isLoading && templates.length === 0) return (
     <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
       <FileText className="h-10 w-10 text-muted-foreground" />
-      <div className="text-sm font-medium">No base resume found</div>
+      <div className="text-sm font-medium">No resume templates found</div>
       <p className="max-w-sm text-xs text-muted-foreground">
         Upload your resume to start tailoring. You can paste LaTeX or import a PDF.
       </p>
@@ -198,11 +232,13 @@ export default function ResumesPage() {
     </div>
   );
 
+  if (!selectedTemplate) return null;
+
   return (
     <div className="flex h-[calc(100vh-0px)] flex-col p-6">
-      <PageTitle title="Resume" />
+      <PageTitle title="Resume templates" />
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        <h1 className="text-2xl font-bold">Base resume</h1>
+        <h1 className="text-2xl font-bold">Resume templates</h1>
         <div className="ml-auto flex items-center gap-2">
           <PdfToLatexButton onLatex={(l) => setSource(l)} />
           <ColorButton label="Primary" value={primary} onChange={(v) => applyColors({ primary: v })} />
@@ -210,6 +246,83 @@ export default function ResumesPage() {
           <Button variant="outline" size="sm" onClick={download}><Download className="mr-1 h-4 w-4" />.tex</Button>
           <Button size="sm" onClick={() => save.mutate()} disabled={save.isPending}><Save className="mr-1 h-4 w-4" />Save</Button>
         </div>
+      </div>
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <div className="w-64">
+          <TemplatePicker value={selectedId} onChange={setSelectedId} templates={templates} />
+        </div>
+        {editingName ? (
+          <Input
+            autoFocus
+            defaultValue={selectedTemplate.name}
+            className="h-8 w-48"
+            onKeyDown={(e) => {
+              if (e.key === "Enter") e.currentTarget.blur();
+              if (e.key === "Escape") setEditingName(false);
+            }}
+            onBlur={(e) => {
+              const v = e.target.value.trim();
+              if (v && v !== selectedTemplate.name) {
+                renameMut.mutate({ resumeId: selectedTemplate.id, name: v });
+              }
+              setEditingName(false);
+            }}
+          />
+        ) : (
+          <Button variant="outline" size="sm" onClick={() => setEditingName(true)} title="Rename template">
+            {selectedTemplate.name}
+            <Pencil className="ml-1.5 h-3 w-3" />
+          </Button>
+        )}
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={selectedTemplate.is_default || setDefaultMut.isPending}
+          onClick={() =>
+            setDefaultMut.mutate(selectedTemplate.id, {
+              onSuccess: () => toast.success("Default template updated"),
+              onError: (e: any) => toast.error(e.message),
+            })
+          }
+          title={selectedTemplate.is_default ? "This is already the default template" : "Use this template by default"}
+        >
+          <Star className={`mr-1 h-4 w-4 ${selectedTemplate.is_default ? "fill-current" : ""}`} />
+          {selectedTemplate.is_default ? "Default" : "Set default"}
+        </Button>
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={templates.length <= 1}
+              title={templates.length <= 1 ? "Cannot delete the last template" : undefined}
+            >
+              <Trash2 className="mr-1 h-4 w-4" />Delete
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete template?</AlertDialogTitle>
+              <AlertDialogDescription>
+                "{selectedTemplate.name}" and its version history will be permanently deleted.
+                {selectedTemplate.is_default && templates.length > 1 && " Another template will become the default."}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => deleteMut.mutate(selectedTemplate.id, {
+                  onSuccess: () => toast.success("Template deleted"),
+                  onError: (e: any) => toast.error(e.message),
+                })}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+        <NewTemplateDialog onCreated={(id) => setSelectedId(id)} />
       </div>
       <Tabs defaultValue="split" className="flex-1">
         <TabsList>
@@ -224,18 +337,18 @@ export default function ResumesPage() {
               <CodeMirror
                 value={source}
                 onChange={setSource}
-                height="calc(100vh - 320px)"
+                height="calc(100vh - 380px)"
                 basicSetup={{ lineNumbers: true, foldGutter: true }}
                 theme={cmTheme}
                 extensions={[latexLanguage, toggleCommentExtension]}
               />
             </div>
-            <div className="overflow-hidden rounded-lg border bg-white" style={{ height: "calc(100vh - 280px)" }}>
+            <div className="overflow-hidden rounded-lg border bg-white" style={{ height: "calc(100vh - 340px)" }}>
               <LatexPreview
                 ref={previewRef}
                 source={source}
                 auto={false}
-                cacheKey={`base-resume-${resume.id}`}
+                cacheKey={`template-${selectedTemplate.id}`}
                 downloadFilename={baseResumeFilename({ latex: source, ext: "pdf" })}
               />
             </div>
@@ -243,15 +356,15 @@ export default function ResumesPage() {
         </TabsContent>
         <TabsContent value="sections" className="mt-4">
           <div className="grid gap-4 lg:grid-cols-2">
-            <div className="overflow-auto" style={{ maxHeight: "calc(100vh - 220px)" }}>
+            <div className="overflow-auto" style={{ maxHeight: "calc(100vh - 280px)" }}>
               <SectionsEditor source={source} onChange={setSource} />
             </div>
-            <div className="overflow-hidden rounded-lg border bg-white" style={{ height: "calc(100vh - 220px)" }}>
+            <div className="overflow-hidden rounded-lg border bg-white" style={{ height: "calc(100vh - 280px)" }}>
               <LatexPreview
                 ref={sectionsPreviewRef}
                 source={source}
                 auto={false}
-                cacheKey={`base-resume-${resume.id}`}
+                cacheKey={`template-${selectedTemplate.id}`}
                 downloadFilename={baseResumeFilename({ latex: source, ext: "pdf" })}
               />
             </div>
@@ -268,7 +381,7 @@ export default function ResumesPage() {
                       <div className="font-mono text-xs text-muted-foreground">{new Date(v.created_at).toLocaleString()}</div>
                       <div className="text-xs">{(v.latex_source ?? "").length.toLocaleString()} chars · {v.note ?? ""}</div>
                     </div>
-                    <Button size="sm" variant="outline" onClick={async () => { await apiClient.post(`/api/v1/resumes/${resume.id}/versions/${v.id}/restore`); qc.invalidateQueries({ queryKey: ["resume"] }); toast.success("Restored"); }}>
+                    <Button size="sm" variant="outline" onClick={async () => { await apiClient.post(`/api/v1/resumes/${selectedTemplate.id}/versions/${v.id}/restore`); qc.invalidateQueries({ queryKey: ["resumes"] }); toast.success("Restored"); }}>
                       <RotateCcw className="mr-1 h-3 w-3" />Restore
                     </Button>
                   </div>
@@ -280,6 +393,83 @@ export default function ResumesPage() {
         </TabsContent>
       </Tabs>
     </div>
+  );
+}
+
+function NewTemplateDialog({ onCreated }: { onCreated: (id: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState("");
+  const [tex, setTex] = useState("");
+  const create = useCreateTemplate();
+
+  const isValid = tex.includes("\\documentclass") && tex.includes("\\begin{document}") && tex.includes("\\end{document}");
+
+  function submit() {
+    if (!isValid) {
+      toast.error("LaTeX must include \\documentclass, \\begin{document}, and \\end{document}.");
+      return;
+    }
+    create.mutate(
+      { name: name.trim() || undefined, latex_source: tex },
+      {
+        onSuccess: (res) => {
+          onCreated(res.id);
+          setOpen(false);
+          setName("");
+          setTex("");
+          toast.success("Template created");
+        },
+      },
+    );
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button size="sm"><Plus className="mr-1 h-4 w-4" />New template</Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>New resume template</DialogTitle>
+          <DialogDescription>
+            Paste the complete LaTeX source, or import from a PDF and we'll convert it into LaTeX.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor="tpl-name">Template name</Label>
+            <Input
+              id="tpl-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="My Resume"
+              maxLength={100}
+              className="mt-1"
+            />
+          </div>
+          <div className="flex items-center justify-between rounded-md border border-dashed bg-muted/30 p-3">
+            <div className="text-xs text-muted-foreground">
+              Only have a PDF? Import it and we'll rewrite it into LaTeX for you.
+            </div>
+            <PdfToLatexButton onLatex={(l) => setTex(l)} />
+          </div>
+          <Textarea
+            className="h-64 font-mono text-xs"
+            value={tex}
+            onChange={(e) => setTex(e.target.value)}
+            placeholder="\documentclass[letterpaper,11pt]{article}&#10;..."
+          />
+          {tex.length > 0 && !isValid && (
+            <p className="text-xs text-amber-500">Your LaTeX must include \documentclass, \begin{"{document}"}, and \end{"{document}"} to be valid.</p>
+          )}
+        </div>
+        <DialogFooter>
+          <Button onClick={submit} disabled={create.isPending || !isValid}>
+            {create.isPending ? "Creating…" : "Create template"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

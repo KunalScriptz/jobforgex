@@ -52,6 +52,9 @@ import { resumesApi } from "@/api/resumes";
 import { billingApi } from "@/api/billing";
 import { AI_TOOLS_META } from "@/lib/ai-tools";
 import { extractResumeName, tailoredDocFilename } from "@/lib/filenames";
+import TemplatePicker from "@/components/template-picker";
+import { Label } from "@/components/ui/label";
+import { useResumes } from "@/hooks/use-resumes";
 
 type Status = "wishlist" | "applied" | "interview" | "offer" | "rejected";
 const STATUSES: Status[] = ["wishlist","applied","interview","offer","rejected"];
@@ -484,6 +487,12 @@ function DocumentsTab({ artifacts, jobId, job }: { artifacts: any[]; jobId: stri
   const [doCover, setDoCover] = useState(false);
   const [paywallOpen, setPaywallOpen] = useState(false);
 
+  const { data: templates = [] } = useResumes();
+  const [selectedTemplateId, setSelectedTemplateId] = useState("");
+  const template = templates.find((t) => t.id === selectedTemplateId)
+    ?? templates.find((t) => t.is_default)
+    ?? templates[0];
+
   const gen = useMutation({
     mutationFn: async () => {
       if (!job?.description || job.description.length < 30) throw new Error("Job has no description to generate from.");
@@ -495,13 +504,14 @@ function DocumentsTab({ artifacts, jobId, job }: { artifacts: any[]; jobId: stri
       const locationLine = job.location
         ? `The job is located in ${job.location}.\n`
         : "";
-      const resumeLatex = baseResume?.latex_source ?? "";
-      const resumeName = resumeLatex ? (extractResumeName(resumeLatex) || baseResume?.name || "resume") : "resume";
+      const chosen = template ?? baseResume;
+      const resumeLatex = chosen?.latex_source ?? "";
+      const resumeName = resumeLatex ? (extractResumeName(resumeLatex) || chosen?.name || "resume") : "resume";
 
       if (doTailor) {
         t = await aiApi.generate({
           prompt_name: "tailor_resume",
-          vars: { jd, resume_latex: resumeLatex, page_count: baseResume?.page_count ?? 1, company: job.company, title: job.title, location_line: locationLine },
+          vars: { jd, resume_latex: resumeLatex, page_count: chosen?.page_count ?? 1, company: job.company, title: job.title, location_line: locationLine },
           job_id: job.id,
           purpose: "resume_tailoring",
         });
@@ -603,6 +613,12 @@ function DocumentsTab({ artifacts, jobId, job }: { artifacts: any[]; jobId: stri
             <label className="flex items-center gap-2 text-sm">
               <Checkbox checked={doCover} onCheckedChange={(v) => setDoCover(!!v)} /> Cover letter
             </label>
+            <div className="flex items-center gap-2">
+              <Label className="text-xs text-muted-foreground">Template</Label>
+              <div className="w-56">
+                <TemplatePicker value={selectedTemplateId} onChange={setSelectedTemplateId} />
+              </div>
+            </div>
             <Button size="sm" onClick={() => gen.mutate()} disabled={gen.isPending || (!doTailor && !doCover)}>
               {gen.isPending ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Wand2 className="mr-1 h-3.5 w-3.5" />}
               {gen.isPending ? "Generating…" : "Generate"}
