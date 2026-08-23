@@ -29,6 +29,7 @@ class ResumeOut(BaseModel):
     primary_color: str
     secondary_color: str
     is_base: bool
+    is_default: bool
     created_at: datetime
     updated_at: datetime
 

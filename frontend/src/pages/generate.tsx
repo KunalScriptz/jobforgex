@@ -11,12 +11,15 @@ import { PaywallDialog, isPaywallError } from "@/components/paywall-dialog";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
 import { Wand2, Download, FileText, Sparkles } from "lucide-react";
 import { LatexPreview } from "@/components/latex-preview";
 import { TailoringLoader } from "@/components/tailoring-loader";
 import { PageTitle } from "@/components/page-title";
+import TemplatePicker from "@/components/template-picker";
+import { useResumes, useBaseResume } from "@/hooks/use-resumes";
 import { extractResumeName, tailoredDocFilename } from "@/lib/filenames";
 
 // ---- wrapper functions that match original server fn shapes ----
@@ -73,12 +76,15 @@ export default function GeneratePage() {
 
   const { data: allJobs = [] } = useQuery({ queryKey: ["jobs", "all"], queryFn: () => jobsApi.listJobs() });
 
-  const { data: baseResume } = useQuery({
-    queryKey: ["baseResume"],
-    queryFn: () => resumesApi.getBaseResume(),
-  });
-  const resumeName = baseResume?.latex_source
-    ? extractResumeName(baseResume.latex_source) || baseResume.name || "resume"
+  const { data: baseResume } = useBaseResume();
+  const { data: templates = [] } = useResumes();
+  const [selectedTemplateId, setSelectedTemplateId] = useState("");
+  const template = templates.find((t) => t.id === selectedTemplateId)
+    ?? templates.find((t) => t.is_default)
+    ?? templates[0]
+    ?? baseResume;
+  const resumeName = template?.latex_source
+    ? extractResumeName(template.latex_source) || template.name || "resume"
     : "resume";
 
   const [selectedJobId, setSelectedJobId] = useState<string>("");
@@ -115,13 +121,13 @@ export default function GeneratePage() {
         ? `The job is located in ${selectedJob.location}.\n`
         : "";
       if (doTailor) {
-        t = await _tailorResume({ jd, company: selectedJob.company, title: selectedJob.title, job_id: selectedJob.id, resumeName, resumeLatex: baseResume?.latex_source || "", pageCount: baseResume?.page_count ?? 1, locationLine });
+        t = await _tailorResume({ jd, company: selectedJob.company, title: selectedJob.title, job_id: selectedJob.id, resumeName, resumeLatex: template?.latex_source || "", pageCount: template?.page_count ?? 1, locationLine });
         const savedT = await _saveArtifact({ job_id: selectedJob.id, kind: "tailored_resume", filename: t.filename, latex_source: t.latex });
         compileJobs.push(_compileArtifactPdf({ artifact_id: savedT.id }).catch(() => null));
         localCost += Number(t.cost);
       }
       if (doCover) {
-        c = await _generateCoverLetter({ jd, company: selectedJob.company, title: selectedJob.title, job_id: selectedJob.id, resumeName, resumeLatex: baseResume?.latex_source || "", locationLine });
+        c = await _generateCoverLetter({ jd, company: selectedJob.company, title: selectedJob.title, job_id: selectedJob.id, resumeName, resumeLatex: template?.latex_source || "", locationLine });
         const savedC = await _saveArtifact({ job_id: selectedJob.id, kind: "cover_letter", filename: c.filename, latex_source: c.latex });
         compileJobs.push(_compileArtifactPdf({ artifact_id: savedC.id }).catch(() => null));
         localCost += Number(c.cost);
@@ -174,6 +180,14 @@ export default function GeneratePage() {
                 ))}
               </SelectContent>
             </Select>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Resume template</Label>
+              <TemplatePicker
+                value={selectedTemplateId}
+                onChange={(v) => { setSelectedTemplateId(v); setReport(null); setTailored(null); setCover(null); }}
+              />
+            </div>
 
             {selectedJob && (
               <div className="space-y-2">

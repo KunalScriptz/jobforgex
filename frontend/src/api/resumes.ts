@@ -9,6 +9,7 @@ export interface Resume {
   primary_color: string;
   secondary_color: string;
   is_base: boolean;
+  is_default: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -32,6 +33,33 @@ export const resumesApi = {
 
   saveBaseResume: (data: { latex_source: string; name?: string }) =>
     apiClient.post<Resume>("/api/v1/resumes/base", data).then((r) => r.data),
+
+  createTemplate: (data: {
+    name?: string;
+    latex_source: string;
+    primary_color?: string;
+    secondary_color?: string;
+  }) => apiClient.post<Resume>("/api/v1/resumes/", data).then((r) => r.data),
+
+  getResume: (resumeId: string) =>
+    apiClient.get<Resume>(`/api/v1/resumes/${resumeId}`).then((r) => r.data),
+
+  updateTemplate: (
+    resumeId: string,
+    data: {
+      name?: string;
+      latex_source?: string;
+      page_count?: number;
+      primary_color?: string;
+      secondary_color?: string;
+    },
+  ) => apiClient.patch<Resume>(`/api/v1/resumes/${resumeId}`, data).then((r) => r.data),
+
+  deleteTemplate: (resumeId: string) =>
+    apiClient.delete(`/api/v1/resumes/${resumeId}`).then((r) => r.data),
+
+  setDefaultTemplate: (resumeId: string) =>
+    apiClient.put<Resume>(`/api/v1/resumes/${resumeId}/default`).then((r) => r.data),
 
   updateColors: (resumeId: string, primary: string, secondary: string) =>
     apiClient

@@ -98,7 +98,9 @@ function Step1({ onDone }: { onDone: (ws: any) => void }) {
 }
 
 function Step3({ onBack, onDone }: { onBack: () => void; onDone: () => void }) {
+  const qc = useQueryClient();
   const [tex, setTex] = useState("");
+  const [templateName, setTemplateName] = useState("");
   const [busy, setBusy] = useState(false);
 
   const isValid = tex.includes("\\documentclass") && tex.includes("\\begin{document}") && tex.includes("\\end{document}");
@@ -108,7 +110,11 @@ function Step3({ onBack, onDone }: { onBack: () => void; onDone: () => void }) {
     if (!isValid) { toast.error("Please upload a valid LaTeX resume before finishing."); return; }
     setBusy(true);
     try {
-      await resumesApi.saveBaseResume({ latex_source: tex });
+      await resumesApi.saveBaseResume({
+        latex_source: tex,
+        ...(templateName.trim() ? { name: templateName.trim() } : {}),
+      });
+      qc.invalidateQueries({ queryKey: ["resumes"] });
       await workspaceApi.updateOnboarding(4, true);
       toast.success("Setup complete!");
       onDone();
@@ -124,6 +130,20 @@ function Step3({ onBack, onDone }: { onBack: () => void; onDone: () => void }) {
       </CardHeader>
       <CardContent>
         <form onSubmit={submit} className="space-y-4">
+          <div>
+            <Label htmlFor="tpl-name">Template name (optional)</Label>
+            <Input
+              id="tpl-name"
+              value={templateName}
+              onChange={(e) => setTemplateName(e.target.value)}
+              placeholder="My Resume"
+              maxLength={100}
+              className="mt-1"
+            />
+            <p className="mt-1 text-xs text-muted-foreground">
+              e.g. UAE_Standard_Resume. You can add more templates and rename them later.
+            </p>
+          </div>
           <div className="flex items-center justify-between rounded-md border border-dashed bg-muted/30 p-3">
             <div className="text-xs text-muted-foreground">
               Only have a PDF? Import it and we'll rewrite it into LaTeX for you.

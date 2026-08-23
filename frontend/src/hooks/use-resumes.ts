@@ -28,6 +28,38 @@ export function useSaveBaseResume() {
   });
 }
 
+function useInvalidateResumes() {
+  const qc = useQueryClient();
+  return () => {
+    // Prefix invalidation covers ["resumes"], ["resumes","base"], and ["resumes","versions",…].
+    qc.invalidateQueries({ queryKey: ["resumes"] });
+  };
+}
+
+export function useCreateTemplate() {
+  const invalidate = useInvalidateResumes();
+  return useMutation({
+    mutationFn: resumesApi.createTemplate,
+    onSuccess: invalidate,
+  });
+}
+
+export function useDeleteTemplate() {
+  const invalidate = useInvalidateResumes();
+  return useMutation({
+    mutationFn: resumesApi.deleteTemplate,
+    onSuccess: invalidate,
+  });
+}
+
+export function useSetDefaultTemplate() {
+  const invalidate = useInvalidateResumes();
+  return useMutation({
+    mutationFn: resumesApi.setDefaultTemplate,
+    onSuccess: invalidate,
+  });
+}
+
 export function useResumeVersions(resumeId: string) {
   return useQuery({
     queryKey: ["resumes", "versions", resumeId],
