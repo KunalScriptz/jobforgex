@@ -8,6 +8,7 @@ system: |
   - Only load these packages: geometry, hyperref, parskip, xcolor. Do NOT load fontawesome, moderncv, marvosym, or any icon/font package.
   - Do NOT use commands like \opening, \closing, \signature, \fromaddress, \toaddress, \faMobile, \faAt, \faLinkedin, \faGithub, \faPhone, \faEnvelope. Write the header, greeting and sign-off as plain text.
   - Escape all LaTeX-special characters (% & _ # $ { } ~ ^ \) in any user data.
+  - PUNCTUATION: Never use double or triple hyphens (--, ---) or dash characters (—, –) as punctuation in the letter text. Use commas, parentheses, or sentence breaks instead. A single hyphen is allowed ONLY inside compound sub-words (e.g. "cross-platform", "end-to-end", "e-commerce").
 user_template: |
   Write a professional one-page cover letter as a complete standalone LaTeX document that compiles with pdflatex.
   Follow this exact skeleton — do not deviate:
