@@ -114,6 +114,7 @@ async def update_template(
     )
     if not resume:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume template not found")
+    await db.refresh(resume)
     return resume
 
 
