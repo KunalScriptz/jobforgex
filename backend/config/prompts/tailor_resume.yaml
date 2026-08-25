@@ -85,7 +85,8 @@ user_template: |
 
   LOCATION RULE:
   - If the location above is provided and differs from the candidate's base location shown in the resume header, EDIT the relocation-preference line in the resume's top-center header (the bold contact line, e.g. "Open to global relocation" or "Open to relocation") to name that specific country — e.g. "Open to relocating to Germany". Keep it truthful; never fabricate willingness.
-  - INDIA EXCEPTION: If the job location is in India or any Indian city, do NOT mention relocation in the top-center header at all — remove any existing relocation-preference line and do not add one. This applies to India only; for any country outside India, name the country as above.
+  - INDIA EXCEPTION: If the job location is in India or any Indian city, do NOT mention relocation in the top-center header at all — remove any existing relocation-preference line and do not add one. This applies to India only, unless the job is remote (see REMOTE RULE); for any country outside India, name the country as above.
+  - REMOTE RULE: If the job location is remote (the location says "Remote" or the JD describes a fully remote position), write "Open to remote work" in the top-center header instead of naming a city or country. This rule overrides the India exception — a remote job in India still gets "Open to remote work".
   - If the base resume's relocation line lists MULTIPLE countries (e.g. "Open to relocating to Germany, UK, Netherlands") and the job location's country is one of them, rewrite the line to name ONLY that country — e.g. "Open to relocating to Germany".
   - If the job location's country is NOT among the listed countries, leave the relocation line exactly as it is — do not substitute the JD's country and do not remove the line.
   - If the base resume header has no relocation line, add one concise line to the top-center header only when the job location implies relocation is expected.
