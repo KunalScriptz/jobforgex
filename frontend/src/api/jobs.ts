@@ -49,6 +49,13 @@ export const jobsApi = {
   getJob: (id: string) =>
     apiClient.get<JobDetail>(`/api/v1/jobs/${id}`).then((r) => r.data),
 
+  getCompanyInfo: (id: string) =>
+    apiClient
+      .get<{ company: string; domain: string; website: string; description: string | null; url: string | null; source: string | null }>(
+        `/api/v1/jobs/${id}/company-info`,
+      )
+      .then((r) => r.data),
+
   createJob: (data: Partial<Job> & { board_id: string; company: string; title: string }) =>
     apiClient.post<Job>("/api/v1/jobs/", data).then((r) => r.data),
 

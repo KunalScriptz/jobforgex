@@ -1,6 +1,7 @@
 import uuid
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 
 from app.database import get_db
 from app.dependencies.auth import get_current_user
@@ -15,9 +16,10 @@ from app.schemas.job import (
     JobArtifactCreate,
     JobArtifactOut,
 )
-from app.models.job import JobStatus, ArtifactKind
+from app.models.job import Job, JobStatus, ArtifactKind
 from app.services import jobs as jobs_service
 from app.services import workspace as workspace_service
+from app.services import company as company_service
 from pydantic import BaseModel
 
 router = APIRouter(prefix="/api/v1/jobs", tags=["jobs"])
@@ -49,6 +51,57 @@ async def get_job(
     db: AsyncSession = Depends(get_db),
 ):
     return await jobs_service.get_job_detail(db, job_id)
+
+
+@router.get("/{job_id}/company-info")
+async def get_company_info(
+    job_id: uuid.UUID,
+    user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    ws_id = await get_workspace_id(user, db)
+    result = await db.execute(
+        select(Job).where(Job.id == job_id, Job.workspace_id == ws_id)
+    )
+    job = result.scalar_one_or_none()
+    if not job:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
+
+    domain = company_service.resolve_domain(
+        company=job.company, domain=job.company_domain, url=job.url
+    )
+    website = f"https://{domain}"
+
+    description = await company_service.fetch_website_description(domain)
+    if description:
+        return {
+            "company": job.company,
+            "domain": domain,
+            "website": website,
+            "description": description,
+            "url": None,
+            "source": "website",
+        }
+
+    wiki = await company_service.wikipedia_lookup(job.company, domain)
+    if wiki:
+        return {
+            "company": job.company,
+            "domain": domain,
+            "website": website,
+            "description": wiki["description"],
+            "url": wiki.get("url"),
+            "source": "wikipedia",
+        }
+
+    return {
+        "company": job.company,
+        "domain": domain,
+        "website": website,
+        "description": None,
+        "url": None,
+        "source": None,
+    }
 
 
 @router.post("/", response_model=JobOut)
