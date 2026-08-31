@@ -9,9 +9,25 @@ from app.dependencies.auth import get_current_user
 from app.schemas.ai import DeepSeekRequest, DeepSeekResult
 from app.services import ai as ai_service
 from app.services import workspace as workspace_service
+from app.services import user as user_service
 from app.models.job import Job
 
 router = APIRouter(prefix="/api/v1/ai", tags=["ai"])
+
+
+def _format_salary(amount, currency, frequency) -> str:
+    parts = []
+    if amount is not None:
+        amt = amount
+        if amt == amt.to_integral_value():
+            parts.append(str(int(amt)))
+        else:
+            parts.append(format(amt, "f").rstrip("0").rstrip("."))
+    if currency:
+        parts.append(currency)
+    if frequency:
+        parts.append(frequency)
+    return " ".join(parts)
 
 
 async def get_workspace_info(user: dict, db: AsyncSession):
@@ -33,10 +49,18 @@ async def ai_generate(
     if not allowed:
         raise HTTPException(status_code=status.HTTP_402_PAYMENT_REQUIRED, detail="Free trial limit reached")
 
+    render_vars = dict(data.vars)
+    if data.prompt_name == "resume_chat":
+        profile = await user_service.get_profile(db, uuid.UUID(user["user_id"]))
+        if profile:
+            render_vars.setdefault("profile_name", profile.full_name or "")
+            render_vars.setdefault("profile_location", profile.location or "")
+            render_vars.setdefault("profile_salary", _format_salary(profile.current_salary, profile.salary_currency, profile.salary_frequency))
+
     try:
         result = await ai_service.call_deepseek(
             prompt_name=data.prompt_name,
-            vars=data.vars,
+            vars=render_vars,
             purpose=data.purpose,
             override_temperature=data.override_temperature,
         )
