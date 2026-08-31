@@ -1,32 +1,126 @@
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 
 import { workspaceApi } from "@/api/workspace";
 import { extensionApi } from "@/api/extension";
 import { authApi } from "@/api/auth";
+import { usersApi } from "@/api/users";
 
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Trash2, Plus, Chrome, Download, Copy, AlertTriangle } from "lucide-react";
+import { Trash2, Plus, Chrome, Download, Copy, AlertTriangle, Save, User } from "lucide-react";
 import { PageTitle } from "@/components/page-title";
+
+const CURRENCIES = ["INR", "USD", "AED", "EUR", "GBP", "SGD", "MYR", "AUD", "CAD", "SAR", "QAR", "OMR", "JPY", "HKD", "NZD"];
 
 export default function SettingsPage() {
   return (
     <div className="space-y-6 p-6">
       <PageTitle title="Settings" />
       <h1 className="text-2xl font-bold">Settings</h1>
+      <ProfileCard />
       <BoardsCard />
       <ExtensionCard />
       <DeleteAccountCard />
     </div>
+  );
+}
+
+function ProfileCard() {
+  const qc = useQueryClient();
+  const { data: profile } = useQuery({ queryKey: ["me"], queryFn: () => usersApi.getMe() });
+  const [salary, setSalary] = useState("");
+  const [currency, setCurrency] = useState("INR");
+  const [frequency, setFrequency] = useState("annual");
+  const [location, setLocation] = useState("");
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    if (profile && !loaded) {
+      setSalary(profile.current_salary != null ? String(profile.current_salary) : "");
+      setCurrency(profile.salary_currency ?? "INR");
+      setFrequency(profile.salary_frequency ?? "annual");
+      setLocation(profile.location ?? "");
+      setLoaded(true);
+    }
+  }, [profile, loaded]);
+
+  const save = useMutation({
+    mutationFn: async () => {
+      const amount = salary.trim() ? Number(salary) : null;
+      const valid = amount !== null && Number.isFinite(amount);
+      return usersApi.updateMe({
+        current_salary: valid ? amount : null,
+        salary_currency: valid ? currency : null,
+        salary_frequency: valid ? frequency : null,
+        location: location.trim() || null,
+      });
+    },
+    onSuccess: () => { toast.success("Profile saved"); qc.invalidateQueries({ queryKey: ["me"] }); },
+    onError: (e: any) => toast.error(String(e?.response?.data?.detail || e?.message || "Failed").slice(0, 200)),
+  });
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2"><User className="h-4 w-4" /> Your profile</CardTitle>
+        <CardDescription>Your location and salary help Ask AI tailor compensation and relocation answers.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div>
+          <Label htmlFor="pf-loc">Current location</Label>
+          <Input
+            id="pf-loc"
+            value={location}
+            onChange={(e) => setLocation(e.target.value)}
+            placeholder="e.g. Bengaluru, India"
+            maxLength={120}
+            className="mt-1"
+          />
+        </div>
+        <div>
+          <Label>Current salary</Label>
+          <div className="mt-1 flex gap-2">
+            <Input
+              type="number"
+              min={0}
+              step="any"
+              value={salary}
+              onChange={(e) => setSalary(e.target.value)}
+              placeholder="e.g. 1200000"
+              className="flex-1"
+            />
+            <Select value={currency} onValueChange={setCurrency}>
+              <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {CURRENCIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Select value={frequency} onValueChange={setFrequency}>
+              <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="annual">Annual</SelectItem>
+                <SelectItem value="monthly">Monthly</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <p className="mt-1 text-xs text-muted-foreground">Leave blank if you'd rather not share.</p>
+        </div>
+        <Button onClick={() => save.mutate()} disabled={save.isPending}>
+          <Save className="mr-1.5 h-4 w-4" /> {save.isPending ? "Saving..." : "Save profile"}
+        </Button>
+      </CardContent>
+    </Card>
   );
 }
 

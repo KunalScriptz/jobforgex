@@ -31,6 +31,7 @@ import { CompanyLogo } from "@/components/company-logo";
 import { hostnameFromUrl } from "@/lib/company";
 import { PageTitle } from "@/components/page-title";
 import { OnboardingGuide } from "@/components/onboarding-guide";
+import { ProfileNudge } from "@/components/profile-nudge";
 
 type Status = "wishlist" | "applied" | "interview" | "offer" | "rejected";
 
@@ -233,6 +234,7 @@ export default function JobsPage() {
   return (
     <div className="flex h-full flex-col p-4">
       <PageTitle title="Dashboard" />
+      <ProfileNudge />
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <h1 className="mr-4 text-2xl font-bold">Job Board</h1>
         <Input
