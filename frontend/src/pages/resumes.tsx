@@ -464,7 +464,7 @@ export default function ResumesPage() {
           <DialogHeader>
             <DialogTitle>Ask AI to edit your resume</DialogTitle>
             <DialogDescription>
-              Add, remove, or rewrite content. Edits apply to the LaTeX source and stay within 2 pages.
+              Add, remove, or rewrite content. Edits apply directly to the LaTeX source.
             </DialogDescription>
           </DialogHeader>
           <div className="flex max-h-[45vh] flex-col gap-2 overflow-auto rounded border bg-muted/20 p-3">
