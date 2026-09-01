@@ -6,7 +6,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONPATH=/app \
     UV_COMPILE_BYTECODE=1 \
-    UV_LINK_MODE=copy
+    UV_LINK_MODE=copy \
+    UV_PROJECT_ENVIRONMENT=/opt/venv
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
@@ -24,7 +25,9 @@ RUN uv sync --frozen --no-dev
 
 COPY . .
 
-ENV PATH="/app/.venv/bin:$PATH"
+# Keep the venv out of /app so the docker-compose `./backend:/app` bind mount
+# (used by backend, celery-worker, and celery-beat) doesn't shadow it.
+ENV PATH="/opt/venv/bin:$PATH"
 
 EXPOSE 5454
 
