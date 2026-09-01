@@ -36,5 +36,5 @@ user_template: |
 
   === RESUME (LaTeX source) ===
   {{resume_latex}}
-temperature: 0.2
+temperature: 0.0
 response_format: json_object

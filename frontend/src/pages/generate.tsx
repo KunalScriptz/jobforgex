@@ -25,12 +25,12 @@ import { extractResumeName, tailoredDocFilename } from "@/lib/filenames";
 
 // ---- wrapper functions that match original server fn shapes ----
 
-async function _scoreResume(args: { jd: string; job_id: string }) {
+async function _scoreResume(args: { jd: string; job_id: string; resume_latex: string }) {
   const result = await aiApi.generate({
     prompt_name: "resume_scorer",
-    vars: { job_description: args.jd },
+    vars: { jd: args.jd, resume_latex: args.resume_latex },
     job_id: args.job_id,
-    purpose: "score",
+    purpose: "resume_scoring",
   });
   return { report: JSON.parse(result.content), cost: result.total_cost };
 }
@@ -105,7 +105,7 @@ export default function GeneratePage() {
   const scoreMut = useMutation({
     mutationFn: async () => {
       if (!selectedJob?.description || selectedJob.description.length < 30) throw new Error("Selected job has no description to score against.");
-      return _scoreResume({ jd: selectedJob.description, job_id: selectedJob.id });
+      return _scoreResume({ jd: selectedJob.description, job_id: selectedJob.id, resume_latex: template?.latex_source || "" });
     },
     onSuccess: (r: any) => { setReport(r.report); setTotalCost((c) => c + Number(r.cost)); qc.invalidateQueries({ queryKey: ["billing"] }); },
     onError: (e: any) => toast.error(e.message),

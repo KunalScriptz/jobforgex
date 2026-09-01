@@ -4,12 +4,14 @@ system: |
 user_template: |
   Evaluate the tailored resume against the job description for ATS compatibility.
 
+  KEYWORD DEFINITION (strict): "matched_keywords" and "missing_keywords" must contain ONLY hard technical terms — programming languages, frameworks, libraries, tools, platforms, and specific domain technologies (e.g. Go, Kubeflow, React.js, Kubernetes, PyTorch). Do NOT list generic English words or verbs such as "integration", "monitoring", "automation", "search", "prototyping", "experimentation", or "data processing" — those are not ATS keywords and must be ignored.
+
   Return a JSON object with EXACTLY these fields and no others:
   {
     "ats_score": <integer 0-100, higher is better>,
-    "keyword_match": <number 0.0 to 1.0, fraction of important JD keywords present in the resume>,
-    "matched_keywords": [<important JD keywords found in the resume>],
-    "missing_keywords": [<important JD keywords NOT found in the resume>],
+    "keyword_match": <number 0.0 to 1.0, fraction of important JD technical keywords present in the resume>,
+    "matched_keywords": [<JD technical keywords found in the resume>],
+    "missing_keywords": [<JD technical keywords NOT found in the resume — hard technologies only>],
     "format_checks": {
       "single_column": <boolean>,
       "standard_sections": <boolean>,
@@ -25,5 +27,5 @@ user_template: |
 
   === TAILORED RESUME (LaTeX) ===
   {{resume_latex}}
-temperature: 0.2
+temperature: 0.0
 response_format: json_object
