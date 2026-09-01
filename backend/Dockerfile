@@ -2,46 +2,29 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
-ENV PYTHONPATH=/app
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app \
+    UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libpq-dev \
+    curl \
+    ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-COPY pyproject.toml .
+# Install uv from the official installer (architecture-aware).
+RUN curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/usr/local/bin sh
 
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir \
-    fastapi==0.115.6 \
-    uvicorn[standard]==0.34.0 \
-    sqlalchemy[asyncio]==2.0.36 \
-    asyncpg==0.30.0 \
-    psycopg2-binary==2.9.10 \
-    alembic==1.14.1 \
-    pydantic==2.10.4 \
-    pydantic-settings==2.7.0 \
-    python-jose[cryptography]==3.3.0 \
-    passlib[bcrypt]==1.7.4 \
-    bcrypt==4.0.1 \
-    python-multipart==0.0.19 \
-    httpx==0.28.1 \
-    redis==5.2.1 \
-    celery[redis]==5.4.0 \
-    minio==7.2.10 \
-    pyyaml==6.0.2 \
-    aiofiles==24.1.0 \
-    structlog==24.4.0 \
-    slowapi==0.1.9 \
-    secure==1.0.1 \
-    python-dotenv==1.0.1 \
-    email-validator==2.2.0 \
-    jinja2==3.1.4 \
-    openpyxl==3.1.5
+COPY pyproject.toml uv.lock ./
+
+RUN uv sync --frozen --no-dev
 
 COPY . .
+
+ENV PATH="/app/.venv/bin:$PATH"
 
 EXPOSE 5454
 
