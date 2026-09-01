@@ -4,9 +4,10 @@ import { toast } from "sonner";
 
 import { jobsApi } from "@/api/jobs";
 import { resumesApi } from "@/api/resumes";
-import { aiApi } from "@/api/ai";
+import { aiApi, type AtsScoreResult } from "@/api/ai";
 import apiClient from "@/api/client";
 import { PaywallDialog, isPaywallError } from "@/components/paywall-dialog";
+import { AtsScoreCard } from "@/components/ats-score-card";
 
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -98,6 +99,8 @@ export default function GeneratePage() {
   const [tailored, setTailored] = useState<{ latex: string; filename: string } | null>(null);
   const [cover, setCover] = useState<{ latex: string; filename: string } | null>(null);
   const [totalCost, setTotalCost] = useState(0);
+  const [ats, setAts] = useState<AtsScoreResult | null>(null);
+  const [atsPending, setAtsPending] = useState(false);
 
   const scoreMut = useMutation({
     mutationFn: async () => {
@@ -121,7 +124,7 @@ export default function GeneratePage() {
         ? `The job is located in ${selectedJob.location}.\n`
         : "";
       if (doTailor) {
-        t = await _tailorResume({ jd, company: selectedJob.company, title: selectedJob.title, job_id: selectedJob.id, resumeName, resumeLatex: template?.latex_source || "", pageCount: template?.page_count ?? 1, locationLine });
+        t = await _tailorResume({ jd, company: selectedJob.company, title: selectedJob.title, job_id: selectedJob.id, resumeName, resumeLatex: template?.latex_source || "", pageCount: 2, locationLine });
         const savedT = await _saveArtifact({ job_id: selectedJob.id, kind: "tailored_resume", filename: t.filename, latex_source: t.latex });
         compileJobs.push(_compileArtifactPdf({ artifact_id: savedT.id }).catch(() => null));
         localCost += Number(t.cost);
@@ -142,6 +145,13 @@ export default function GeneratePage() {
       qc.invalidateQueries({ queryKey: ["jobs"] });
       qc.invalidateQueries({ queryKey: ["billing"] });
       toast.success("Generated and saved to job");
+      if (t && selectedJob) {
+        setAtsPending(true);
+        aiApi.atsScore({ job_id: selectedJob.id, latex_source: t.latex })
+          .then((r) => setAts(r))
+          .catch(() => {})
+          .finally(() => setAtsPending(false));
+      }
     },
     onError: (e: any) => {
       if (isPaywallError(e)) { setPaywallOpen(true); return; }
@@ -251,6 +261,8 @@ export default function GeneratePage() {
               </CardContent>
             </Card>
           )}
+
+          <AtsScoreCard result={ats} loading={atsPending} />
 
           {tailored && !genMut.isPending && (
             <ArtifactCard title="Tailored resume" filename={tailored.filename} latex={tailored.latex} onDownload={() => download(tailored.filename, tailored.latex)} />

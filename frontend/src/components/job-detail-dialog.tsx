@@ -47,7 +47,7 @@ import { resolveCompanyDomain } from "@/lib/company";
 
 import apiClient from "@/api/client";
 import { jobsApi, type JobDetail } from "@/api/jobs";
-import { aiApi } from "@/api/ai";
+import { aiApi, type AtsScoreResult } from "@/api/ai";
 import { resumesApi } from "@/api/resumes";
 import { billingApi } from "@/api/billing";
 import { AI_TOOLS_META } from "@/lib/ai-tools";
@@ -55,6 +55,7 @@ import { extractResumeName, tailoredDocFilename } from "@/lib/filenames";
 import TemplatePicker from "@/components/template-picker";
 import { Label } from "@/components/ui/label";
 import { useResumes } from "@/hooks/use-resumes";
+import { AtsScoreCard } from "@/components/ats-score-card";
 
 type Status = "wishlist" | "applied" | "interview" | "offer" | "rejected";
 const STATUSES: Status[] = ["wishlist","applied","interview","offer","rejected"];
@@ -486,6 +487,8 @@ function DocumentsTab({ artifacts, jobId, job }: { artifacts: any[]; jobId: stri
   const [doTailor, setDoTailor] = useState(true);
   const [doCover, setDoCover] = useState(false);
   const [paywallOpen, setPaywallOpen] = useState(false);
+  const [ats, setAts] = useState<AtsScoreResult | null>(null);
+  const [atsPending, setAtsPending] = useState(false);
 
   const { data: templates = [] } = useResumes();
   const [selectedTemplateId, setSelectedTemplateId] = useState("");
@@ -511,7 +514,7 @@ function DocumentsTab({ artifacts, jobId, job }: { artifacts: any[]; jobId: stri
       if (doTailor) {
         t = await aiApi.generate({
           prompt_name: "tailor_resume",
-          vars: { jd, resume_latex: resumeLatex, page_count: chosen?.page_count ?? 1, company: job.company, title: job.title, location_line: locationLine },
+          vars: { jd, resume_latex: resumeLatex, page_count: 2, company: job.company, title: job.title, location_line: locationLine },
           job_id: job.id,
           purpose: "resume_tailoring",
         });
@@ -552,13 +555,20 @@ function DocumentsTab({ artifacts, jobId, job }: { artifacts: any[]; jobId: stri
         localCost += Number(c.total_cost);
       }
       await Promise.all(compileJobs);
-      return { localCost };
+      return { localCost, tailoredLatex: t?.content ?? null };
     },
-    onSuccess: () => {
+    onSuccess: ({ tailoredLatex }: { tailoredLatex: string | null }) => {
       qc.invalidateQueries({ queryKey: ["jobs", jobId] });
       qc.invalidateQueries({ queryKey: ["jobs"] });
       qc.invalidateQueries({ queryKey: ["billing"] });
       toast.success("Documents generated");
+      if (tailoredLatex) {
+        setAtsPending(true);
+        aiApi.atsScore({ job_id: jobId, latex_source: tailoredLatex })
+          .then((r) => setAts(r))
+          .catch(() => {})
+          .finally(() => setAtsPending(false));
+      }
     },
     onError: (e: any) => {
       if (isPaywallError(e)) { setPaywallOpen(true); return; }
@@ -648,6 +658,8 @@ function DocumentsTab({ artifacts, jobId, job }: { artifacts: any[]; jobId: stri
         </div>
       )}
 
+      <AtsScoreCard result={ats} loading={atsPending} />
+
       {!artifacts.length && <Empty text="No documents yet. Generate a tailored resume or cover letter for this job." />}
 
       {!!artifacts.length && (
@@ -696,27 +708,17 @@ function DocumentCard({ art, jobId }: { art: any; jobId: string }) {
 
   const chat = useMutation({
     mutationFn: async (question: string) => {
-      const res = await aiApi.generate({
-        prompt_name: "resume_chat",
-        vars: { jd: art.latex_source ?? "", question },
-        job_id: jobId,
-        purpose: "custom",
-      });
-      let answer = res.content;
-      let updatedLatex: string | null = null;
-      try {
-        const parsed = JSON.parse(res.content);
-        if (parsed.answer) answer = parsed.answer;
-        if (parsed.updated && typeof parsed.updated === "string" && parsed.updated.length > 100) {
-          updatedLatex = parsed.updated;
-        }
-      } catch {}
-      return { answer, updatedLatex };
+      const res = await aiApi.editResume({ latex_source: art.latex_source ?? "", question, job_id: jobId });
+      return { answer: res.answer, updatedLatex: res.updated_latex, pageCount: res.page_count };
     },
     onSuccess: async (r) => {
       setChatLog((l) => [...l, { role: "assistant", text: r.answer, updated: !!r.updatedLatex }]);
       if (r.updatedLatex) {
-        toast.success("Resume updated — recompiling PDF…");
+        toast.success(
+          r.pageCount > 0
+            ? `Resume updated (${r.pageCount} ${r.pageCount === 1 ? "page" : "pages"}) — recompiling…`
+            : "Resume updated — recompiling PDF…",
+        );
         try {
           await apiClient.patch(`/api/v1/jobs/artifacts/${art.id}`, { latex_source: r.updatedLatex });
           await resumesApi.compileArtifact(art.id);
