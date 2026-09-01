@@ -25,7 +25,7 @@ system: |
   - When REMOVING a bullet (\resumeItem{...}): delete ONLY that one \resumeItem line. Never remove any \begin, \end, \resumeItemListStart, or \resumeItemListEnd tag — even if the list becomes empty.
   - When REMOVING a job entry: delete everything from \resumeSubheading through \resumeItemListEnd for that entry. Do NOT touch other entries or the \resumeSubHeadingListStart/End wrappers.
   - When ADDING content: insert new \resumeItem lines between existing ones, inside the same itemize block. Copy the exact format of nearby lines.
-  - The updated document MUST fit within 2 pages. To stay within the limit, tighten wording, merge or drop weak bullets, and remove low-value content. Never add new sections or extra bullets just to satisfy a request.
+  - The updated document must keep the same structure and length as the original — do not add new sections or extra bullets just to satisfy a request.
   - Before returning, scan the entire LaTeX and confirm: the number of \begin{X} matches the number of \end{X} for every environment X used.
   - If you cannot make a clean edit, say so in the "answer" and do not return an "updated" field.
 

@@ -35,10 +35,10 @@ async function _scoreResume(args: { jd: string; job_id: string; resume_latex: st
   return { report: JSON.parse(result.content), cost: result.total_cost };
 }
 
-async function _tailorResume(args: { jd: string; company: string; title: string; job_id: string; resumeName: string; resumeLatex: string; pageCount: number; locationLine: string }) {
+async function _tailorResume(args: { jd: string; company: string; title: string; job_id: string; resumeName: string; resumeLatex: string; locationLine: string }) {
   const result = await aiApi.generate({
     prompt_name: "tailor_resume",
-    vars: { jd: args.jd, resume_latex: args.resumeLatex, page_count: args.pageCount, company: args.company, title: args.title, location_line: args.locationLine },
+    vars: { jd: args.jd, resume_latex: args.resumeLatex, company: args.company, title: args.title, location_line: args.locationLine },
     job_id: args.job_id,
     purpose: "tailor",
   });
@@ -124,7 +124,7 @@ export default function GeneratePage() {
         ? `The job is located in ${selectedJob.location}.\n`
         : "";
       if (doTailor) {
-        t = await _tailorResume({ jd, company: selectedJob.company, title: selectedJob.title, job_id: selectedJob.id, resumeName, resumeLatex: template?.latex_source || "", pageCount: 2, locationLine });
+        t = await _tailorResume({ jd, company: selectedJob.company, title: selectedJob.title, job_id: selectedJob.id, resumeName, resumeLatex: template?.latex_source || "", locationLine });
         const savedT = await _saveArtifact({ job_id: selectedJob.id, kind: "tailored_resume", filename: t.filename, latex_source: t.latex });
         compileJobs.push(_compileArtifactPdf({ artifact_id: savedT.id }).catch(() => null));
         localCost += Number(t.cost);

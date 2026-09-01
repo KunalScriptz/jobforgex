@@ -49,14 +49,6 @@ def _build_profile_block(profile) -> str | None:
     )
 
 
-_SHORTEN_QUESTION = (
-    "This resume currently compiles to {pages} pages, which exceeds the 2-page limit. "
-    "Shorten it to at most 2 pages: tighten wording, merge or drop weak bullets, and remove "
-    "low-value content — while keeping every JD-requested skill in the Skills section and not "
-    "fabricating anything. Return JSON with \"answer\" and the full updated \"updated\" LaTeX."
-)
-
-
 def _parse_resume_chat(content: str) -> tuple[str, str | None]:
     """Parse a resume_chat response into (answer, updated_latex)."""
     answer = content
@@ -88,37 +80,6 @@ async def _log_ai_call(db, workspace_id, user_id, job_id, res, purpose):
         total_cost=res["total_cost"],
         purpose=purpose,
     )
-
-
-async def _ensure_two_pages(db, user, workspace_id, job_id, latex, profile_block, purpose) -> tuple[str, int, float]:
-    """Compile `latex`; if it exceeds 2 pages, ask resume_chat to shorten (bounded).
-
-    Returns (final_latex, page_count, extra_cost_spent_on_shrinking).
-    """
-    current = latex
-    pages = 0
-    extra_cost = 0.0
-    for _ in range(2):
-        ok, pdf = await ai_service.compile_latex(current)
-        if not ok:
-            return current, 0, extra_cost
-        pages = ai_service.count_pdf_pages(pdf)
-        if pages <= 2:
-            return current, pages, extra_cost
-        res = await ai_service.call_deepseek(
-            prompt_name="resume_chat",
-            vars={"jd": current, "question": _SHORTEN_QUESTION.format(pages=pages)},
-            purpose=purpose,
-            profile_block=profile_block,
-        )
-        await _log_ai_call(db, workspace_id, user_id, job_id, res, purpose)
-        extra_cost += res["total_cost"]
-        _, updated = _parse_resume_chat(res["content"])
-        if not updated:
-            break
-        current = updated
-    ok, pdf = await ai_service.compile_latex(current)
-    return current, (ai_service.count_pdf_pages(pdf) if ok else pages), extra_cost
 
 
 async def get_workspace_info(user: dict, db: AsyncSession):
@@ -197,14 +158,6 @@ async def ai_generate(
         except (json.JSONDecodeError, ValueError):
             pass
 
-    # Tailored resumes must fit within 2 pages — compile and auto-shrink if they overflow.
-    if data.prompt_name == "tailor_resume" and result.get("content"):
-        latex, _pages, extra_cost = await _ensure_two_pages(
-            db, user, str(ws.id), data.job_id, result["content"], profile_block, data.purpose,
-        )
-        result["content"] = latex
-        result["total_cost"] += extra_cost
-
     return result
 
 
@@ -232,14 +185,8 @@ async def edit_resume(
     await _log_ai_call(db, str(ws.id), user["user_id"], data.job_id, res, "custom")
 
     answer, updated = _parse_resume_chat(res["content"])
-    updated_latex: str | None = None
-    page_count = 0
-    if updated:
-        updated_latex, page_count, _ = await _ensure_two_pages(
-            db, user, str(ws.id), data.job_id, updated, profile_block, "custom",
-        )
 
-    return ResumeEditResult(answer=answer, updated_latex=updated_latex, page_count=page_count)
+    return ResumeEditResult(answer=answer, updated_latex=updated)
 
 
 @router.post("/ats-score", response_model=AtsScoreResult)

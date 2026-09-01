@@ -514,7 +514,7 @@ function DocumentsTab({ artifacts, jobId, job }: { artifacts: any[]; jobId: stri
       if (doTailor) {
         t = await aiApi.generate({
           prompt_name: "tailor_resume",
-          vars: { jd, resume_latex: resumeLatex, page_count: 2, company: job.company, title: job.title, location_line: locationLine },
+          vars: { jd, resume_latex: resumeLatex, company: job.company, title: job.title, location_line: locationLine },
           job_id: job.id,
           purpose: "resume_tailoring",
         });

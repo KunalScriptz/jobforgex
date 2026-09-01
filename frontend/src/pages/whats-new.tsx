@@ -78,12 +78,6 @@ const MONTHS: Month[] = [
       {
         date: "Sep 1",
         type: "fix",
-        title: "Resumes stay within 2 pages",
-        description: "Tailored resumes and AI edits are compiled and auto-shortened so they never overflow past 2 pages.",
-      },
-      {
-        date: "Sep 1",
-        type: "fix",
         title: "Stable scores",
         description: "Re-scoring a resume now returns a consistent score instead of changing each time.",
       },

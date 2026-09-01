@@ -12,7 +12,7 @@ user_template: |
 
   HARD CONSTRAINTS:
   1. Preserve the exact document structure, packages, custom commands, and color definitions.
-  2. Output MUST fit within {{page_count}} page(s) — NEVER overflow to an extra page. If the base resume is 1 page, the tailored resume MUST also be exactly 1 page. To stay within the page limit: keep the same number of bullets per role (do not add bullets), keep bullet length similar to or shorter than the original (never longer), and do not add or remove sections. Only rewrite bullet content in place. Add JD-requested skills by extending the existing skill-group lines (e.g. append to the 'Frameworks' line) — never create new sections or new lines.
+  2. LENGTH RULE: Keep the tailored resume roughly the same length as the base resume — do not add or remove sections, do not add bullets. Keep bullet length similar to or shorter than the original. Only rewrite bullet content in place. Add JD-requested skills by extending the existing skill-group lines (e.g. append to the 'Frameworks' line) — never create new sections or new lines.
   3. YEARS-OF-EXPERIENCE RULE (CRITICAL): NEVER fabricate or inflate years of experience to match the JD.
      - If the JD requires N years of experience for a skill/role:
        * If the candidate's actual experience is >= N years OR within 1 year of N (i.e. JD asks 3+ and candidate has 2-3+), you MAY state their real YOE.
@@ -44,7 +44,7 @@ user_template: |
      - Extract EVERY skill, technology, tool, language, framework, and domain term the JD asks for.
      - SKILLS SECTION: EVERY JD-requested technical keyword MUST appear in the Skills section, in the appropriate existing group (or the closest fitting group if none matches). ADD every one of them even if the base resume does not list them — listing a skill is a self-declaration, not fabrication. Mirror the JD's exact phrasing (e.g. "Go", "Kubeflow", "React.js"). Do not skip any JD technical keyword. Do not add skills the JD does not ask for.
      - EXPERIENCE BULLETS: REWRITE the work-experience bullets themselves to mirror the JD — do NOT only touch the Skills section. Review every bullet: if it is generic or irrelevant to the JD, REPLACE it with a new bullet that describes work matching what the JD asks for, written around the JD's requested skills AND domain terms (e.g. if the JD says "AI assistants / chatbots / agents / generative AI", write a bullet using those exact phrases to describe the candidate's related work). Every JD technical keyword must appear in the Skills section AND at least once in an experience bullet or the summary — never leave a JD keyword only in one place. The replacement must follow the X-Y-Z / CAR formula (use CAR when no metric exists), must not inflate years of experience, must not fabricate employers, dates, or metrics, and must never use double hyphens or dashes as punctuation (see constraint 6).
-     - Replace the weakest, least JD-relevant bullets first. Keep the same number of bullets per role so the page limit holds.
+     - Replace the weakest, least JD-relevant bullets first. Keep the same number of bullets per role to preserve length.
 
   B. BULLET FORMULA — X-Y-Z pattern (primary) or CAR method (fallback):
      - Rewrite every bullet to show: "Accomplished [X] as measured by [Y], by doing [Z]"
@@ -138,7 +138,7 @@ user_template: |
   - [ ] No double hyphens (--) or em-dashes (—) in bullets or body text
   - [ ] Years of experience match base resume; no inflation or fabrication
   - [ ] Company names, job titles, dates match base resume exactly
-  - [ ] Page count = base resume page count (not +1)
+  - [ ] Length similar to base resume (no added sections or bullets)
   - [ ] Metrics (if any) are sourced from base resume, not invented
   - [ ] Summary mentions target role title (from JD terminology) and location context
   - [ ] Remote work experience mentioned in Summary if applicable
