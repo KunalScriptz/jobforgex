@@ -18,6 +18,7 @@ import { Sparkles, CheckCircle2, ArrowLeft } from "lucide-react";
 import { PdfToLatexButton } from "@/components/pdf-to-latex-button";
 import { PageTitle } from "@/components/page-title";
 import { CityAutocomplete } from "@/components/city-autocomplete";
+import { LatexPreview } from "@/components/latex-preview";
 import logoImg from "@/assets/logo.png";
 
 const CURRENCIES = ["INR", "USD", "AED", "EUR", "GBP", "SGD", "MYR", "AUD", "CAD", "SAR", "QAR", "OMR", "JPY", "HKD", "NZD"];
@@ -162,15 +163,22 @@ function Step3({ onBack, onDone }: { onBack: () => void; onDone: () => void }) {
             </div>
             <PdfToLatexButton onLatex={(l) => setTex(l)} />
           </div>
-          <Textarea
-            className="h-80 font-mono text-xs"
-            value={tex}
-            onChange={(e) => setTex(e.target.value)}
-            placeholder="\documentclass[letterpaper,11pt]{article}&\#10;..."
-          />
-          {tex.length > 0 && !isValid && (
-            <p className="text-xs text-amber-500">Your LaTeX must include \documentclass, \begin{"{document}"}, and \end{"{document}"} to be valid.</p>
-          )}
+          <div className="grid gap-4 lg:grid-cols-2">
+            <div className="min-w-0">
+              <Textarea
+                className="h-[480px] font-mono text-xs"
+                value={tex}
+                onChange={(e) => setTex(e.target.value)}
+                placeholder="\documentclass[letterpaper,11pt]{article}&\#10;..."
+              />
+              {tex.length > 0 && !isValid && (
+                <p className="mt-1 text-xs text-amber-500">Your LaTeX must include \documentclass, \begin{"{document}"}, and \end{"{document}"} to be valid.</p>
+              )}
+            </div>
+            <div className="h-[480px] overflow-hidden rounded-md border bg-background">
+              <LatexPreview source={tex} cacheKey="onboarding-resume" debounceMs={1500} />
+            </div>
+          </div>
           <div className="flex items-center justify-between">
             <Button type="button" variant="outline" onClick={onBack} disabled={busy}>
               <ArrowLeft className="mr-1.5 h-4 w-4" /> Back
