@@ -239,5 +239,6 @@ async def latex_compile(data: LatexCompileRequest):
     import base64
     ok, result = await ai_service.compile_latex(source)
     if ok:
-        return {"ok": True, "pdf_base64": base64.b64encode(result).decode()}
+        page_count = ai_service.count_pdf_pages(result)
+        return {"ok": True, "pdf_base64": base64.b64encode(result).decode(), "page_count": page_count}
     return {"ok": False, "error": str(result)}

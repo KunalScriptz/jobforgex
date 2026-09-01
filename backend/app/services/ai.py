@@ -54,6 +54,7 @@ async def call_deepseek(
     vars: dict[str, str | float | int],
     purpose: str = "custom",
     override_temperature: float | None = None,
+    profile_block: str | None = None,
 ) -> dict:
     api_key = settings.DEEPSEEK_API_KEY.strip()
     if not api_key:
@@ -64,6 +65,11 @@ async def call_deepseek(
     model = settings.DEEPSEEK_MODEL
 
     system = prompt["system"]
+    # Append the (per-user stable) profile block to the system prompt so DeepSeek's
+    # automatic context caching reuses this prefix across requests. Keep it out of the
+    # variable user_template — anything variable before the profile would break the cache.
+    if profile_block:
+        system += profile_block
     if prompt_name not in LATEX_OUTPUT_PROMPTS:
         system += FORMATTING_RULES
 
@@ -161,6 +167,22 @@ async def compile_latex(source: str) -> tuple[bool, bytes | str]:
                 return False, f"Compile failed ({res.status_code}): {text}"
     except Exception as e:
         return False, f"Compile request failed: {str(e)}"
+
+
+def count_pdf_pages(pdf_bytes: bytes) -> int:
+    """Count pages in a pdflatex-generated PDF with no extra dependency.
+
+    Counts the `/Type /Page` page objects while excluding the `/Type /Pages` page-tree
+    node (the `\\b` boundary after "Page" does not match "Pages").
+    """
+    import re
+
+    pages = re.findall(rb"/Type\s*/Page\b", pdf_bytes)
+    if pages:
+        return len(pages)
+    # Fallback for producers that flatten the object dict: read /Count from the catalog.
+    m = re.search(rb"/Count\s+(\d+)", pdf_bytes)
+    return int(m.group(1)) if m else 1
 
 
 async def log_ai_cost(
