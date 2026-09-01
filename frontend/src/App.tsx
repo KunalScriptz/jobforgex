@@ -2,6 +2,7 @@ import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/context/auth-context";
 import { AppShell } from "@/components/app-shell";
 import { Toaster } from "@/components/ui/sonner";
+import { TourProvider } from "@/components/tour";
 import AuthPage from "@/pages/auth";
 import OnboardingPage from "@/pages/onboarding";
 import JobsPage from "@/pages/jobs";
@@ -40,7 +41,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   return (
-    <>
+    <TourProvider>
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/privacy" element={<PrivacyPage />} />
@@ -58,6 +59,6 @@ export default function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       <Toaster position="top-right" />
-    </>
+    </TourProvider>
   );
 }
