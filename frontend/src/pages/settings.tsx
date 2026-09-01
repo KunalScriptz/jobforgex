@@ -18,8 +18,9 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Trash2, Plus, Chrome, Download, Copy, AlertTriangle, Save, User } from "lucide-react";
+import { Trash2, Plus, Chrome, ExternalLink, Copy, AlertTriangle, Save, User } from "lucide-react";
 import { PageTitle } from "@/components/page-title";
+import { CityAutocomplete } from "@/components/city-autocomplete";
 
 const CURRENCIES = ["INR", "USD", "AED", "EUR", "GBP", "SGD", "MYR", "AUD", "CAD", "SAR", "QAR", "OMR", "JPY", "HKD", "NZD"];
 
@@ -79,14 +80,13 @@ function ProfileCard() {
       <CardContent className="space-y-4">
         <div>
           <Label htmlFor="pf-loc">Current location</Label>
-          <Input
-            id="pf-loc"
-            value={location}
-            onChange={(e) => setLocation(e.target.value)}
-            placeholder="e.g. Bengaluru, India"
-            maxLength={120}
-            className="mt-1"
-          />
+          <div className="mt-1">
+            <CityAutocomplete
+              value={location}
+              onChange={setLocation}
+              placeholder="e.g. Bengaluru, India"
+            />
+          </div>
         </div>
         <div>
           <Label>Current salary</Label>

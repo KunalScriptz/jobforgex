@@ -17,6 +17,7 @@ import { usersApi } from "@/api/users";
 import { Sparkles, CheckCircle2, ArrowLeft } from "lucide-react";
 import { PdfToLatexButton } from "@/components/pdf-to-latex-button";
 import { PageTitle } from "@/components/page-title";
+import { CityAutocomplete } from "@/components/city-autocomplete";
 import logoImg from "@/assets/logo.png";
 
 const CURRENCIES = ["INR", "USD", "AED", "EUR", "GBP", "SGD", "MYR", "AUD", "CAD", "SAR", "QAR", "OMR", "JPY", "HKD", "NZD"];
@@ -219,14 +220,14 @@ function ProfileStep({ onBack, onDone }: { onBack: () => void; onDone: () => voi
         <form onSubmit={submit} className="space-y-4">
           <div>
             <Label htmlFor="loc">Current location</Label>
-            <Input
-              id="loc"
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              placeholder="e.g. Bengaluru, India"
-              maxLength={120}
-              required
-            />
+            <div className="mt-1">
+              <CityAutocomplete
+                value={location}
+                onChange={setLocation}
+                placeholder="e.g. Bengaluru, India"
+                required
+              />
+            </div>
           </div>
           <div>
             <Label>Current salary (optional)</Label>
