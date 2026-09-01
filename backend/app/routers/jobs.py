@@ -45,6 +45,95 @@ async def list_jobs(
     return await jobs_service.list_jobs(db, ws_id, board_id, search, status_enum)
 
 
+@router.get("/export")
+async def export_jobs(
+    user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    import io
+    from datetime import datetime as _dt
+
+    from fastapi.responses import StreamingResponse
+    from openpyxl import Workbook
+    from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+    from openpyxl.utils import get_column_letter
+
+    ws_id = await get_workspace_id(user, db)
+    jobs = await jobs_service.list_jobs(db, ws_id)
+
+    headers = [
+        "Company", "Title", "Location", "Status", "Date Applied",
+        "Company Domain", "Job URL", "Resume Score", "Notes", "Description",
+        "Insights", "Base Fit Score", "Created At", "Updated At",
+    ]
+
+    def _flatten(value):
+        if value is None:
+            return ""
+        if isinstance(value, dict):
+            return "\n".join(f"{k}: {v}" for k, v in value.items())
+        if isinstance(value, list):
+            return ", ".join(str(x) for x in value)
+        return str(value)
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Jobs"
+
+    thin = Side(style="thin", color="D1D5DB")
+    border = Border(left=thin, right=thin, top=thin, bottom=thin)
+    header_fill = PatternFill("solid", fgColor="1F2937")
+    header_font = Font(bold=True, color="FFFFFF")
+
+    ws.append(headers)
+    for col_idx in range(1, len(headers) + 1):
+        cell = ws.cell(row=1, column=col_idx)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.border = border
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+
+    for job in jobs:
+        ws.append([
+            job.company or "",
+            job.title or "",
+            job.location or "",
+            job.status or "",
+            str(job.date_applied) if job.date_applied else "",
+            job.company_domain or "",
+            job.url or "",
+            job.resume_score if job.resume_score is not None else "",
+            job.notes or "",
+            job.description or "",
+            _flatten(job.insights),
+            _flatten(job.base_fit_score),
+            str(job.created_at) if job.created_at else "",
+            str(job.updated_at) if job.updated_at else "",
+        ])
+
+    for row in ws.iter_rows(min_row=2, max_row=ws.max_row, min_col=1, max_col=len(headers)):
+        for cell in row:
+            cell.border = border
+            cell.alignment = Alignment(vertical="top", wrap_text=True)
+
+    for i, w in enumerate([18, 22, 16, 12, 13, 20, 30, 13, 30, 50, 40, 40, 22, 22], start=1):
+        ws.column_dimensions[get_column_letter(i)].width = w
+
+    ws.freeze_panes = "A2"
+    ws.auto_filter.ref = f"A1:{get_column_letter(len(headers))}{ws.max_row}"
+
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+
+    filename = f"jobforge_jobs_{_dt.now():%Y-%m-%d}.xlsx"
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
 @router.get("/{job_id}", response_model=JobDetailOut)
 async def get_job(
     job_id: uuid.UUID,

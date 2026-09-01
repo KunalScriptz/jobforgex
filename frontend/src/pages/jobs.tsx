@@ -13,7 +13,7 @@ import {
 } from "@dnd-kit/core";
 import { SortableContext, useSortable, arrayMove, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Briefcase, FileText, Trophy, ThumbsDown, Sparkles, Trash2, CheckSquare, X, Plus, Pencil } from "lucide-react";
+import { Briefcase, FileText, Trophy, ThumbsDown, Sparkles, Trash2, CheckSquare, X, Plus, Pencil, Download } from "lucide-react";
 
 import { jobsApi } from "@/api/jobs";
 import { useJobs } from "@/hooks/use-jobs";
@@ -53,6 +53,27 @@ export default function JobsPage() {
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkStatus, setBulkStatus] = useState<Status | "">("");
+  const [exporting, setExporting] = useState(false);
+
+  async function handleExport() {
+    setExporting(true);
+    try {
+      const blob = await jobsApi.exportJobs();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `jobforge_jobs_${new Date().toISOString().slice(0, 10)}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      toast.success("Exported jobs to Excel");
+    } catch (e: any) {
+      toast.error(String(e?.message ?? e).slice(0, 200));
+    } finally {
+      setExporting(false);
+    }
+  }
 
   // Per-column sort mode (persisted). "manual" keeps drag order; others override.
   type SortMode = "manual" | "newest" | "oldest" | "az" | "za";
@@ -258,6 +279,10 @@ export default function JobsPage() {
         >
           <CheckSquare className="mr-1.5 h-4 w-4" />
           {selectMode ? "Exit select" : "Select"}
+        </Button>
+        <Button size="sm" variant="outline" onClick={handleExport} disabled={exporting}>
+          <Download className="mr-1.5 h-4 w-4" />
+          {exporting ? "Exporting…" : "Export"}
         </Button>
         <AddJobDialog boards={boards} />
         <OnboardingGuide />

@@ -46,6 +46,9 @@ export const jobsApi = {
   listJobs: (params?: { board_id?: string; search?: string; status?: string }) =>
     apiClient.get<Job[]>("/api/v1/jobs/", { params }).then((r) => r.data),
 
+  exportJobs: () =>
+    apiClient.get<Blob>("/api/v1/jobs/export", { responseType: "blob" }).then((r) => r.data),
+
   getJob: (id: string) =>
     apiClient.get<JobDetail>(`/api/v1/jobs/${id}`).then((r) => r.data),
 
