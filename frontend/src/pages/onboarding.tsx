@@ -64,6 +64,7 @@ export default function OnboardingPage() {
           onBack={() => setStep(2)}
           onDone={() => {
             qc.invalidateQueries({ queryKey: ["ws"] });
+            sessionStorage.setItem("jobforge_guide_pending", "1");
             navigate("/jobs");
           }}
         />}
