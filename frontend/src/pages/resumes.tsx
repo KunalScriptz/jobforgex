@@ -28,7 +28,6 @@ import { resumesApi } from "@/api/resumes";
 import apiClient from "@/api/client";
 import { aiApi } from "@/api/ai";
 import { baseResumeFilename } from "@/lib/filenames";
-import { latexToPlainLines, findMatchingLines } from "@/lib/latex-sync";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,8 +42,8 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {
-  Download, Save, History, RotateCcw, LayoutList, FileText, Plus, Star, Pencil, Trash2,
-  Sparkles, Send, X, ListTree,
+  Download, Save, History, RotateCcw, FileText, Plus, Star, Pencil, Trash2,
+  Sparkles, Send,
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { LatexPreview, type LatexPreviewHandle } from "@/components/latex-preview";
@@ -115,11 +114,7 @@ const toggleCommentExtension = keymap.of([{
   },
 }]);
 
-function replaceSectionBody(src: string, block: SectionBlock, newBody: string): string {
-  return src.slice(0, block.bodyStart) + "\n" + newBody.replace(/^\n+|\n+$/g, "") + "\n" + src.slice(block.end);
-}
-
-// --- Transient line highlight (used by outline jump + PDF→LaTeX sync) ---
+// --- Transient line highlight (used by outline jump) ---
 const setHighlight = StateEffect.define<{ from: number }[]>();
 const highlightField = StateField.define<DecorationSet>({
   create: () => Decoration.none,
@@ -170,9 +165,7 @@ export default function ResumesPage() {
   const qc = useQueryClient();
   const cmTheme = useIsDark();
   const previewRef = useRef<LatexPreviewHandle>(null);
-  const sectionsPreviewRef = useRef<LatexPreviewHandle>(null);
   const editorViewRef = useRef<EditorView | null>(null);
-  const [outlineOpen, setOutlineOpen] = useState(true);
   const [chatOpen, setChatOpen] = useState(false);
   const [chatInput, setChatInput] = useState("");
   const [chatLog, setChatLog] = useState<Array<{ role: "user" | "assistant"; text: string }>>([]);
@@ -227,7 +220,6 @@ export default function ResumesPage() {
       qc.invalidateQueries({ queryKey: ["resumes"] });
       toast.success("Saved");
       previewRef.current?.compile();
-      sectionsPreviewRef.current?.compile();
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -239,7 +231,6 @@ export default function ResumesPage() {
       if (r.updated_latex) {
         setSource(r.updated_latex);
         previewRef.current?.compile();
-        sectionsPreviewRef.current?.compile();
         toast.success(
           r.page_count > 0
             ? `Applied — ${r.page_count} ${r.page_count === 1 ? "page" : "pages"}`
@@ -292,16 +283,6 @@ export default function ResumesPage() {
     const line = view.state.doc.lineAt(pos);
     view.dispatch({ effects: EditorView.scrollIntoView(line.from, { y: "start", yMargin: 12 }) });
     highlightLines(view, [line.number]);
-  }
-
-  function handleSelectText(text: string) {
-    const view = editorViewRef.current;
-    if (!view) return;
-    const lines = findMatchingLines(latexToPlainLines(source), text);
-    if (!lines.length) return;
-    highlightLines(view, lines.slice(0, 5));
-    const first = view.state.doc.line(lines[0]);
-    view.dispatch({ effects: EditorView.scrollIntoView(first.from, { y: "center", yMargin: 20 }) });
   }
 
   if (!isLoading && templates.length === 0) return (
@@ -413,45 +394,27 @@ export default function ResumesPage() {
       <Tabs defaultValue="split" className="flex-1">
         <TabsList>
           <TabsTrigger value="split">Editor + preview</TabsTrigger>
-          <TabsTrigger value="sections"><LayoutList className="mr-1 h-4 w-4" />Sections</TabsTrigger>
           <TabsTrigger value="versions"><History className="mr-1 h-4 w-4" />Versions ({versions.length})</TabsTrigger>
         </TabsList>
         <TabsContent value="split" className="mt-4">
-          <div className={outlineOpen ? "grid gap-4 lg:grid-cols-[190px_1fr_1fr]" : "grid gap-4 lg:grid-cols-2"}>
-            {outlineOpen && (
-              <div className="rounded-lg border bg-card">
-                <div className="flex items-center justify-between border-b p-2 text-xs font-medium text-muted-foreground">
-                  <span>Outline</span>
-                  <button onClick={() => setOutlineOpen(false)} title="Hide outline" className="rounded px-1 hover:bg-muted">
-                    <X className="h-3 w-3" />
-                  </button>
-                </div>
-                <ul className="max-h-[calc(100vh-380px)] space-y-0.5 overflow-auto p-2">
-                  {parseSections(source).map((b, i) => (
-                    <li key={i}>
-                      <button
-                        onClick={() => jumpToSection(b.start)}
-                        className="w-full rounded px-2 py-1 text-left text-xs text-foreground/80 hover:bg-muted"
-                      >
-                        {b.name}
-                      </button>
-                    </li>
-                  ))}
-                  {parseSections(source).length === 0 && (
-                    <li className="px-2 py-1 text-xs text-muted-foreground">No sections found</li>
-                  )}
-                </ul>
-              </div>
+          <div className="mb-3 flex flex-wrap items-center gap-1.5 rounded-lg border bg-card p-2">
+            <span className="mr-1 text-xs font-medium text-muted-foreground">Outline</span>
+            {parseSections(source).map((b, i) => (
+              <button
+                key={i}
+                onClick={() => jumpToSection(b.start)}
+                className="rounded-full border px-2.5 py-1 text-xs text-foreground/80 hover:bg-muted"
+              >
+                {b.name}
+              </button>
+            ))}
+            {parseSections(source).length === 0 && (
+              <span className="text-xs text-muted-foreground">No \section blocks found</span>
             )}
+          </div>
+          <div className="grid gap-4 lg:grid-cols-2">
             <div className="rounded-lg border bg-card">
-              <div className="flex items-center justify-between border-b p-2 text-xs font-medium text-muted-foreground">
-                <span>LaTeX source</span>
-                {!outlineOpen && (
-                  <button onClick={() => setOutlineOpen(true)} title="Show outline" className="flex items-center gap-1 rounded px-1.5 py-0.5 hover:bg-muted">
-                    <ListTree className="h-3 w-3" />Outline
-                  </button>
-                )}
-              </div>
+              <div className="border-b p-2 text-xs font-medium text-muted-foreground">LaTeX source</div>
               <CodeMirror
                 value={source}
                 onChange={setSource}
@@ -465,24 +428,6 @@ export default function ResumesPage() {
             <div className="overflow-hidden rounded-lg border bg-white" style={{ height: "calc(100vh - 340px)" }}>
               <LatexPreview
                 ref={previewRef}
-                source={source}
-                auto={false}
-                selectable
-                onSelectText={handleSelectText}
-                cacheKey={`template-${selectedTemplate.id}`}
-                downloadFilename={baseResumeFilename({ latex: source, ext: "pdf" })}
-              />
-            </div>
-          </div>
-        </TabsContent>
-        <TabsContent value="sections" className="mt-4">
-          <div className="grid gap-4 lg:grid-cols-2">
-            <div className="overflow-auto" style={{ maxHeight: "calc(100vh - 280px)" }}>
-              <SectionsEditor source={source} onChange={setSource} />
-            </div>
-            <div className="overflow-hidden rounded-lg border bg-white" style={{ height: "calc(100vh - 280px)" }}>
-              <LatexPreview
-                ref={sectionsPreviewRef}
                 source={source}
                 auto={false}
                 cacheKey={`template-${selectedTemplate.id}`}
@@ -651,48 +596,4 @@ function ColorButton({ label, value, onChange }: { label: string; value: string;
   );
 }
 
-// -------- Sections editor -------------------------------------------------
-
-function SectionsEditor({ source, onChange }: { source: string; onChange: (s: string) => void }) {
-  const blocks = parseSections(source);
-  if (blocks.length === 0) {
-    return (
-      <div className="rounded-lg border bg-card p-6 text-sm text-muted-foreground">
-        No <code>\section{"{"}...{"}"}</code> blocks found. Add sections in the LaTeX source
-        (e.g. <code>\section{"{"}Experience{"}"}</code>) and they will appear here for editing.
-      </div>
-    );
-  }
-  return (
-    <div className="space-y-4">
-      <div className="text-xs text-muted-foreground">
-        Edit each section's body directly. Changes flow back into the LaTeX source and the preview.
-        For layout / macros, switch to <span className="font-medium">Editor + preview</span>.
-      </div>
-      {blocks.map((b, i) => {
-        const current = parseSections(source)[i];
-        const body = current ? source.slice(current.bodyStart, current.end) : "";
-        return (
-          <div key={i} className="rounded-lg border bg-card">
-            <div className="flex items-center justify-between border-b px-3 py-2">
-              <div className="text-sm font-semibold">{b.name}</div>
-              <div className="text-[10px] text-muted-foreground">
-                \section{"{"}{b.name}{"}"}
-              </div>
-            </div>
-            <Textarea
-              value={body}
-              onChange={(e) => {
-                const now = parseSections(source)[i];
-                if (!now) return;
-                onChange(replaceSectionBody(source, now, e.target.value));
-              }}
-              rows={Math.min(24, Math.max(6, body.split("\n").length + 1))}
-              className="rounded-none border-0 font-mono text-xs focus-visible:ring-0"
-            />
-          </div>
-        );
-      })}
-    </div>
-  );
-}
+// -------- Sections editor removed (outline now shown inline at top) --------
