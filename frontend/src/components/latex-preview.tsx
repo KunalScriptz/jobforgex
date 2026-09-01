@@ -1,6 +1,7 @@
 import { useEffect, useImperativeHandle, useRef, useState, forwardRef } from "react";
 import { Loader2, AlertTriangle, FileText, RefreshCw } from "lucide-react";
 import apiClient from "@/api/client";
+import { SelectablePdf } from "./selectable-pdf";
 
 // Module-level cache — survives component unmount so navigating away and back
 // doesn't force a recompile of an unchanged source.
@@ -15,17 +16,25 @@ function base64ToBlobUrl(b64: string): string {
   return URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
 }
 
-async function compileLatexSource(source: string): Promise<string> {
+async function compileLatexSource(source: string): Promise<{ pdfBase64: string; pageCount: number }> {
   const { data } = await apiClient.post("/api/v1/resumes/latex-compile", { source });
   if (!data.ok) throw new Error(data.error || "Compile failed");
-  return data.pdf_base64;
+  return { pdfBase64: data.pdf_base64, pageCount: data.page_count ?? 0 };
 }
 
 export type LatexPreviewHandle = { compile: () => Promise<void> };
-type Props = { source: string; debounceMs?: number; auto?: boolean; cacheKey?: string; downloadFilename?: string };
+type Props = {
+  source: string;
+  debounceMs?: number;
+  auto?: boolean;
+  cacheKey?: string;
+  downloadFilename?: string;
+  selectable?: boolean;
+  onSelectText?: (text: string) => void;
+};
 
 export const LatexPreview = forwardRef<LatexPreviewHandle, Props>(function LatexPreview(
-  { source, debounceMs = 1200, auto = true, cacheKey, downloadFilename },
+  { source, debounceMs = 1200, auto = true, cacheKey, downloadFilename, selectable = false, onSelectText },
   ref,
 ) {
   const key = cacheKey ?? DEFAULT_CACHE_KEY;
@@ -33,6 +42,7 @@ export const LatexPreview = forwardRef<LatexPreviewHandle, Props>(function Latex
   const hasCache = cached && cached.source === source;
   const [status, setStatus] = useState<"idle" | "compiling" | "ready" | "error">(hasCache ? "ready" : "idle");
   const [pdfUrl, setPdfUrl] = useState<string | null>(hasCache ? cached!.pdfUrl : null);
+  const [pageCount, setPageCount] = useState<number>(0);
   const [errorMsg, setErrorMsg] = useState<string>("");
   const [showLog, setShowLog] = useState(false);
   const runIdRef = useRef(0);
@@ -45,7 +55,7 @@ export const LatexPreview = forwardRef<LatexPreviewHandle, Props>(function Latex
     setStatus("compiling");
     setErrorMsg("");
     try {
-      const pdfBase64 = await compileLatexSource(source);
+      const { pdfBase64, pageCount: pages } = await compileLatexSource(source);
       if (myRun !== runIdRef.current) return;
       const url = base64ToBlobUrl(pdfBase64);
       const prev = previewCache.get(key);
@@ -53,6 +63,7 @@ export const LatexPreview = forwardRef<LatexPreviewHandle, Props>(function Latex
       previewCache.set(key, { source, pdfUrl: url });
       lastCompiledRef.current = source;
       setPdfUrl(url);
+      setPageCount(pages);
       setStatus("ready");
     } catch (e: any) {
       if (myRun !== runIdRef.current) return;
@@ -92,6 +103,11 @@ export const LatexPreview = forwardRef<LatexPreviewHandle, Props>(function Latex
       <div className="flex items-center gap-2 border-b bg-card p-2 text-xs text-foreground">
         <FileText className="h-3.5 w-3.5 text-muted-foreground" />
         <span className="font-medium text-foreground">Preview (real PDF)</span>
+        {status === "ready" && pageCount > 0 && (
+          <span className="rounded bg-muted px-1.5 py-0.5 font-medium text-muted-foreground">
+            {pageCount} {pageCount === 1 ? "page" : "pages"}
+          </span>
+        )}
         <span className="ml-auto flex items-center gap-2">
           {status === "compiling" && (<><Loader2 className="h-3.5 w-3.5 animate-spin" /><span>Compiling…</span></>)}
           {status === "ready" && dirty && <span className="text-amber-500">Unsaved changes — press Save (Ctrl+S) to recompile</span>}
@@ -114,9 +130,11 @@ export const LatexPreview = forwardRef<LatexPreviewHandle, Props>(function Latex
         </span>
       </div>
       <div className="relative flex-1 bg-neutral-100 dark:bg-neutral-900">
-        {pdfUrl && (
+        {pdfUrl && (selectable ? (
+          <SelectablePdf pdfUrl={pdfUrl} onSelectText={onSelectText} />
+        ) : (
           <iframe title="PDF preview" src={pdfUrl} className="h-full w-full border-0" />
-        )}
+        ))}
         {!pdfUrl && status !== "error" && (
           <div className="flex h-full items-center justify-center text-xs text-neutral-600 dark:text-neutral-300">
             {status === "compiling" ? "Compiling first PDF…" : "Press Recompile or Save (Ctrl+S) to render."}

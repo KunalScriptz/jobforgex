@@ -2,7 +2,8 @@ import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import CodeMirror from "@uiw/react-codemirror";
-import { keymap } from "@codemirror/view";
+import { keymap, Decoration, DecorationSet, EditorView } from "@codemirror/view";
+import { StateEffect, StateField } from "@codemirror/state";
 import { StreamLanguage } from "@codemirror/language";
 import { useEffect, useRef, useState } from "react";
 
@@ -25,7 +26,9 @@ import { HexColorPicker } from "react-colorful";
 
 import { resumesApi } from "@/api/resumes";
 import apiClient from "@/api/client";
+import { aiApi } from "@/api/ai";
 import { baseResumeFilename } from "@/lib/filenames";
+import { latexToPlainLines, findMatchingLines } from "@/lib/latex-sync";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,6 +44,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import {
   Download, Save, History, RotateCcw, LayoutList, FileText, Plus, Star, Pencil, Trash2,
+  Sparkles, Send, X, ListTree,
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { LatexPreview, type LatexPreviewHandle } from "@/components/latex-preview";
@@ -115,6 +119,37 @@ function replaceSectionBody(src: string, block: SectionBlock, newBody: string): 
   return src.slice(0, block.bodyStart) + "\n" + newBody.replace(/^\n+|\n+$/g, "") + "\n" + src.slice(block.end);
 }
 
+// --- Transient line highlight (used by outline jump + PDF→LaTeX sync) ---
+const setHighlight = StateEffect.define<{ from: number }[]>();
+const highlightField = StateField.define<DecorationSet>({
+  create: () => Decoration.none,
+  update(deco, tr) {
+    deco = deco.map(tr.changes);
+    for (const e of tr.effects) {
+      if (e.is(setHighlight)) {
+        deco = Decoration.set(
+          e.value.map(({ from }) => Decoration.line({ class: "cm-resume-highlight" }).range(from)),
+        );
+      }
+    }
+    return deco;
+  },
+  provide: (f) => EditorView.decorations.from(f),
+});
+const highlightTheme = EditorView.baseTheme({
+  ".cm-resume-highlight": { backgroundColor: "rgba(250, 204, 21, 0.28)" },
+});
+
+let highlightTimer: ReturnType<typeof setTimeout> | undefined;
+function highlightLines(view: EditorView, lineNumbers: number[]) {
+  const ranges = lineNumbers
+    .filter((n) => n >= 1 && n <= view.state.doc.lines)
+    .map((n) => ({ from: view.state.doc.line(n).from }));
+  view.dispatch({ effects: setHighlight.of(ranges) });
+  if (highlightTimer) clearTimeout(highlightTimer);
+  highlightTimer = setTimeout(() => view.dispatch({ effects: setHighlight.of([]) }), 2500);
+}
+
 /** Watches the `dark` class on <html> and returns the matching CodeMirror theme. */
 function useIsDark(): "dark" | "light" {
   const [dark, setDark] = useState<boolean>(() =>
@@ -136,6 +171,11 @@ export default function ResumesPage() {
   const cmTheme = useIsDark();
   const previewRef = useRef<LatexPreviewHandle>(null);
   const sectionsPreviewRef = useRef<LatexPreviewHandle>(null);
+  const editorViewRef = useRef<EditorView | null>(null);
+  const [outlineOpen, setOutlineOpen] = useState(true);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatInput, setChatInput] = useState("");
+  const [chatLog, setChatLog] = useState<Array<{ role: "user" | "assistant"; text: string }>>([]);
 
   const { data: templates = [], isLoading } = useResumes();
   const [selectedId, setSelectedId] = useState("");
@@ -192,6 +232,32 @@ export default function ResumesPage() {
     onError: (e: any) => toast.error(e.message),
   });
 
+  const editResume = useMutation({
+    mutationFn: (question: string) => aiApi.editResume({ latex_source: source, question }),
+    onSuccess: (r) => {
+      setChatLog((l) => [...l, { role: "assistant", text: r.answer }]);
+      if (r.updated_latex) {
+        setSource(r.updated_latex);
+        previewRef.current?.compile();
+        sectionsPreviewRef.current?.compile();
+        toast.success(
+          r.page_count > 0
+            ? `Applied — ${r.page_count} ${r.page_count === 1 ? "page" : "pages"}`
+            : "Applied",
+        );
+      }
+    },
+    onError: (e: any) => toast.error(String(e?.message ?? e).slice(0, 200)),
+  });
+
+  function sendChat() {
+    const q = chatInput.trim();
+    if (!q || editResume.isPending) return;
+    setChatLog((l) => [...l, { role: "user", text: q }]);
+    setChatInput("");
+    editResume.mutate(q);
+  }
+
   // Ctrl+S / Cmd+S to save
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -219,6 +285,25 @@ export default function ResumesPage() {
     link.click();
   }
 
+  function jumpToSection(start: number) {
+    const view = editorViewRef.current;
+    if (!view) return;
+    const pos = Math.min(start, view.state.doc.length);
+    const line = view.state.doc.lineAt(pos);
+    view.dispatch({ effects: EditorView.scrollIntoView(line.from, { y: "start", yMargin: 12 }) });
+    highlightLines(view, [line.number]);
+  }
+
+  function handleSelectText(text: string) {
+    const view = editorViewRef.current;
+    if (!view) return;
+    const lines = findMatchingLines(latexToPlainLines(source), text);
+    if (!lines.length) return;
+    highlightLines(view, lines.slice(0, 5));
+    const first = view.state.doc.line(lines[0]);
+    view.dispatch({ effects: EditorView.scrollIntoView(first.from, { y: "center", yMargin: 20 }) });
+  }
+
   if (!isLoading && templates.length === 0) return (
     <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
       <FileText className="h-10 w-10 text-muted-foreground" />
@@ -244,6 +329,7 @@ export default function ResumesPage() {
           <ColorButton label="Primary" value={primary} onChange={(v) => applyColors({ primary: v })} />
           <ColorButton label="Accent" value={secondary} onChange={(v) => applyColors({ secondary: v })} />
           <Button variant="outline" size="sm" onClick={download}><Download className="mr-1 h-4 w-4" />.tex</Button>
+          <Button variant="outline" size="sm" onClick={() => setChatOpen(true)}><Sparkles className="mr-1 h-4 w-4" />Ask AI</Button>
           <Button size="sm" onClick={() => save.mutate()} disabled={save.isPending}><Save className="mr-1 h-4 w-4" />Save</Button>
         </div>
       </div>
@@ -331,16 +417,49 @@ export default function ResumesPage() {
           <TabsTrigger value="versions"><History className="mr-1 h-4 w-4" />Versions ({versions.length})</TabsTrigger>
         </TabsList>
         <TabsContent value="split" className="mt-4">
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className={outlineOpen ? "grid gap-4 lg:grid-cols-[190px_1fr_1fr]" : "grid gap-4 lg:grid-cols-2"}>
+            {outlineOpen && (
+              <div className="rounded-lg border bg-card">
+                <div className="flex items-center justify-between border-b p-2 text-xs font-medium text-muted-foreground">
+                  <span>Outline</span>
+                  <button onClick={() => setOutlineOpen(false)} title="Hide outline" className="rounded px-1 hover:bg-muted">
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+                <ul className="max-h-[calc(100vh-380px)] space-y-0.5 overflow-auto p-2">
+                  {parseSections(source).map((b, i) => (
+                    <li key={i}>
+                      <button
+                        onClick={() => jumpToSection(b.start)}
+                        className="w-full rounded px-2 py-1 text-left text-xs text-foreground/80 hover:bg-muted"
+                      >
+                        {b.name}
+                      </button>
+                    </li>
+                  ))}
+                  {parseSections(source).length === 0 && (
+                    <li className="px-2 py-1 text-xs text-muted-foreground">No sections found</li>
+                  )}
+                </ul>
+              </div>
+            )}
             <div className="rounded-lg border bg-card">
-              <div className="border-b p-2 text-xs font-medium text-muted-foreground">LaTeX source</div>
+              <div className="flex items-center justify-between border-b p-2 text-xs font-medium text-muted-foreground">
+                <span>LaTeX source</span>
+                {!outlineOpen && (
+                  <button onClick={() => setOutlineOpen(true)} title="Show outline" className="flex items-center gap-1 rounded px-1.5 py-0.5 hover:bg-muted">
+                    <ListTree className="h-3 w-3" />Outline
+                  </button>
+                )}
+              </div>
               <CodeMirror
                 value={source}
                 onChange={setSource}
                 height="calc(100vh - 380px)"
                 basicSetup={{ lineNumbers: true, foldGutter: true }}
                 theme={cmTheme}
-                extensions={[latexLanguage, toggleCommentExtension]}
+                extensions={[latexLanguage, toggleCommentExtension, highlightField, highlightTheme]}
+                onCreateEditor={(view) => { editorViewRef.current = view; }}
               />
             </div>
             <div className="overflow-hidden rounded-lg border bg-white" style={{ height: "calc(100vh - 340px)" }}>
@@ -348,6 +467,8 @@ export default function ResumesPage() {
                 ref={previewRef}
                 source={source}
                 auto={false}
+                selectable
+                onSelectText={handleSelectText}
                 cacheKey={`template-${selectedTemplate.id}`}
                 downloadFilename={baseResumeFilename({ latex: source, ext: "pdf" })}
               />
@@ -392,6 +513,46 @@ export default function ResumesPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <Dialog open={chatOpen} onOpenChange={setChatOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Ask AI to edit your resume</DialogTitle>
+            <DialogDescription>
+              Add, remove, or rewrite content. Edits apply to the LaTeX source and stay within 2 pages.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex max-h-[45vh] flex-col gap-2 overflow-auto rounded border bg-muted/20 p-3">
+            {chatLog.length === 0 && (
+              <div className="text-xs text-muted-foreground">
+                Try: "Remove the PyTorch bullet" · "Rewrite my summary for a data engineer role"
+              </div>
+            )}
+            {chatLog.map((m, i) => (
+              <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+                <div className={`max-w-[85%] whitespace-pre-wrap rounded px-3 py-1.5 text-sm ${m.role === "user" ? "bg-primary text-primary-foreground" : "border bg-card"}`}>
+                  {m.text}
+                </div>
+              </div>
+            ))}
+            {editResume.isPending && <div className="text-xs text-muted-foreground">Editing…</div>}
+          </div>
+          <div className="flex flex-col gap-2">
+            <Textarea
+              value={chatInput}
+              onChange={(e) => setChatInput(e.target.value)}
+              placeholder="Ask the AI to change this resume…"
+              className="min-h-[60px] text-sm"
+              onKeyDown={(e) => { if ((e.ctrlKey || e.metaKey) && e.key === "Enter") sendChat(); }}
+            />
+            <div className="flex justify-end">
+              <Button onClick={sendChat} disabled={editResume.isPending || !chatInput.trim()}>
+                <Send className="mr-1 h-4 w-4" />Send
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
