@@ -81,6 +81,24 @@ const MONTHS: Month[] = [
         title: "Stable scores",
         description: "Re-scoring a resume now returns a consistent score instead of changing each time.",
       },
+      {
+        date: "Sep 1",
+        type: "feature",
+        title: "First-time guide and interactive tour",
+        description: "A welcome guide now opens right after onboarding, plus a spotlight tour that walks you through every section in the sidebar.",
+      },
+      {
+        date: "Sep 1",
+        type: "improvement",
+        title: "Search your city with country",
+        description: "The current location field now suggests cities with their countries as you type, so Ask AI gets an accurate location.",
+      },
+      {
+        date: "Sep 1",
+        type: "improvement",
+        title: "Install the extension from the Chrome Web Store",
+        description: "Add JobForge Autofill in one click from the Chrome Web Store, no unzipping or developer mode.",
+      },
     ],
   },
   {
