@@ -16,6 +16,7 @@ const NAV = [
   { to: "/checker", label: "Checker", icon: ClipboardCheck },
   { to: "/billing", label: "Billing", icon: CreditCard },
   { to: "/settings", label: "Settings", icon: Settings },
+  { to: "/whats-new", label: "What's New", icon: Sparkles },
 ] as const;
 
 export function AppShell({ children }: { children: React.ReactNode }) {
