@@ -49,13 +49,13 @@ const MONTHS: Month[] = [
         date: "Sep 1",
         type: "feature",
         title: "ATS score after tailoring",
-        description: "Every tailored resume now gets an ATS score automatically — matched vs missing keywords, format checks, and suggestions to raise it.",
+        description: "Every tailored resume now gets an ATS score automatically: matched vs missing keywords, format checks, and suggestions to raise it.",
       },
       {
         date: "Sep 1",
         type: "feature",
         title: "Export jobs to Excel",
-        description: "Download your whole pipeline as a styled .xlsx — company, title, status, notes, scores and more, with borders and a frozen header.",
+        description: "Download your whole pipeline as a styled .xlsx, including company, title, status, notes, scores and more, with borders and a frozen header.",
       },
       {
         date: "Sep 1",
@@ -136,7 +136,7 @@ export default function WhatsNewPage() {
         <h1 className="text-2xl font-bold">What's New</h1>
       </div>
       <p className="mb-6 text-sm text-muted-foreground">
-        New features, improvements, and fixes — grouped by month. Click a month to expand it.
+        New features, improvements, and fixes, grouped by month. Click a month to expand it.
       </p>
 
       <div className="space-y-4">
