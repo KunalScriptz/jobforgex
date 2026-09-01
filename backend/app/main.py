@@ -57,9 +57,9 @@ app.include_router(files.router)
 @app.get("/extension-version.json")
 async def extension_version():
     return {
-        "version": "1.3.4",
-        "download": "/api/v1/extension/download",
-        "changelog": "Host permissions removed for minimal privilege compliance.",
+        "version": "1.3.5",
+        "download": "https://chromewebstore.google.com/detail/jobforge-autofill/kigpedieokcmgmhhapiminllfkgkmkfo",
+        "changelog": "Install from the Chrome Web Store.",
     }
 
 

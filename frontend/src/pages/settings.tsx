@@ -163,19 +163,6 @@ function ExtensionCard() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["ext-tokens"] }); toast.success("Revoked"); },
   });
 
-  async function downloadExtension() {
-    try {
-      const res = await fetch("/api/v1/extension/download");
-      if (!res.ok) throw new Error(`Download failed (${res.status})`);
-      const blob = await res.blob();
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = "jobforge-extension.zip";
-      a.click();
-      URL.revokeObjectURL(a.href);
-    } catch (e: any) { toast.error(e.message); }
-  }
-
   return (
     <Card>
       <CardHeader>
@@ -184,7 +171,15 @@ function ExtensionCard() {
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex flex-wrap gap-2">
-          <Button size="sm" onClick={downloadExtension}><Download className="mr-1.5 h-4 w-4" /> Download extension (.zip)</Button>
+          <Button size="sm" asChild>
+            <a
+              href="https://chromewebstore.google.com/detail/jobforge-autofill/kigpedieokcmgmhhapiminllfkgkmkfo"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <ExternalLink className="mr-1.5 h-4 w-4" /> Add to Chrome
+            </a>
+          </Button>
           <Button size="sm" variant="outline" onClick={() => create.mutate()} disabled={create.isPending}>
             <Plus className="mr-1.5 h-4 w-4" /> Generate connect token
           </Button>
@@ -203,9 +198,7 @@ function ExtensionCard() {
         <div className="rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground">
           <div className="mb-1 font-semibold text-foreground">Install</div>
           <ol className="list-decimal space-y-0.5 pl-4">
-            <li>Unzip the downloaded file.</li>
-            <li>Open <code>chrome://extensions</code> and enable Developer mode.</li>
-            <li>Click Load unpacked and pick the unzipped folder.</li>
+            <li>Click <strong>Add to Chrome</strong> to install JobForge Autofill from the Chrome Web Store.</li>
             <li>Click the extension icon → Connect → paste your token.</li>
           </ol>
         </div>
