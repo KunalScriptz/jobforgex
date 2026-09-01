@@ -38,7 +38,8 @@ RUN pip install --no-cache-dir --upgrade pip && \
     secure==1.0.1 \
     python-dotenv==1.0.1 \
     email-validator==2.2.0 \
-    jinja2==3.1.4
+    jinja2==3.1.4 \
+    openpyxl==3.1.5
 
 COPY . .
 
