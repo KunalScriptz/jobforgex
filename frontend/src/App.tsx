@@ -13,6 +13,7 @@ import BillingPage from "@/pages/billing";
 import SettingsPage from "@/pages/settings";
 import LandingPage from "@/pages/landing";
 import PrivacyPage from "@/pages/privacy";
+import WhatsNewPage from "@/pages/whats-new";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
@@ -53,6 +54,7 @@ export default function App() {
         <Route path="/billing" element={<ProtectedRoute><BillingPage /></ProtectedRoute>} />
         <Route path="/billing-test" element={<ProtectedRoute><BillingPage /></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+        <Route path="/whats-new" element={<ProtectedRoute><WhatsNewPage /></ProtectedRoute>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       <Toaster position="top-right" />
