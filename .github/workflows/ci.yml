@@ -14,20 +14,20 @@ jobs:
     runs-on: [self-hosted, Linux, ARM64]
     steps:
       - name: Fix permissions
-        run: sudo chown -R ubuntu:ubuntu $HOME/all_bots/jobforgex
+        run: sudo chown -R ubuntu:ubuntu $HOME/jobforgex
 
       - name: Pull latest
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          cd $HOME/all_bots/jobforgex
+          cd $HOME/jobforgex
           git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/KunalScriptz/jobforgex.git"
           git fetch origin migration/self-hosted
           git reset --hard origin/migration/self-hosted
 
       - name: Deploy services
         run: |
-          cd $HOME/all_bots/jobforgex
+          cd $HOME/jobforgex
           docker compose down --remove-orphans
           docker compose up -d --build
           docker image prune -f
