@@ -55,11 +55,18 @@ class BuilderSeedRequest(BaseModel):
     job_id: str
 
 
-class BuilderContentUpdate(BaseModel):
+class BuilderSaveRequest(BaseModel):
     content: dict
-    builder_resume_id: str
 
 
-class BuilderAction(BaseModel):
-    builder_resume_id: str
-    action: str  # analyze_job_match, analyze_score, generate_suggestions
+class BuilderCore(BaseModel):
+    content: dict
+    latex_source: Optional[str] = None
+
+
+class BuilderOut(BaseModel):
+    content: dict
+    latex_source: Optional[str] = None
+    job_match: Optional[dict] = None
+    score: Optional[dict] = None
+    suggestions: Optional[dict] = None

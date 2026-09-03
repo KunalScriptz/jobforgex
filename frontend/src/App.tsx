@@ -10,6 +10,7 @@ import ResumesPage from "@/pages/resumes";
 import GeneratePage from "@/pages/generate";
 import CheckerPage from "@/pages/checker";
 import BuilderPage from "@/pages/builder";
+import BuilderIndexPage from "@/pages/builder-index";
 import BillingPage from "@/pages/billing";
 import SettingsPage from "@/pages/settings";
 import LandingPage from "@/pages/landing";
@@ -51,6 +52,7 @@ export default function App() {
         <Route path="/resumes" element={<ProtectedRoute><ResumesPage /></ProtectedRoute>} />
         <Route path="/generate" element={<ProtectedRoute><GeneratePage /></ProtectedRoute>} />
         <Route path="/checker" element={<ProtectedRoute><CheckerPage /></ProtectedRoute>} />
+        <Route path="/builder" element={<ProtectedRoute><BuilderIndexPage /></ProtectedRoute>} />
         <Route path="/builder/:jobId" element={<ProtectedRoute><BuilderPage /></ProtectedRoute>} />
         <Route path="/billing" element={<ProtectedRoute><BillingPage /></ProtectedRoute>} />
         <Route path="/billing-test" element={<ProtectedRoute><BillingPage /></ProtectedRoute>} />

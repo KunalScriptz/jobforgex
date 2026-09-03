@@ -18,6 +18,7 @@ from app.schemas.ai import (
 from app.services import ai as ai_service
 from app.services import workspace as workspace_service
 from app.services import user as user_service
+from app.services import builder as builder_service
 from app.models.job import Job
 
 router = APIRouter(prefix="/api/v1/ai", tags=["ai"])
@@ -66,6 +67,25 @@ def _parse_resume_chat(content: str) -> tuple[str, str | None]:
     return answer, updated
 
 
+def _compute_section_completion(content: dict) -> dict:
+    """Deterministic Section Completion fallback when the model omits it from builder_score."""
+    contact = content.get("contact") or {}
+    checks = [
+        ("Contact", bool(contact.get("name") or contact.get("email"))),
+        ("Summary", bool(content.get("about"))),
+        ("Skills", bool(content.get("skills"))),
+        ("Experience", bool(content.get("work"))),
+        ("Education", bool(content.get("education"))),
+        ("Projects", bool(content.get("projects"))),
+        ("Certifications", bool(content.get("certifications"))),
+    ]
+    ok_count = sum(1 for _, ok in checks if ok)
+    return {
+        "score": round(100 * ok_count / len(checks)) if checks else 0,
+        "checks": [{"label": label, "ok": ok_flag} for label, ok_flag in checks],
+    }
+
+
 async def _log_ai_call(db, workspace_id, user_id, job_id, res, purpose):
     await ai_service.log_ai_cost(
         db,
@@ -103,6 +123,18 @@ async def ai_generate(
         raise HTTPException(status_code=status.HTTP_402_PAYMENT_REQUIRED, detail="Free trial limit reached")
 
     render_vars = dict(data.vars)
+
+    # Builder prompts expect {{title}} / {{jd}} / {{resume_json}}, but the frontend only sends
+    # vars:{job_id}. Resolve them server-side from the Job and seeded BuilderResume.
+    BUILDER_PROMPTS = {"builder_job_match", "builder_score", "builder_suggestions"}
+    if data.prompt_name in BUILDER_PROMPTS and data.job_id:
+        job = (
+            await db.execute(select(Job).where(Job.id == uuid.UUID(data.job_id)))
+        ).scalar_one_or_none()
+        builder = await builder_service.get_or_create_builder(db, ws.id, uuid.UUID(data.job_id))
+        render_vars.setdefault("title", job.title if job else "")
+        render_vars.setdefault("jd", (job.description or "") if job else "")
+        render_vars.setdefault("resume_json", json.dumps(builder.content, default=str))
 
     profile = await user_service.get_profile(db, uuid.UUID(user["user_id"]))
     profile_block = _build_profile_block(profile)
@@ -155,6 +187,25 @@ async def ai_generate(
                     .where(Job.id == uuid.UUID(data.job_id))
                     .values(base_fit_score=parsed)
                 )
+                await db.flush()
+        except (json.JSONDecodeError, ValueError):
+            pass
+
+    # Persist builder analysis back onto the BuilderResume so /seed refetch (triggered by the
+    # frontend's query invalidate) returns the latest Job Match / Score / Suggestions.
+    if data.job_id and data.prompt_name in BUILDER_PROMPTS:
+        builder = await builder_service.get_or_create_builder(db, ws.id, uuid.UUID(data.job_id))
+        try:
+            parsed = json.loads(result["content"])
+            if isinstance(parsed, dict):
+                if data.prompt_name == "builder_score" and not parsed.get("section"):
+                    parsed["section"] = _compute_section_completion(builder.content)
+                if data.prompt_name == "builder_job_match":
+                    builder.job_match = parsed
+                elif data.prompt_name == "builder_score":
+                    builder.score = parsed
+                elif data.prompt_name == "builder_suggestions":
+                    builder.suggestions = parsed
                 await db.flush()
         except (json.JSONDecodeError, ValueError):
             pass

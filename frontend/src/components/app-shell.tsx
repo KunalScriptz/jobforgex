@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { ListTodo, Wand2, FileText, ClipboardCheck, CreditCard, Settings, Sparkles, LogOut, Map } from "lucide-react";
+import { ListTodo, Wand2, FileText, ClipboardCheck, CreditCard, Settings, Sparkles, LogOut, Map, Layers } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import logoImg from "@/assets/logo.png";
@@ -15,6 +15,7 @@ const NAV = [
   { to: "/generate", label: "Generate", icon: Wand2, tour: "nav-generate" },
   { to: "/resumes", label: "Resume", icon: FileText, tour: "nav-resumes" },
   { to: "/checker", label: "Checker", icon: ClipboardCheck, tour: "nav-checker" },
+  { to: "/builder", label: "Resume Builder", icon: Layers, tour: "nav-builder" },
   { to: "/billing", label: "Billing", icon: CreditCard, tour: "nav-billing" },
   { to: "/settings", label: "Settings", icon: Settings, tour: "nav-settings" },
   { to: "/whats-new", label: "What's New", icon: Sparkles, tour: "nav-whats-new" },
