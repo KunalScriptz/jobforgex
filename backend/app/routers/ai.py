@@ -158,6 +158,37 @@ async def ai_generate(
         except (json.JSONDecodeError, ValueError):
             pass
 
+    # Tailored resumes: the whole-document call tends to update Skills but leave Experience
+    # bullets untouched. Run a focused, best-effort rewrite of the Experience section and splice it in.
+    if data.prompt_name == "tailor_resume":
+        base_latex = str(render_vars.get("resume_latex", "") or "")
+        experience = ai_service._extract_section(base_latex, "Experience") if base_latex else None
+        if experience and "\\resumeItem" in experience:
+            try:
+                rewritten = await ai_service.call_deepseek(
+                    prompt_name="rewrite_experience",
+                    vars={
+                        "jd": str(render_vars.get("jd", "") or ""),
+                        "experience": experience,
+                        "resume_latex": base_latex,
+                    },
+                    purpose=data.purpose,
+                    profile_block=profile_block,
+                )
+                await _log_ai_call(db, str(ws.id), user["user_id"], data.job_id, rewritten, data.purpose)
+                new_content = ai_service._replace_section(
+                    result["content"], "Experience", rewritten["content"]
+                )
+                if "\\end{document}" in new_content and "\\resumeItem" in new_content:
+                    result["content"] = new_content
+                    result["total_cost"] = result["total_cost"] + rewritten["total_cost"]
+                    result["input_tokens"] = result["input_tokens"] + rewritten["input_tokens"]
+                    result["output_tokens"] = result["output_tokens"] + rewritten["output_tokens"]
+                    result["total_tokens"] = result["total_tokens"] + rewritten["total_tokens"]
+            except Exception:
+                # Best-effort: keep the whole-document output on any error.
+                pass
+
     return result
 
 
