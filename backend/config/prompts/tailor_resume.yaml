@@ -37,13 +37,14 @@ user_template: |
      - Date ranges: use "Month Year – Month Year" or "Month Year" format — avoid custom date macros or special characters.
      - No hyperlinks inside skill names or job titles — ATS strips URLs and may lose associated text.
      - Most LaTeX resumes use fancy headers, colored boxes, or icons. ATS parsers (Taleo, Workday, iCIMS, Lever) often fail on these — they may extract "Senior" but miss "Engineer" if it's in a colored box. This constraint ensures recruiter + ATS both see the real content.
+  8. EXPERIENCE REWRITE IS MANDATORY (CRITICAL): Rewriting the work-experience bullets to reflect the JD is the PRIMARY task, not an optional nicety. If you only append JD keywords to the Skills section and leave the Experience bullets unchanged, the output is a FAILURE and will be rejected. At least 2-3 bullets per role must be rewritten to reference the JD's skills or domain terms, using the X-Y-Z / CAR formula. Never skip experience rewriting out of caution about length or fabrication — rewriting existing bullet content in place is always safe.
 
   CONTENT REWRITING RULES:
 
   A. SKILL-DRIVEN TAILORING (CRITICAL — this is the #1 goal):
      - Extract EVERY skill, technology, tool, language, framework, and domain term the JD asks for.
      - SKILLS SECTION: EVERY JD-requested technical keyword MUST appear in the Skills section, in the appropriate existing group (or the closest fitting group if none matches). ADD every one of them even if the base resume does not list them — listing a skill is a self-declaration, not fabrication. Mirror the JD's exact phrasing (e.g. "Go", "Kubeflow", "React.js"). Do not skip any JD technical keyword. Do not add skills the JD does not ask for.
-     - EXPERIENCE BULLETS: REWRITE the work-experience bullets themselves to mirror the JD — do NOT only touch the Skills section. Review every bullet: if it is generic or irrelevant to the JD, REPLACE it with a new bullet that describes work matching what the JD asks for, written around the JD's requested skills AND domain terms (e.g. if the JD says "AI assistants / chatbots / agents / generative AI", write a bullet using those exact phrases to describe the candidate's related work). Every JD technical keyword must appear in the Skills section AND at least once in an experience bullet or the summary — never leave a JD keyword only in one place. The replacement must follow the X-Y-Z / CAR formula (use CAR when no metric exists), must not inflate years of experience, must not fabricate employers, dates, or metrics, and must never use double hyphens or dashes as punctuation (see constraint 6).
+     - EXPERIENCE BULLETS: REWRITE the work-experience bullets themselves to mirror the JD — do NOT only touch the Skills section (see constraint 8: skills-only changes are a FAILED output). Review every bullet: if it is generic or irrelevant to the JD, REPLACE it with a new bullet that describes work matching what the JD asks for, written around the JD's requested skills AND domain terms (e.g. if the JD says "AI assistants / chatbots / agents / generative AI", write a bullet using those exact phrases to describe the candidate's related work). Every JD technical keyword must appear in the Skills section AND at least once in an experience bullet or the summary — never leave a JD keyword only in one place. The replacement must follow the X-Y-Z / CAR formula (use CAR when no metric exists), must not inflate years of experience, must not fabricate employers, dates, or metrics, and must never use double hyphens or dashes as punctuation (see constraint 6).
      - Replace the weakest, least JD-relevant bullets first. Keep the same number of bullets per role to preserve length.
 
   B. BULLET FORMULA — X-Y-Z pattern (primary) or CAR method (fallback):
@@ -146,6 +147,7 @@ user_template: |
   - [ ] No fabricated credentials, employers, projects, or metrics
   - [ ] ATS-safe formatting: no custom colors/macros in body, standard \item bullets, plain section headers
   - [ ] Keyword density: JD-requested keywords appear in Skills + at least one relevant bullet
+  - [ ] At least 2-3 experience bullets per role were rewritten to reference JD skills/domain terms (not just the Skills section)
   - [ ] Education/Certifications: no fabricated certs, bootcamps/self-taught listed if applicable
   - [ ] Relocation line in header (if any) matches LOCATION RULE and is not in Summary
 

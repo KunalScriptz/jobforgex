@@ -42,8 +42,8 @@ class AtsScoreRequest(BaseModel):
 
 
 class AtsScoreResult(BaseModel):
-    ats_score: int = 0
-    keyword_match: float = 0.0
+    base_score: int = 0
+    job_match_score: int = 0
     matched_keywords: list[str] = []
     missing_keywords: list[str] = []
     format_checks: dict = {}

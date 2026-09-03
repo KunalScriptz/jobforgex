@@ -1,25 +1,23 @@
 system: |
-  You are an ATS (Applicant Tracking System) resume analyzer. You evaluate how well a tailored resume will survive automated ATS screening for a specific job description.
-  You return ONLY a single valid JSON object — no prose, no markdown, no code fences, no commentary.
+  You are an ATS (Applicant Tracking System) resume analyzer. You return ONLY a single valid JSON object — no prose, no markdown, no code fences, no commentary.
 user_template: |
-  Evaluate the tailored resume against the job description for ATS compatibility.
+  Analyze the resume for ATS compatibility. You will supply two things: the resume's standalone quality, and the list of hard technical keywords the job description requires (the actual keyword matching is computed separately, deterministically).
 
-  KEYWORD DEFINITION (strict): "matched_keywords" and "missing_keywords" must contain ONLY hard technical terms — programming languages, frameworks, libraries, tools, platforms, and specific domain technologies (e.g. Go, Kubeflow, React.js, Kubernetes, PyTorch). Do NOT list generic English words or verbs such as "integration", "monitoring", "automation", "search", "prototyping", "experimentation", or "data processing" — those are not ATS keywords and must be ignored.
+  KEYWORD DEFINITION (strict): "jd_keywords" must contain ONLY hard technical terms — programming languages, frameworks, libraries, tools, platforms, and specific domain technologies (e.g. Go, Kubeflow, React.js, Kubernetes, PyTorch). Do NOT list generic English words or verbs such as "integration", "monitoring", "automation", "search", "prototyping", "experimentation", or "data processing" — those are not ATS keywords and must be ignored.
+  - Use UNAMBIGUOUS CANONICAL FORMS to avoid false matches during substring search. Prefer "Golang" over "Go" (which would match "Google"/"MongoDB"), "C++" over "C", "Objective-C" over "C", "React.js" over a bare "React" when the JD itself uses the dotted form. Mirror the JD's exact phrasing otherwise.
 
   Return a JSON object with EXACTLY these fields and no others:
   {
-    "ats_score": <integer 0-100, higher is better>,
-    "keyword_match": <number 0.0 to 1.0, fraction of important JD technical keywords present in the resume>,
-    "matched_keywords": [<JD technical keywords found in the resume>],
-    "missing_keywords": [<JD technical keywords NOT found in the resume — hard technologies only>],
+    "base_score": <integer 0-100, the resume's STANDALONE quality — structure, formatting, clarity, quantified impact, and section completeness. IGNORE the job description for this field.>,
+    "jd_keywords": [<the JD's hard technical keywords, canonical form, as defined above>],
     "format_checks": {
       "single_column": <boolean>,
       "standard_sections": <boolean>,
       "standard_fonts": <boolean>,
       "no_tables_or_graphics": <boolean>
     },
-    "summary": <one sentence explaining the score and the single biggest gap>,
-    "suggestions": [<3-5 concrete changes to raise the ATS score>]
+    "summary": <one sentence explaining the resume's overall ATS-readiness and the single biggest formatting or content gap>,
+    "suggestions": [<3-5 concrete changes to make the resume more ATS- and recruiter-friendly>]
   }
 
   === JOB DESCRIPTION ===
