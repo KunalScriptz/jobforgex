@@ -90,7 +90,7 @@ def _keyword_present(keyword: str, plain_text: str) -> bool:
 def _extract_section(latex: str, name: str) -> str | None:
     """Return the body of the first \\section{...<name>...} block, up to the next section or \\end{document}."""
     m = re.search(
-        r"\\section\{[^}]*" + re.escape(name) + r"[^}]*\}(.*?)(?=\\section\{|\\end\{document\}|\Z)",
+        r"\\section\*?\{[^}]*" + re.escape(name) + r"[^}]*\}(.*?)(?=\\section\*?\{|\\end\{document\}|\Z)",
         latex,
         re.DOTALL,
     )
@@ -100,8 +100,8 @@ def _extract_section(latex: str, name: str) -> str | None:
 def _replace_section(latex: str, name: str, new_body: str) -> str:
     """Replace the body of the first \\section{...<name>...} block with new_body."""
     pattern = (
-        r"(\\section\{[^}]*" + re.escape(name) + r"[^}]*\})"
-        r"(.*?)(?=\\section\{|\\end\{document\}|\Z)"
+        r"(\\section\*?\{[^}]*" + re.escape(name) + r"[^}]*\})"
+        r"(.*?)(?=\\section\*?\{|\\end\{document\}|\Z)"
     )
     return re.sub(pattern, lambda m: m.group(1) + new_body, latex, count=1, flags=re.DOTALL)
 

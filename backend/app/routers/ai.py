@@ -1,5 +1,6 @@
 import uuid
 import json
+import re
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update as sa_update
@@ -176,15 +177,26 @@ async def ai_generate(
                     profile_block=profile_block,
                 )
                 await _log_ai_call(db, str(ws.id), user["user_id"], data.job_id, rewritten, data.purpose)
-                new_content = ai_service._replace_section(
-                    result["content"], "Experience", rewritten["content"]
-                )
-                if "\\end{document}" in new_content and "\\resumeItem" in new_content:
-                    result["content"] = new_content
-                    result["total_cost"] = result["total_cost"] + rewritten["total_cost"]
-                    result["input_tokens"] = result["input_tokens"] + rewritten["input_tokens"]
-                    result["output_tokens"] = result["output_tokens"] + rewritten["output_tokens"]
-                    result["total_tokens"] = result["total_tokens"] + rewritten["total_tokens"]
+                # Only splice a well-formed Experience list body. Guard against a stray
+                # \section{...} header or a malformed/empty response so we never corrupt
+                # the tailored document or silently drop the rewrite.
+                rewritten_body = rewritten["content"].strip()
+                rewritten_body = re.sub(r"^\s*\\section\{[^}]*\}\s*", "", rewritten_body)
+                if (
+                    "\\resumeSubHeadingListStart" in rewritten_body
+                    and "\\resumeSubHeadingListEnd" in rewritten_body
+                    and "\\resumeItem" in rewritten_body
+                    and "\\end{document}" not in rewritten_body
+                ):
+                    new_content = ai_service._replace_section(
+                        result["content"], "Experience", rewritten_body
+                    )
+                    if "\\end{document}" in new_content and "\\resumeItem" in new_content:
+                        result["content"] = new_content
+                        result["total_cost"] = result["total_cost"] + rewritten["total_cost"]
+                        result["input_tokens"] = result["input_tokens"] + rewritten["input_tokens"]
+                        result["output_tokens"] = result["output_tokens"] + rewritten["output_tokens"]
+                        result["total_tokens"] = result["total_tokens"] + rewritten["total_tokens"]
             except Exception:
                 # Best-effort: keep the whole-document output on any error.
                 pass
