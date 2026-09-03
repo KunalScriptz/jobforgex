@@ -22,7 +22,7 @@ FORMATTING_RULES = (
     '(e.g. "state-of-the-art", "co-founder", "e-commerce").'
 )
 
-LATEX_OUTPUT_PROMPTS = {"tailor_resume", "generate_cover_letter", "pdf_to_latex"}
+LATEX_OUTPUT_PROMPTS = {"tailor_resume", "generate_cover_letter", "pdf_to_latex", "rewrite_experience"}
 
 
 PROMPTS_PATHS = [
@@ -61,13 +61,49 @@ def _latex_to_plain_text(source: str) -> str:
 
 
 def _keyword_present(keyword: str, plain_text: str) -> bool:
-    """Case-insensitive keyword match with alphanumeric boundaries so 'Go' does not match 'Google'."""
+    """Case-insensitive keyword match with alphanumeric boundaries so 'Go' does not match 'Google'.
+
+    Tries several normalized forms of the keyword (raw, lowercased, suffix/version-stripped) so that
+    "React.js" also matches text containing "React" or "React 18".
+    """
     if not keyword or not keyword.strip():
         return False
-    pattern = re.compile(
-        rf"(?<![A-Za-z0-9]){re.escape(keyword.strip())}(?![A-Za-z0-9])", re.IGNORECASE
+
+    variants: set[str] = set()
+    for raw in (keyword, keyword.lower()):
+        raw = raw.strip()
+        variants.add(raw)
+        no_suffix = re.sub(r"\.(js|ts|jsx|tsx)$", "", raw)            # react.js -> react
+        variants.add(no_suffix)
+        no_version = re.sub(r"\s*\d+(?:\.\d+)?[a-z]*$", "", no_suffix)  # react 18 -> react
+        variants.add(no_version)
+
+    for v in variants:
+        v = v.strip()
+        if not v:
+            continue
+        if re.search(rf"(?<![A-Za-z0-9]){re.escape(v)}(?![A-Za-z0-9])", plain_text, re.IGNORECASE):
+            return True
+    return False
+
+
+def _extract_section(latex: str, name: str) -> str | None:
+    """Return the body of the first \\section{...<name>...} block, up to the next section or \\end{document}."""
+    m = re.search(
+        r"\\section\{[^}]*" + re.escape(name) + r"[^}]*\}(.*?)(?=\\section\{|\\end\{document\}|\Z)",
+        latex,
+        re.DOTALL,
     )
-    return pattern.search(plain_text) is not None
+    return m.group(1) if m else None
+
+
+def _replace_section(latex: str, name: str, new_body: str) -> str:
+    """Replace the body of the first \\section{...<name>...} block with new_body."""
+    pattern = (
+        r"(\\section\{[^}]*" + re.escape(name) + r"[^}]*\})"
+        r"(.*?)(?=\\section\{|\\end\{document\}|\Z)"
+    )
+    return re.sub(pattern, lambda m: m.group(1) + new_body, latex, count=1, flags=re.DOTALL)
 
 
 async def call_deepseek(
