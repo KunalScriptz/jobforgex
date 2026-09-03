@@ -237,17 +237,25 @@ async def ats_score(
     except (json.JSONDecodeError, ValueError):
         parsed = {}
 
-    ats = int(parsed.get("ats_score", 0) or 0)
+    base_score = max(0, min(100, int(parsed.get("base_score", 0) or 0)))
+    jd_keywords = [str(k).strip() for k in (parsed.get("jd_keywords", []) or []) if str(k).strip()]
+
+    plain = ai_service._latex_to_plain_text(data.latex_source)
+    matched_keywords = [k for k in jd_keywords if ai_service._keyword_present(k, plain)]
+    missing_keywords = [k for k in jd_keywords if not ai_service._keyword_present(k, plain)]
+    job_match_score = round(100 * len(matched_keywords) / len(jd_keywords)) if jd_keywords else 100
+    job_match_score = max(0, min(100, job_match_score))
+
     await db.execute(
-        sa_update(Job).where(Job.id == uuid.UUID(data.job_id)).values(resume_score=ats)
+        sa_update(Job).where(Job.id == uuid.UUID(data.job_id)).values(resume_score=job_match_score)
     )
     await db.flush()
 
     return AtsScoreResult(
-        ats_score=ats,
-        keyword_match=float(parsed.get("keyword_match", 0) or 0),
-        matched_keywords=parsed.get("matched_keywords", []) or [],
-        missing_keywords=parsed.get("missing_keywords", []) or [],
+        base_score=base_score,
+        job_match_score=job_match_score,
+        matched_keywords=matched_keywords,
+        missing_keywords=missing_keywords,
         format_checks=parsed.get("format_checks", {}) or {},
         summary=parsed.get("summary", "") or "",
         suggestions=parsed.get("suggestions", []) or [],

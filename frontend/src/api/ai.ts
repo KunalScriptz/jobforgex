@@ -16,8 +16,8 @@ export interface ResumeEditResult {
 }
 
 export interface AtsScoreResult {
-  ats_score: number;
-  keyword_match: number;
+  base_score: number;
+  job_match_score: number;
   matched_keywords: string[];
   missing_keywords: string[];
   format_checks: Record<string, boolean>;

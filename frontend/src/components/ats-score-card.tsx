@@ -1,37 +1,49 @@
-import { Loader2, Target, CheckCircle2, AlertTriangle } from "lucide-react";
+import { Loader2, Target, FileText, CheckCircle2, AlertTriangle } from "lucide-react";
 import type { AtsScoreResult } from "@/api/ai";
+
+function scoreColor(s: number, good: number, warn: number) {
+  return s >= good ? "text-emerald-500" : s >= warn ? "text-amber-500" : "text-red-500";
+}
 
 export function AtsScoreCard({ result, loading }: { result: AtsScoreResult | null; loading: boolean }) {
   if (loading) {
     return (
       <div className="flex items-center gap-2 rounded-xl border bg-card p-4 text-sm text-muted-foreground">
-        <Loader2 className="h-4 w-4 animate-spin" /> Scoring ATS compatibility…
+        <Loader2 className="h-4 w-4 animate-spin" /> Scoring resume…
       </div>
     );
   }
   if (!result) return null;
 
-  const s = Math.max(0, Math.min(100, result.ats_score));
-  const ring = s >= 75 ? "text-emerald-500" : s >= 50 ? "text-amber-500" : "text-red-500";
+  const base = Math.max(0, Math.min(100, result.base_score));
+  const match = Math.max(0, Math.min(100, result.job_match_score));
 
   return (
     <div className="rounded-xl border bg-card p-4">
-      <div className="flex items-start justify-between gap-3">
-        <div>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="rounded-lg border bg-muted/30 p-3">
           <div className="flex items-center gap-2 text-sm font-semibold">
-            <Target className="h-4 w-4 text-muted-foreground" /> ATS Score
+            <FileText className="h-4 w-4 text-muted-foreground" /> Resume Score
           </div>
-          <div className="text-xs text-muted-foreground">
-            Keyword match {(result.keyword_match * 100).toFixed(0)}%
+          <div className={`mt-1 text-3xl font-bold ${scoreColor(base, 75, 50)}`}>
+            {base}
+            <span className="text-base text-muted-foreground">/100</span>
           </div>
+          <div className="mt-1 text-[11px] text-muted-foreground">Base resume quality</div>
         </div>
-        <div className={`text-4xl font-bold ${ring}`}>
-          {s}
-          <span className="text-lg text-muted-foreground">/100</span>
+        <div className="rounded-lg border bg-muted/30 p-3">
+          <div className="flex items-center gap-2 text-sm font-semibold">
+            <Target className="h-4 w-4 text-muted-foreground" /> Job Match
+          </div>
+          <div className={`mt-1 text-3xl font-bold ${scoreColor(match, 90, 70)}`}>
+            {match}
+            <span className="text-base text-muted-foreground">/100</span>
+          </div>
+          <div className="mt-1 text-[11px] text-muted-foreground">Keyword coverage vs JD</div>
         </div>
       </div>
 
-      {result.summary && <p className="mt-2 text-xs text-muted-foreground">{result.summary}</p>}
+      {result.summary && <p className="mt-3 text-xs text-muted-foreground">{result.summary}</p>}
 
       <div className="mt-3 grid gap-3 text-xs md:grid-cols-2">
         <div>

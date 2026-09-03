@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import yaml
 import httpx
 import hashlib
@@ -47,6 +48,26 @@ def render_prompt(template: str, vars: dict) -> str:
     for key, value in vars.items():
         result = result.replace(f"{{{{{key}}}}}", str(value))
     return result
+
+
+def _latex_to_plain_text(source: str) -> str:
+    """Strip LaTeX commands/comments down to a plain, lowercase text corpus for keyword matching."""
+    text = re.sub(r"(?<!\\)%.*", " ", source)  # comments (unescaped % to end of line)
+    text = re.sub(r"\\begin\{[^}]*\}|\\end\{[^}]*\}", " ", text)  # environments
+    text = re.sub(r"\\[a-zA-Z@]+\*?", " ", text)  # command names (e.g. \section, \textbf, \item)
+    text = text.replace("{", " ").replace("}", " ").replace("\\", " ")
+    text = re.sub(r"\s+", " ", text)
+    return text.strip().lower()
+
+
+def _keyword_present(keyword: str, plain_text: str) -> bool:
+    """Case-insensitive keyword match with alphanumeric boundaries so 'Go' does not match 'Google'."""
+    if not keyword or not keyword.strip():
+        return False
+    pattern = re.compile(
+        rf"(?<![A-Za-z0-9]){re.escape(keyword.strip())}(?![A-Za-z0-9])", re.IGNORECASE
+    )
+    return pattern.search(plain_text) is not None
 
 
 async def call_deepseek(

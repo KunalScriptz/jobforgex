@@ -40,7 +40,7 @@ async function _tailorResume(args: { jd: string; company: string; title: string;
     prompt_name: "tailor_resume",
     vars: { jd: args.jd, resume_latex: args.resumeLatex, company: args.company, title: args.title, location_line: args.locationLine },
     job_id: args.job_id,
-    purpose: "tailor",
+    purpose: "resume_tailoring",
   });
   return {
     latex: result.content,
