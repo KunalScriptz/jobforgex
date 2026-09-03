@@ -90,11 +90,15 @@ def render_latex_from_content(content: dict, primary_color: str, secondary_color
     primary = primary_color or DEFAULT_PRIMARY
     secondary = secondary_color or DEFAULT_SECONDARY
 
-    # Build preamble: lines between \documentclass and \begin{document}, with interpolated colors.
+    # Build preamble + document open: lines from \documentclass through \begin{document},
+    # with interpolated colors. The body below supplies \end{document}.
     if template:
         start = template.find("\\documentclass")
         end = template.find("\\begin{document}")
-        preamble = template[start:end] if start != -1 and end != -1 else ""
+        if start != -1 and end != -1:
+            preamble = template[start : end + len("\\begin{document}")]
+        else:
+            preamble = ""
         preamble = preamble.replace("0.0, 0.65, 0.60", primary).replace("0.0, 0.0, 0.55", secondary)
     else:
         preamble = make_fallback_preamble(primary, secondary)
@@ -141,6 +145,7 @@ def make_fallback_preamble(primary: str, secondary: str) -> str:
         "\\newcommand{\\resumeSubHeadingListEnd}{\\end{itemize}}\n"
         "\\newcommand{\\resumeItemListStart}{\\begin{itemize}}\n"
         "\\newcommand{\\resumeItemListEnd}{\\end{itemize}\\vspace{-5pt}}\n"
+        "\\begin{document}\n"
     )
 
 

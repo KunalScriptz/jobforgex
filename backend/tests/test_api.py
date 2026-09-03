@@ -106,6 +106,11 @@ def test_builder_latex_roundtrip():
     latex = render_latex_from_content(content, "0.0,0.65,0.60", "0.0,0.0,0.55")
     assert "\\resumeSubheading" in latex
 
+    # The emitter must open the document before any body content, or pdflatex fails
+    # with "Missing \\begin{document}". Regression guard for that crash.
+    assert "\\begin{document}" in latex
+    assert latex.index("\\begin{document}") < latex.index("\\begin{center}") < latex.rindex("\\end{document}")
+
     parsed, ok = latex_to_content(latex)
     assert ok is True
     assert parsed["contact"]["name"] == "John & Doe"
