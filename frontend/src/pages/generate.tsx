@@ -4,39 +4,43 @@ import { toast } from "sonner";
 
 import { jobsApi } from "@/api/jobs";
 import { resumesApi } from "@/api/resumes";
-import { aiApi } from "@/api/ai";
+import { aiApi, type AtsScoreResult } from "@/api/ai";
 import apiClient from "@/api/client";
 import { PaywallDialog, isPaywallError, extractPaywallInfo, type PaywallInfo } from "@/components/paywall-dialog";
+import { AtsScoreCard } from "@/components/ats-score-card";
 
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
 import { Wand2, Download, FileText, Sparkles } from "lucide-react";
 import { LatexPreview } from "@/components/latex-preview";
 import { TailoringLoader } from "@/components/tailoring-loader";
 import { PageTitle } from "@/components/page-title";
+import TemplatePicker from "@/components/template-picker";
+import { useResumes, useBaseResume } from "@/hooks/use-resumes";
 import { extractResumeName, tailoredDocFilename } from "@/lib/filenames";
 
 // ---- wrapper functions that match original server fn shapes ----
 
-async function _scoreResume(args: { jd: string; job_id: string }) {
+async function _scoreResume(args: { jd: string; job_id: string; resume_latex: string }) {
   const result = await aiApi.generate({
     prompt_name: "resume_scorer",
-    vars: { job_description: args.jd },
+    vars: { jd: args.jd, resume_latex: args.resume_latex },
     job_id: args.job_id,
-    purpose: "score",
+    purpose: "resume_scoring",
   });
   return { report: JSON.parse(result.content), cost: result.total_cost };
 }
 
-async function _tailorResume(args: { jd: string; company: string; title: string; job_id: string; resumeName: string }) {
+async function _tailorResume(args: { jd: string; company: string; title: string; job_id: string; resumeName: string; resumeLatex: string; locationLine: string }) {
   const result = await aiApi.generate({
     prompt_name: "tailor_resume",
-    vars: { job_description: args.jd, company: args.company, job_title: args.title },
+    vars: { jd: args.jd, resume_latex: args.resumeLatex, company: args.company, title: args.title, location_line: args.locationLine },
     job_id: args.job_id,
-    purpose: "tailor",
+    purpose: "resume_tailoring",
   });
   return {
     latex: result.content,
@@ -45,10 +49,10 @@ async function _tailorResume(args: { jd: string; company: string; title: string;
   };
 }
 
-async function _generateCoverLetter(args: { jd: string; company: string; title: string; job_id: string; resumeName: string }) {
+async function _generateCoverLetter(args: { jd: string; company: string; title: string; job_id: string; resumeName: string; resumeLatex: string; locationLine: string }) {
   const result = await aiApi.generate({
     prompt_name: "generate_cover_letter",
-    vars: { job_description: args.jd, company: args.company, job_title: args.title },
+    vars: { jd: args.jd, resume_latex: args.resumeLatex, company: args.company, title: args.title, location_line: args.locationLine },
     job_id: args.job_id,
     purpose: "cover_letter",
   });
@@ -73,12 +77,15 @@ export default function GeneratePage() {
 
   const { data: allJobs = [] } = useQuery({ queryKey: ["jobs", "all"], queryFn: () => jobsApi.listJobs() });
 
-  const { data: baseResume } = useQuery({
-    queryKey: ["baseResume"],
-    queryFn: () => resumesApi.getBaseResume(),
-  });
-  const resumeName = baseResume?.latex_source
-    ? extractResumeName(baseResume.latex_source) || baseResume.name || "resume"
+  const { data: baseResume } = useBaseResume();
+  const { data: templates = [] } = useResumes();
+  const [selectedTemplateId, setSelectedTemplateId] = useState("");
+  const template = templates.find((t) => t.id === selectedTemplateId)
+    ?? templates.find((t) => t.is_default)
+    ?? templates[0]
+    ?? baseResume;
+  const resumeName = template?.latex_source
+    ? extractResumeName(template.latex_source) || template.name || "resume"
     : "resume";
 
   const [selectedJobId, setSelectedJobId] = useState<string>("");
@@ -93,11 +100,13 @@ export default function GeneratePage() {
   const [tailored, setTailored] = useState<{ latex: string; filename: string } | null>(null);
   const [cover, setCover] = useState<{ latex: string; filename: string } | null>(null);
   const [totalCost, setTotalCost] = useState(0);
+  const [ats, setAts] = useState<AtsScoreResult | null>(null);
+  const [atsPending, setAtsPending] = useState(false);
 
   const scoreMut = useMutation({
     mutationFn: async () => {
       if (!selectedJob?.description || selectedJob.description.length < 30) throw new Error("Selected job has no description to score against.");
-      return _scoreResume({ jd: selectedJob.description, job_id: selectedJob.id });
+      return _scoreResume({ jd: selectedJob.description, job_id: selectedJob.id, resume_latex: template?.latex_source || "" });
     },
     onSuccess: (r: any) => { setReport(r.report); setTotalCost((c) => c + Number(r.cost)); qc.invalidateQueries({ queryKey: ["billing"] }); },
     onError: (e: any) => toast.error(e.message),
@@ -112,14 +121,17 @@ export default function GeneratePage() {
       let localCost = 0;
       let t: any = null, c: any = null;
       const compileJobs: Promise<any>[] = [];
+      const locationLine = selectedJob.location
+        ? `The job is located in ${selectedJob.location}.\n`
+        : "";
       if (doTailor) {
-        t = await _tailorResume({ jd, company: selectedJob.company, title: selectedJob.title, job_id: selectedJob.id, resumeName });
+        t = await _tailorResume({ jd, company: selectedJob.company, title: selectedJob.title, job_id: selectedJob.id, resumeName, resumeLatex: template?.latex_source || "", locationLine });
         const savedT = await _saveArtifact({ job_id: selectedJob.id, kind: "tailored_resume", filename: t.filename, latex_source: t.latex });
         compileJobs.push(_compileArtifactPdf({ artifact_id: savedT.id }).catch(() => null));
         localCost += Number(t.cost);
       }
       if (doCover) {
-        c = await _generateCoverLetter({ jd, company: selectedJob.company, title: selectedJob.title, job_id: selectedJob.id, resumeName });
+        c = await _generateCoverLetter({ jd, company: selectedJob.company, title: selectedJob.title, job_id: selectedJob.id, resumeName, resumeLatex: template?.latex_source || "", locationLine });
         const savedC = await _saveArtifact({ job_id: selectedJob.id, kind: "cover_letter", filename: c.filename, latex_source: c.latex });
         compileJobs.push(_compileArtifactPdf({ artifact_id: savedC.id }).catch(() => null));
         localCost += Number(c.cost);
@@ -134,6 +146,13 @@ export default function GeneratePage() {
       qc.invalidateQueries({ queryKey: ["jobs"] });
       qc.invalidateQueries({ queryKey: ["billing"] });
       toast.success("Generated and saved to job");
+      if (t && selectedJob) {
+        setAtsPending(true);
+        aiApi.atsScore({ job_id: selectedJob.id, latex_source: t.latex })
+          .then((r) => setAts(r))
+          .catch(() => {})
+          .finally(() => setAtsPending(false));
+      }
     },
     onError: (e: any) => {
       if (isPaywallError(e)) { setPaywallInfo(extractPaywallInfo(e)); setPaywallOpen(true); return; }
@@ -172,6 +191,14 @@ export default function GeneratePage() {
                 ))}
               </SelectContent>
             </Select>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Resume template</Label>
+              <TemplatePicker
+                value={selectedTemplateId}
+                onChange={(v) => { setSelectedTemplateId(v); setReport(null); setTailored(null); setCover(null); }}
+              />
+            </div>
 
             {selectedJob && (
               <div className="space-y-2">
@@ -235,6 +262,8 @@ export default function GeneratePage() {
               </CardContent>
             </Card>
           )}
+
+          <AtsScoreCard result={ats} loading={atsPending} />
 
           {tailored && !genMut.isPending && (
             <ArtifactCard title="Tailored resume" filename={tailored.filename} latex={tailored.latex} onDownload={() => download(tailored.filename, tailored.latex)} />

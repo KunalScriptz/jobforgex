@@ -1,15 +1,28 @@
 import json
 import os
+import re
 import yaml
 import httpx
 import hashlib
 import hmac
 import asyncio
+from datetime import datetime
 from pathlib import Path
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.services.storage import upload_pdf
+
+
+FORMATTING_RULES = (
+    "\n\nFORMATTING RULES:\n"
+    "- Never use em dashes (—), en dashes (–), or double/triple hyphens (--, ---) in any output text.\n"
+    "- Never use hyphens as list bullets or separators — use numbering, asterisks, or punctuation instead.\n"
+    "- Hyphens are allowed ONLY inside compound words or hyphenated terms "
+    '(e.g. "state-of-the-art", "co-founder", "e-commerce").'
+)
+
+LATEX_OUTPUT_PROMPTS = {"tailor_resume", "generate_cover_letter", "pdf_to_latex", "rewrite_experience"}
 
 
 PROMPTS_PATHS = [
@@ -37,11 +50,68 @@ def render_prompt(template: str, vars: dict) -> str:
     return result
 
 
+def _latex_to_plain_text(source: str) -> str:
+    """Strip LaTeX commands/comments down to a plain, lowercase text corpus for keyword matching."""
+    text = re.sub(r"(?<!\\)%.*", " ", source)  # comments (unescaped % to end of line)
+    text = re.sub(r"\\begin\{[^}]*\}|\\end\{[^}]*\}", " ", text)  # environments
+    text = re.sub(r"\\[a-zA-Z@]+\*?", " ", text)  # command names (e.g. \section, \textbf, \item)
+    text = text.replace("{", " ").replace("}", " ").replace("\\", " ")
+    text = re.sub(r"\s+", " ", text)
+    return text.strip().lower()
+
+
+def _keyword_present(keyword: str, plain_text: str) -> bool:
+    """Case-insensitive keyword match with alphanumeric boundaries so 'Go' does not match 'Google'.
+
+    Tries several normalized forms of the keyword (raw, lowercased, suffix/version-stripped) so that
+    "React.js" also matches text containing "React" or "React 18".
+    """
+    if not keyword or not keyword.strip():
+        return False
+
+    variants: set[str] = set()
+    for raw in (keyword, keyword.lower()):
+        raw = raw.strip()
+        variants.add(raw)
+        no_suffix = re.sub(r"\.(js|ts|jsx|tsx)$", "", raw)            # react.js -> react
+        variants.add(no_suffix)
+        no_version = re.sub(r"\s*\d+(?:\.\d+)?[a-z]*$", "", no_suffix)  # react 18 -> react
+        variants.add(no_version)
+
+    for v in variants:
+        v = v.strip()
+        if not v:
+            continue
+        if re.search(rf"(?<![A-Za-z0-9]){re.escape(v)}(?![A-Za-z0-9])", plain_text, re.IGNORECASE):
+            return True
+    return False
+
+
+def _extract_section(latex: str, name: str) -> str | None:
+    """Return the body of the first \\section{...<name>...} block, up to the next section or \\end{document}."""
+    m = re.search(
+        r"\\section\*?\{[^}]*" + re.escape(name) + r"[^}]*\}(.*?)(?=\\section\*?\{|\\end\{document\}|\Z)",
+        latex,
+        re.DOTALL,
+    )
+    return m.group(1) if m else None
+
+
+def _replace_section(latex: str, name: str, new_body: str) -> str:
+    """Replace the body of the first \\section{...<name>...} block with new_body."""
+    pattern = (
+        r"(\\section\*?\{[^}]*" + re.escape(name) + r"[^}]*\})"
+        r"(.*?)(?=\\section\*?\{|\\end\{document\}|\Z)"
+    )
+    return re.sub(pattern, lambda m: m.group(1) + new_body, latex, count=1, flags=re.DOTALL)
+
+
 async def call_deepseek(
     prompt_name: str,
     vars: dict[str, str | float | int],
     purpose: str = "custom",
     override_temperature: float | None = None,
+    profile_block: str | None = None,
 ) -> dict:
     api_key = settings.DEEPSEEK_API_KEY.strip()
     if not api_key:
@@ -51,13 +121,25 @@ async def call_deepseek(
     base_url = settings.DEEPSEEK_BASE_URL.rstrip("/")
     model = settings.DEEPSEEK_MODEL
 
+    system = prompt["system"]
+    # Append the (per-user stable) profile block to the system prompt so DeepSeek's
+    # automatic context caching reuses this prefix across requests. Keep it out of the
+    # variable user_template — anything variable before the profile would break the cache.
+    if profile_block:
+        system += profile_block
+    if prompt_name not in LATEX_OUTPUT_PROMPTS:
+        system += FORMATTING_RULES
+
+    render_vars = dict(vars)
+    render_vars.setdefault("today_date", f"{datetime.now():%B %-d, %Y}")
+
     body = {
         "model": model,
         "temperature": override_temperature if override_temperature is not None else prompt.get("temperature", 0.3),
         "max_tokens": 8192,
         "messages": [
-            {"role": "system", "content": prompt["system"]},
-            {"role": "user", "content": render_prompt(prompt["user_template"], vars)},
+            {"role": "system", "content": system},
+            {"role": "user", "content": render_prompt(prompt["user_template"], render_vars)},
         ],
     }
 
@@ -77,8 +159,11 @@ async def call_deepseek(
                 if res.status_code == 200:
                     data = res.json()
                     content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
-                    in_tok = data.get("usage", {}).get("prompt_tokens", 0)
-                    out_tok = data.get("usage", {}).get("completion_tokens", 0)
+                    usage = data.get("usage", {})
+                    in_tok = usage.get("prompt_tokens", 0)
+                    cache_hit = usage.get("prompt_cache_hit_tokens", 0)
+                    cache_miss = usage.get("prompt_cache_miss_tokens", max(in_tok - cache_hit, 0))
+                    out_tok = usage.get("completion_tokens", 0)
                     break
 
                 text = res.text[:500]
@@ -99,13 +184,15 @@ async def call_deepseek(
     if last_error and not 'data' in locals():
         raise last_error
 
-    in_cost = (in_tok / 1_000_000) * settings.DEEPSEEK_INPUT_PRICE_PER_1M
+    in_cost = (cache_miss / 1_000_000) * settings.DEEPSEEK_INPUT_PRICE_PER_1M
+    in_cost += (cache_hit / 1_000_000) * settings.DEEPSEEK_CACHE_HIT_PRICE_PER_1M
     out_cost = (out_tok / 1_000_000) * settings.DEEPSEEK_OUTPUT_PRICE_PER_1M
     total_cost = in_cost + out_cost
 
     return {
         "content": content,
         "input_tokens": in_tok,
+        "cache_hit_tokens": cache_hit,
         "output_tokens": out_tok,
         "total_cost": total_cost,
         "model_name": settings.DEEPSEEK_MODEL,
@@ -139,6 +226,22 @@ async def compile_latex(source: str) -> tuple[bool, bytes | str]:
         return False, f"Compile request failed: {str(e)}"
 
 
+def count_pdf_pages(pdf_bytes: bytes) -> int:
+    """Count pages in a pdflatex-generated PDF with no extra dependency.
+
+    Counts the `/Type /Page` page objects while excluding the `/Type /Pages` page-tree
+    node (the `\\b` boundary after "Page" does not match "Pages").
+    """
+    import re
+
+    pages = re.findall(rb"/Type\s*/Page\b", pdf_bytes)
+    if pages:
+        return len(pages)
+    # Fallback for producers that flatten the object dict: read /Count from the catalog.
+    m = re.search(rb"/Count\s+(\d+)", pdf_bytes)
+    return int(m.group(1)) if m else 1
+
+
 async def log_ai_cost(
     db: AsyncSession,
     workspace_id: str,
@@ -163,7 +266,6 @@ async def log_ai_cost(
         "jd_parsing": AIPurpose.JD_PARSING,
         "ats_check": AIPurpose.ATS_CHECK,
         "custom": AIPurpose.CUSTOM,
-        "builder_seed": AIPurpose.CUSTOM,
         "builder_job_match": AIPurpose.CUSTOM,
         "builder_score": AIPurpose.CUSTOM,
         "builder_suggestions": AIPurpose.CUSTOM,

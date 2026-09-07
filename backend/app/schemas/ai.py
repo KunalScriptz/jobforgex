@@ -21,6 +21,34 @@ class DeepSeekResult(BaseModel):
     output_tokens: int
     total_cost: float
     model_name: str
+    cache_hit_tokens: int = 0
+
+
+class ResumeEditRequest(BaseModel):
+    latex_source: str
+    question: str
+    job_id: Optional[str] = None
+
+
+class ResumeEditResult(BaseModel):
+    answer: str
+    updated_latex: Optional[str] = None
+    page_count: int = 0
+
+
+class AtsScoreRequest(BaseModel):
+    job_id: str
+    latex_source: str
+
+
+class AtsScoreResult(BaseModel):
+    base_score: int = 0
+    job_match_score: int = 0
+    matched_keywords: list[str] = []
+    missing_keywords: list[str] = []
+    format_checks: dict = {}
+    summary: str = ""
+    suggestions: list[str] = []
 
 
 class BuilderSeedRequest(BaseModel):

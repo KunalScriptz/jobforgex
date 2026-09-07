@@ -101,8 +101,8 @@ async def verify_email(data: VerifyEmailRequest, db: AsyncSession = Depends(get_
 
 
 @router.get("/me")
-async def me(user: dict = Depends(auth_service.decode_access_token)):
-    return {"user_id": user.get("sub"), "email": user.get("email"), "role": user.get("role")}
+async def me(user: dict = Depends(get_current_user)):
+    return {"user_id": user.get("user_id"), "email": user.get("email"), "role": user.get("role")}
 
 
 @router.get("/google/login")
@@ -114,8 +114,6 @@ async def google_login():
         "redirect_uri": settings.GOOGLE_REDIRECT_URI,
         "response_type": "code",
         "scope": "openid email profile",
-        "access_type": "offline",
-        "prompt": "consent",
     }
     auth_url = f"https://accounts.google.com/o/oauth2/v2/auth?{urlencode(params)}"
     return RedirectResponse(url=auth_url)

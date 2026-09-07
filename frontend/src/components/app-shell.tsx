@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { ListTodo, Wand2, FileText, ClipboardCheck, CreditCard, Settings, Sparkles, LogOut, ShieldCheck } from "lucide-react";
+import { ListTodo, Wand2, FileText, ClipboardCheck, CreditCard, Settings, Sparkles, LogOut, ShieldCheck, Map } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import logoImg from "@/assets/logo.png";
@@ -10,16 +10,18 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/context/auth-context";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { billingApi } from "@/api/billing";
+import { useTour } from "@/components/tour";
 
 const PLAN_LABELS: Record<string, string> = { free: "Free", pro: "Pro", unlimited: "Unlimited" };
 
 const NAV = [
-  { to: "/jobs", label: "Jobs", icon: ListTodo },
-  { to: "/generate", label: "Generate", icon: Wand2 },
-  { to: "/resumes", label: "Resume", icon: FileText },
-  { to: "/checker", label: "Checker", icon: ClipboardCheck },
-  { to: "/billing", label: "Billing", icon: CreditCard },
-  { to: "/settings", label: "Settings", icon: Settings },
+  { to: "/jobs", label: "Jobs", icon: ListTodo, tour: "nav-jobs" },
+  { to: "/generate", label: "Generate", icon: Wand2, tour: "nav-generate" },
+  { to: "/resumes", label: "Resume", icon: FileText, tour: "nav-resumes" },
+  { to: "/checker", label: "Checker", icon: ClipboardCheck, tour: "nav-checker" },
+  { to: "/billing", label: "Billing", icon: CreditCard, tour: "nav-billing" },
+  { to: "/settings", label: "Settings", icon: Settings, tour: "nav-settings" },
+  { to: "/whats-new", label: "What's New", icon: Sparkles, tour: "nav-whats-new" },
 ] as const;
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -29,7 +31,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { logout, user } = useAuth();
   const { data: ws } = useWorkspace();
   const { data: billing } = useQuery({ queryKey: ["billing"], queryFn: () => billingApi.getStatus() });
-  const nav = user?.role === "admin" ? [...NAV, { to: "/admin", label: "Admin", icon: ShieldCheck }] : NAV;
+  const nav = user?.role === "admin" ? [...NAV, { to: "/admin", label: "Admin", icon: ShieldCheck, tour: "nav-admin" }] : NAV;
+  const tour = useTour();
 
   async function signOut() {
     await qc.cancelQueries();
@@ -43,17 +46,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <div className="flex min-h-screen bg-muted/20">
       <aside className="sticky top-0 flex h-screen w-56 shrink-0 flex-col border-r bg-card">
         <Link
-          to="/jobs"
+          to="/"
           className="flex h-14 items-center gap-2 border-b px-4 font-semibold transition-colors hover:bg-muted/50"
         >
           <img src={logoImg} alt="JobForge" className="h-5 w-5" />
           JobForge
         </Link>
         <nav className="flex-1 space-y-1 overflow-y-auto p-2">
-          {nav.map(({ to, label, icon: Icon }) => {
+          {nav.map(({ to, label, icon: Icon, tour: tourId }) => {
             const active = location.pathname.startsWith(to);
             return (
-              <Link key={to} to={to} className={cn(
+              <Link key={to} to={to} data-tour={tourId} className={cn(
                 "flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors",
                 active ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:bg-muted hover:text-foreground",
               )}>
@@ -74,6 +77,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
           <div className="mt-2 flex flex-col gap-1.5">
             <ThemeToggle />
+            <button onClick={tour.start} className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground">
+              <Map className="h-3.5 w-3.5" /> Tour
+            </button>
             <button onClick={signOut} className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground">
               <LogOut className="h-3.5 w-3.5" /> Sign out
             </button>

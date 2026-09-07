@@ -68,6 +68,85 @@ async def save_base_resume(
     return resume
 
 
+@router.post("/", response_model=ResumeOut, status_code=201)
+async def create_template(
+    data: ResumeCreate,
+    user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    ws_id = await get_workspace_id(user, db)
+    resume = await resumes_service.create_template(
+        db, ws_id, latex_source=data.latex_source, name=data.name,
+        primary_color=data.primary_color, secondary_color=data.secondary_color,
+    )
+    await db.refresh(resume)
+    return resume
+
+
+@router.get("/{resume_id}", response_model=ResumeOut)
+async def get_resume(
+    resume_id: uuid.UUID,
+    user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    ws_id = await get_workspace_id(user, db)
+    resume = await resumes_service.get_resume(db, ws_id, resume_id)
+    if not resume:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume template not found")
+    return resume
+
+
+@router.patch("/{resume_id}", response_model=ResumeOut)
+async def update_template(
+    resume_id: uuid.UUID,
+    data: ResumeUpdate,
+    user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    ws_id = await get_workspace_id(user, db)
+    resume = await resumes_service.update_template(
+        db, ws_id, resume_id,
+        name=data.name,
+        latex_source=data.latex_source,
+        page_count=data.page_count,
+        primary_color=data.primary_color,
+        secondary_color=data.secondary_color,
+    )
+    if not resume:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume template not found")
+    await db.refresh(resume)
+    return resume
+
+
+@router.delete("/{resume_id}")
+async def delete_template(
+    resume_id: uuid.UUID,
+    user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    ws_id = await get_workspace_id(user, db)
+    result = await resumes_service.delete_template(db, ws_id, resume_id)
+    if result == "not_found":
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume template not found")
+    if result == "last_template":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot delete the last template")
+    return {"ok": True}
+
+
+@router.put("/{resume_id}/default", response_model=ResumeOut)
+async def set_default_template(
+    resume_id: uuid.UUID,
+    user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    ws_id = await get_workspace_id(user, db)
+    resume = await resumes_service.set_default_template(db, ws_id, resume_id)
+    if not resume:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume template not found")
+    await db.refresh(resume)
+    return resume
+
+
 @router.put("/{resume_id}/colors")
 async def update_colors(
     resume_id: uuid.UUID,
@@ -160,5 +239,6 @@ async def latex_compile(data: LatexCompileRequest):
     import base64
     ok, result = await ai_service.compile_latex(source)
     if ok:
-        return {"ok": True, "pdf_base64": base64.b64encode(result).decode()}
+        page_count = ai_service.count_pdf_pages(result)
+        return {"ok": True, "pdf_base64": base64.b64encode(result).decode(), "page_count": page_count}
     return {"ok": False, "error": str(result)}

@@ -6,6 +6,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>JobForge</title>
     <meta name="description" content="Track applications on a Kanban board, tailor LaTeX resumes & cover letters per JD using AI." />
+    <script>
+      (function(){try{
+        var stored = null;
+        try { stored = localStorage.getItem('jobforge-theme'); } catch(e) {}
+        var prefersDark = false;
+        try { prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches; } catch(e) {}
+        var theme = stored === 'dark' || stored === 'light' ? stored : (prefersDark ? 'dark' : 'light');
+        var root = document.documentElement;
+        root.classList.toggle('dark', theme === 'dark');
+        root.style.colorScheme = theme;
+      }catch(e){}})();
+    </script>
   </head>
   <body class="min-h-screen bg-background font-sans antialiased">
     <div id="root"></div>

@@ -12,6 +12,10 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./database/migrations/001_init.sql:/docker-entrypoint-initdb.d/001_init.sql:ro
+      - ./database/migrations/002_company_domain.sql:/docker-entrypoint-initdb.d/002_company_domain.sql:ro
+      - ./database/migrations/003_resume_templates.sql:/docker-entrypoint-initdb.d/003_resume_templates.sql:ro
+      - ./database/migrations/004_fix_defaults.sql:/docker-entrypoint-initdb.d/004_fix_defaults.sql:ro
+      - ./database/migrations/005_user_profile.sql:/docker-entrypoint-initdb.d/005_user_profile.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-jobforgex} -d ${DB_NAME:-jobforgex}"]
       interval: 5s
@@ -123,8 +127,9 @@ services:
       MINIO_SECURE: ${MINIO_SECURE:-false}
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY}
       DEEPSEEK_BASE_URL: ${DEEPSEEK_BASE_URL:-https://api.deepseek.com/v1}
-      DEEPSEEK_MODEL: ${DEEPSEEK_MODEL:-deepseek-chat}
+      DEEPSEEK_MODEL: ${DEEPSEEK_MODEL:-deepseek-v4-flash}
       DEEPSEEK_INPUT_PRICE_PER_1M: ${DEEPSEEK_INPUT_PRICE_PER_1M:-0.14}
+      DEEPSEEK_CACHE_HIT_PRICE_PER_1M: ${DEEPSEEK_CACHE_HIT_PRICE_PER_1M:-0.0028}
       DEEPSEEK_OUTPUT_PRICE_PER_1M: ${DEEPSEEK_OUTPUT_PRICE_PER_1M:-0.28}
       DEEPSEEK_KEY_ENC_SECRET: ${DEEPSEEK_KEY_ENC_SECRET}
       LATEX_COMPILE_URL: ${LATEX_COMPILE_URL:-http://latex-server:5959}

@@ -1,0 +1,29 @@
+system: |
+  You are an ATS (Applicant Tracking System) resume analyzer. You return ONLY a single valid JSON object — no prose, no markdown, no code fences, no commentary.
+user_template: |
+  Analyze the resume for ATS compatibility. You will supply two things: the resume's standalone quality, and the list of hard technical keywords the job description requires (the actual keyword matching is computed separately, deterministically).
+
+  KEYWORD DEFINITION (strict): "jd_keywords" must contain ONLY hard technical terms — programming languages, frameworks, libraries, tools, platforms, and specific domain technologies (e.g. Go, Kubeflow, React.js, Kubernetes, PyTorch). Do NOT list generic English words or verbs such as "integration", "monitoring", "automation", "search", "prototyping", "experimentation", or "data processing" — those are not ATS keywords and must be ignored.
+  - Use BARE CANONICAL NAMES with NO version numbers and NO ".js"/".ts"/".jsx"/".tsx" suffixes — so "React.js"/"ReactJS"/"React 18" all become "React", "Node.js" becomes "Node", "Kubernetes" (not "K8s"). Prefer "Golang" over "Go" (which would match "Google"/"MongoDB"), "C++" over "C", "Objective-C" over "C". Mirror the JD's exact phrasing otherwise.
+
+  Return a JSON object with EXACTLY these fields and no others:
+  {
+    "base_score": <integer 0-100, the resume's STANDALONE quality — structure, formatting, clarity, quantified impact, and section completeness. IGNORE the job description for this field.>,
+    "jd_keywords": [<the JD's hard technical keywords, canonical form, as defined above>],
+    "format_checks": {
+      "single_column": <boolean>,
+      "standard_sections": <boolean>,
+      "standard_fonts": <boolean>,
+      "no_tables_or_graphics": <boolean>
+    },
+    "summary": <one sentence explaining the resume's overall ATS-readiness and the single biggest formatting or content gap>,
+    "suggestions": [<3-5 concrete changes to make the resume more ATS- and recruiter-friendly>]
+  }
+
+  === JOB DESCRIPTION ===
+  {{jd}}
+
+  === TAILORED RESUME (LaTeX) ===
+  {{resume_latex}}
+temperature: 0.0
+response_format: json_object

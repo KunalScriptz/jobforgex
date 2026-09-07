@@ -43,14 +43,19 @@ import {
 import { Trash2, MessageSquare, Send } from "lucide-react";
 import { Eye } from "lucide-react";
 import { CompanyLogo } from "@/components/company-logo";
+import { resolveCompanyDomain } from "@/lib/company";
 
 import apiClient from "@/api/client";
 import { jobsApi, type JobDetail } from "@/api/jobs";
-import { aiApi } from "@/api/ai";
+import { aiApi, type AtsScoreResult } from "@/api/ai";
 import { resumesApi } from "@/api/resumes";
 import { billingApi } from "@/api/billing";
 import { AI_TOOLS_META } from "@/lib/ai-tools";
 import { extractResumeName, tailoredDocFilename } from "@/lib/filenames";
+import TemplatePicker from "@/components/template-picker";
+import { Label } from "@/components/ui/label";
+import { useResumes } from "@/hooks/use-resumes";
+import { AtsScoreCard } from "@/components/ats-score-card";
 
 type Status = "wishlist" | "applied" | "interview" | "offer" | "rejected";
 const STATUSES: Status[] = ["wishlist","applied","interview","offer","rejected"];
@@ -96,7 +101,7 @@ export function JobDetailDialog({ jobId, open, onOpenChange }: {
         <div className="relative border-b bg-gradient-to-br from-primary/10 via-transparent to-transparent px-6 py-5">
           <div className="flex items-start justify-between gap-4">
             <div className="flex min-w-0 flex-1 items-start gap-3">
-              {job?.company && <CompanyLogo company={job.company} size={44} />}
+              {job?.company && <CompanyLogo company={job.company} domain={job.company_domain} url={job.url} size={44} />}
               <div className="min-w-0 flex-1">
                 <div className="mb-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
                   {job?.company ?? "—"}
@@ -483,6 +488,14 @@ function DocumentsTab({ artifacts, jobId, job }: { artifacts: any[]; jobId: stri
   const [doCover, setDoCover] = useState(false);
   const [paywallOpen, setPaywallOpen] = useState(false);
   const [paywallInfo, setPaywallInfo] = useState<PaywallInfo | null>(null);
+  const [ats, setAts] = useState<AtsScoreResult | null>(null);
+  const [atsPending, setAtsPending] = useState(false);
+
+  const { data: templates = [] } = useResumes();
+  const [selectedTemplateId, setSelectedTemplateId] = useState("");
+  const template = templates.find((t) => t.id === selectedTemplateId)
+    ?? templates.find((t) => t.is_default)
+    ?? templates[0];
 
   const gen = useMutation({
     mutationFn: async () => {
@@ -492,13 +505,17 @@ function DocumentsTab({ artifacts, jobId, job }: { artifacts: any[]; jobId: stri
       let t: any = null, c: any = null;
       const compileJobs: Promise<any>[] = [];
       const baseResume = await resumesApi.getBaseResume();
-      const resumeLatex = baseResume?.latex_source ?? "";
-      const resumeName = resumeLatex ? (extractResumeName(resumeLatex) || baseResume?.name || "resume") : "resume";
+      const locationLine = job.location
+        ? `The job is located in ${job.location}.\n`
+        : "";
+      const chosen = template ?? baseResume;
+      const resumeLatex = chosen?.latex_source ?? "";
+      const resumeName = resumeLatex ? (extractResumeName(resumeLatex) || chosen?.name || "resume") : "resume";
 
       if (doTailor) {
         t = await aiApi.generate({
           prompt_name: "tailor_resume",
-          vars: { jd, resume_latex: resumeLatex, page_count: baseResume?.page_count ?? 1, company: job.company, title: job.title },
+          vars: { jd, resume_latex: resumeLatex, company: job.company, title: job.title, location_line: locationLine },
           job_id: job.id,
           purpose: "resume_tailoring",
         });
@@ -524,7 +541,7 @@ function DocumentsTab({ artifacts, jobId, job }: { artifacts: any[]; jobId: stri
       if (doCover) {
         c = await aiApi.generate({
           prompt_name: "generate_cover_letter",
-          vars: { jd, resume_latex: resumeLatex, company: job.company, title: job.title },
+          vars: { jd, resume_latex: resumeLatex, company: job.company, title: job.title, location_line: locationLine },
           job_id: job.id,
           purpose: "cover_letter",
         });
@@ -539,13 +556,20 @@ function DocumentsTab({ artifacts, jobId, job }: { artifacts: any[]; jobId: stri
         localCost += Number(c.total_cost);
       }
       await Promise.all(compileJobs);
-      return { localCost };
+      return { localCost, tailoredLatex: t?.content ?? null };
     },
-    onSuccess: () => {
+    onSuccess: ({ tailoredLatex }: { tailoredLatex: string | null }) => {
       qc.invalidateQueries({ queryKey: ["jobs", jobId] });
       qc.invalidateQueries({ queryKey: ["jobs"] });
       qc.invalidateQueries({ queryKey: ["billing"] });
       toast.success("Documents generated");
+      if (tailoredLatex) {
+        setAtsPending(true);
+        aiApi.atsScore({ job_id: jobId, latex_source: tailoredLatex })
+          .then((r) => setAts(r))
+          .catch(() => {})
+          .finally(() => setAtsPending(false));
+      }
     },
     onError: (e: any) => {
       if (isPaywallError(e)) { setPaywallInfo(extractPaywallInfo(e)); setPaywallOpen(true); return; }
@@ -600,6 +624,12 @@ function DocumentsTab({ artifacts, jobId, job }: { artifacts: any[]; jobId: stri
             <label className="flex items-center gap-2 text-sm">
               <Checkbox checked={doCover} onCheckedChange={(v) => setDoCover(!!v)} /> Cover letter
             </label>
+            <div className="flex items-center gap-2">
+              <Label className="text-xs text-muted-foreground">Template</Label>
+              <div className="w-56">
+                <TemplatePicker value={selectedTemplateId} onChange={setSelectedTemplateId} />
+              </div>
+            </div>
             <Button size="sm" onClick={() => gen.mutate()} disabled={gen.isPending || (!doTailor && !doCover)}>
               {gen.isPending ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Wand2 className="mr-1 h-3.5 w-3.5" />}
               {gen.isPending ? "Generating…" : "Generate"}
@@ -633,6 +663,8 @@ function DocumentsTab({ artifacts, jobId, job }: { artifacts: any[]; jobId: stri
           </div>
         </div>
       )}
+
+      <AtsScoreCard result={ats} loading={atsPending} />
 
       {!artifacts.length && <Empty text="No documents yet. Generate a tailored resume or cover letter for this job." />}
 
@@ -682,27 +714,17 @@ function DocumentCard({ art, jobId }: { art: any; jobId: string }) {
 
   const chat = useMutation({
     mutationFn: async (question: string) => {
-      const res = await aiApi.generate({
-        prompt_name: "resume_chat",
-        vars: { jd: art.latex_source ?? "", question },
-        job_id: jobId,
-        purpose: "custom",
-      });
-      let answer = res.content;
-      let updatedLatex: string | null = null;
-      try {
-        const parsed = JSON.parse(res.content);
-        if (parsed.answer) answer = parsed.answer;
-        if (parsed.updated && typeof parsed.updated === "string" && parsed.updated.length > 100) {
-          updatedLatex = parsed.updated;
-        }
-      } catch {}
-      return { answer, updatedLatex };
+      const res = await aiApi.editResume({ latex_source: art.latex_source ?? "", question, job_id: jobId });
+      return { answer: res.answer, updatedLatex: res.updated_latex, pageCount: res.page_count };
     },
     onSuccess: async (r) => {
       setChatLog((l) => [...l, { role: "assistant", text: r.answer, updated: !!r.updatedLatex }]);
       if (r.updatedLatex) {
-        toast.success("Resume updated — recompiling PDF…");
+        toast.success(
+          r.pageCount > 0
+            ? `Resume updated (${r.pageCount} ${r.pageCount === 1 ? "page" : "pages"}) — recompiling…`
+            : "Resume updated — recompiling PDF…",
+        );
         try {
           await apiClient.patch(`/api/v1/jobs/artifacts/${art.id}`, { latex_source: r.updatedLatex });
           await resumesApi.compileArtifact(art.id);
@@ -939,79 +961,43 @@ function DocumentCard({ art, jobId }: { art: any; jobId: string }) {
 }
 
 function CompanyTab({ job }: { job: any }) {
-  const [info, setInfo] = useState<{ extract?: string; url?: string; loading: boolean; error?: string }>({ loading: false });
+  const [info, setInfo] = useState<{ description?: string | null; url?: string | null; source?: string | null; loading: boolean }>({ loading: false });
 
   useEffect(() => {
-    if (!job?.company) return;
+    if (!job?.id) return;
     let cancelled = false;
     setInfo({ loading: true });
-
-    const company = job.company.trim();
-    const cleaned = company.replace(/\b(inc|llc|ltd|corp|corporation|co|company|gmbh|plc|the)\b\.?/gi, "").trim();
-
-    async function fetchSummary(title: string) {
-      const res = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}?redirect=true`);
-      if (!res.ok) throw new Error(String(res.status));
-      const j: any = await res.json();
-      if (j.type === "disambiguation" || !(j.extract || j.description)) throw new Error("disambig");
-      return j;
-    }
-
-    async function lookup() {
-      // 1. Try the exact name, then a cleaned version
-      const candidates = Array.from(new Set([company, cleaned].filter(Boolean)));
-      for (const c of candidates) {
-        try { return await fetchSummary(c); } catch (_) { /* try next */ }
-      }
-      // 2. Fall back to Wikipedia search for the best matching page
-      const searchRes = await fetch(
-        `https://en.wikipedia.org/w/api.php?action=query&list=search&format=json&origin=*&srlimit=3&srsearch=${encodeURIComponent(cleaned || company)}`,
-      );
-      if (!searchRes.ok) throw new Error("search-failed");
-      const searchJson: any = await searchRes.json();
-      const hits: any[] = searchJson?.query?.search ?? [];
-      for (const hit of hits) {
-        try { return await fetchSummary(hit.title); } catch (_) { /* try next */ }
-      }
-      throw new Error("not-found");
-    }
-
-    lookup()
-      .then((j: any) => {
+    jobsApi
+      .getCompanyInfo(job.id)
+      .then((r) => {
         if (cancelled) return;
-        setInfo({
-          loading: false,
-          extract: j.extract || j.description || "",
-          url: j.content_urls?.desktop?.page,
-        });
+        setInfo({ loading: false, description: r.description, url: r.url, source: r.source });
       })
-      .catch(() => !cancelled && setInfo({ loading: false, error: "No public background found on Wikipedia. Try visiting the company website." }));
+      .catch(() => !cancelled && setInfo({ loading: false }));
     return () => { cancelled = true; };
-  }, [job?.company]);
+  }, [job?.id]);
 
   if (!job) return null;
-  const domain = job.company.toLowerCase().replace(/\b(inc|llc|ltd|corp|corporation|co|company|gmbh|plc)\b\.?/g, "").replace(/[^a-z0-9]/g, "") + ".com";
+  const domain = resolveCompanyDomain({ domain: job.company_domain, url: job.url, company: job.company });
   const website = `https://${domain}`;
 
   return (
     <div className="grid gap-4 md:grid-cols-3">
       <div className="space-y-4 md:col-span-2">
         <div className="flex items-start gap-3 rounded-xl border bg-card p-4">
-          <CompanyLogo company={job.company} size={48} />
+          <CompanyLogo company={job.company} domain={job.company_domain} url={job.url} size={48} />
           <div className="min-w-0 flex-1">
             <div className="text-xl font-bold">{job.company}</div>
             {info.loading && <div className="mt-2 text-sm text-muted-foreground">Loading background…</div>}
-            {info.extract && <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{info.extract}</p>}
-            {!info.loading && !info.extract && (
-              <p className="mt-2 text-sm text-muted-foreground">
-                {info.error ?? "No public background found."}
-              </p>
+            {info.description && <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{info.description}</p>}
+            {!info.loading && !info.description && (
+              <p className="mt-2 text-sm text-muted-foreground">No public background found. Try visiting the company website.</p>
             )}
             <div className="mt-3 flex flex-wrap gap-2">
               <a href={website} target="_blank" rel="noreferrer">
                 <Button size="sm">Visit website</Button>
               </a>
-              {info.url && (
+              {info.source === "wikipedia" && info.url && (
                 <a href={info.url} target="_blank" rel="noreferrer">
                   <Button size="sm" variant="outline">Read on Wikipedia</Button>
                 </a>

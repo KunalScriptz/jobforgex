@@ -8,6 +8,7 @@ export interface Job {
   workspace_id: string;
   board_id: string;
   company: string;
+  company_domain: string | null;
   title: string;
   description: string;
   url: string | null;
@@ -45,8 +46,18 @@ export const jobsApi = {
   listJobs: (params?: { board_id?: string; search?: string; status?: string }) =>
     apiClient.get<Job[]>("/api/v1/jobs/", { params }).then((r) => r.data),
 
+  exportJobs: () =>
+    apiClient.get<Blob>("/api/v1/jobs/export", { responseType: "blob" }).then((r) => r.data),
+
   getJob: (id: string) =>
     apiClient.get<JobDetail>(`/api/v1/jobs/${id}`).then((r) => r.data),
+
+  getCompanyInfo: (id: string) =>
+    apiClient
+      .get<{ company: string; domain: string; website: string; description: string | null; url: string | null; source: string | null }>(
+        `/api/v1/jobs/${id}/company-info`,
+      )
+      .then((r) => r.data),
 
   createJob: (data: Partial<Job> & { board_id: string; company: string; title: string }) =>
     apiClient.post<Job>("/api/v1/jobs/", data).then((r) => r.data),

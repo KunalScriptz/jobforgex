@@ -1,0 +1,3 @@
+ALTER TABLE resumes ADD COLUMN IF NOT EXISTS is_default BOOLEAN NOT NULL DEFAULT FALSE;
+UPDATE resumes SET is_default = TRUE
+WHERE id = (SELECT id FROM resumes WHERE is_base = TRUE ORDER BY updated_at DESC LIMIT 1);

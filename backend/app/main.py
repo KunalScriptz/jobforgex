@@ -8,7 +8,7 @@ from app.config import settings
 from app.middleware.setup import SecurityHeadersMiddleware, RequestLoggingMiddleware
 from app.middleware.logging import setup_logging
 from app.middleware.cors import WildcardCORSMiddleware
-from app.routers import auth, workspace, jobs, resumes, ai, billing, extension, webhooks, files, health, admin
+from app.routers import auth, workspace, jobs, resumes, ai, billing, extension, webhooks, files, health, admin, users
 
 setup_logging()
 logger = structlog.get_logger()
@@ -43,6 +43,7 @@ app.add_middleware(RequestLoggingMiddleware)
 
 app.include_router(health.router)
 app.include_router(auth.router)
+app.include_router(users.router)
 app.include_router(workspace.router)
 app.include_router(jobs.router)
 app.include_router(resumes.router)
@@ -57,9 +58,9 @@ app.include_router(admin.router)
 @app.get("/extension-version.json")
 async def extension_version():
     return {
-        "version": "1.3.3",
-        "download": "/api/v1/extension/download",
-        "changelog": "Job scraping improvements and performance fixes.",
+        "version": "1.3.5",
+        "download": "https://chromewebstore.google.com/detail/jobforge-autofill/kigpedieokcmgmhhapiminllfkgkmkfo",
+        "changelog": "Install from the Chrome Web Store.",
     }
 
 

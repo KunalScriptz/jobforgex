@@ -17,6 +17,7 @@ class Resume(Base):
     primary_color: Mapped[str] = mapped_column(String, default="#00008c")
     secondary_color: Mapped[str] = mapped_column(String, default="#00a698")
     is_base: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_default: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 

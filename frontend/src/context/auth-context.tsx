@@ -1,5 +1,41 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import React, { createContext, useContext, useState, useEffect } from "react";
 import { authApi, AuthResponse, LoginData, RegisterData } from "@/api/auth";
+
+/** Decode a base64url JWT payload, returning null on any parse failure. */
+function decodeJwtPayload(token: string): Record<string, unknown> | null {
+  try {
+    const part = token.split(".")[1];
+    if (!part) return null;
+    // base64url → base64 (char replacement + padding)
+    const base64 = part.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, "=");
+    // Handle UTF-8 in the payload
+    const json = decodeURIComponent(
+      atob(padded)
+        .split("")
+        .map((c) => "%" + c.charCodeAt(0).toString(16).padStart(2, "0"))
+        .join("")
+    );
+    return JSON.parse(json);
+  } catch {
+    return null;
+  }
+}
+
+/** Build the AuthUser shape from a decoded access token, or null if unusable. */
+function userFromToken(token: string): AuthUser | null {
+  const payload = decodeJwtPayload(token);
+  if (!payload || !payload.sub) return null;
+  return {
+    id: payload.sub as string,
+    email: (payload.email as string) ?? "",
+    full_name: null,
+    email_verified: true,
+    role: (payload.role as string) || "user",
+    workspace_id: (payload.workspace_id as string) || null,
+    workspace_name: null,
+  };
+}
 
 interface AuthUser {
   id: string;
@@ -23,57 +59,64 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Single-flight boot refresh — React StrictMode double-mounts effects in dev,
+// and two parallel refreshes with the same token would 401 on rotation.
+let bootRefreshPromise: Promise<{ access_token: string; refresh_token: string }> | null = null;
+
+function refreshSession(refreshToken: string) {
+  if (!bootRefreshPromise) {
+    bootRefreshPromise = authApi.refresh(refreshToken).finally(() => {
+      bootRefreshPromise = null;
+    });
+  }
+  return bootRefreshPromise;
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const restoreSession = useCallback(async () => {
-    const accessToken = localStorage.getItem("access_token");
-    const refreshToken = localStorage.getItem("refresh_token");
+  useEffect(() => {
+    let cancelled = false;
 
-    if (!accessToken && !refreshToken) {
+    const token = localStorage.getItem("access_token");
+    const payload = token ? decodeJwtPayload(token) : null;
+    const tokenValid =
+      payload && payload.sub && (!payload.exp || (payload.exp as number) * 1000 > Date.now());
+
+    if (token && tokenValid) {
+      setUser(userFromToken(token));
       setIsLoading(false);
       return;
     }
 
-    try {
-      if (refreshToken) {
-        const data = await authApi.refresh(refreshToken);
-        localStorage.setItem("access_token", data.access_token);
-        localStorage.setItem("refresh_token", data.refresh_token);
-      }
-
-      const { data } = await authApi.login({ email: "", password: "" }).catch(() => {
-        throw new Error("Invalid session");
-      });
-    } catch {
-      localStorage.removeItem("access_token");
-      localStorage.removeItem("refresh_token");
-      setUser(null);
-    } finally {
+    // Token missing or expired — try to refresh the session before giving up.
+    const refreshToken = localStorage.getItem("refresh_token");
+    if (!refreshToken) {
+      if (token) localStorage.removeItem("access_token");
       setIsLoading(false);
+      return;
     }
-  }, []);
 
-  useEffect(() => {
-    const token = localStorage.getItem("access_token");
-    if (token) {
-      try {
-        const payload = JSON.parse(atob(token.split(".")[1]));
-        setUser({
-          id: payload.sub,
-          email: payload.email,
-          full_name: null,
-          email_verified: true,
-          role: payload.role || "user",
-          workspace_id: payload.workspace_id || null,
-          workspace_name: null,
-        });
-      } catch {
-        // token invalid
-      }
-    }
-    setIsLoading(false);
+    refreshSession(refreshToken)
+      .then(({ access_token, refresh_token }) => {
+        if (cancelled) return;
+        localStorage.setItem("access_token", access_token);
+        localStorage.setItem("refresh_token", refresh_token);
+        setUser(userFromToken(access_token));
+      })
+      .catch(() => {
+        if (cancelled) return;
+        localStorage.removeItem("access_token");
+        localStorage.removeItem("refresh_token");
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const login = async (data: LoginData) => {
@@ -105,18 +148,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const refreshUser = async () => {
     const tokenPayload = localStorage.getItem("access_token");
     if (tokenPayload) {
-      try {
-        const payload = JSON.parse(atob(tokenPayload.split(".")[1]));
-        setUser({
-          id: payload.sub,
-          email: payload.email,
-          full_name: null,
-          email_verified: true,
-          role: payload.role || "user",
-          workspace_id: payload.workspace_id || null,
-          workspace_name: null,
-        });
-      } catch {}
+      const user = userFromToken(tokenPayload);
+      if (user) setUser(user);
     }
   };
 

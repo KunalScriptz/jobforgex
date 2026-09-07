@@ -1,5 +1,5 @@
 // Light / dark theme toggle. Persisted to localStorage as `jobforge-theme`.
-// The inline `themeInitScript` runs before hydration so there is no FOUC.
+// The pre-hydration script in index.html restores the stored theme to avoid FOUC.
 
 import { useEffect, useState } from "react";
 import { Moon, Sun } from "lucide-react";
@@ -9,7 +9,11 @@ type Theme = "light" | "dark";
 const STORAGE_KEY = "jobforge-theme";
 
 function getInitialTheme(): Theme {
-  if (typeof document === "undefined") return "light";
+  if (typeof window === "undefined") return "light";
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored === "dark" || stored === "light") return stored;
+  } catch (_) {}
   return document.documentElement.classList.contains("dark") ? "dark" : "light";
 }
 
@@ -61,20 +65,3 @@ export function ThemeToggle() {
     </button>
   );
 }
-
-// Runs pre-hydration to avoid a flash of the wrong theme.
-// Falls back to system preference when nothing is stored.
-export const themeInitScript = `
-(function(){try{
-  var stored = null;
-  try { stored = localStorage.getItem('jobforge-theme'); } catch(e) {}
-  var prefersDark = false;
-  try { prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches; } catch(e) {}
-  var theme = stored === 'dark' || stored === 'light' ? stored : (prefersDark ? 'dark' : 'light');
-  var root = document.documentElement;
-  root.classList.toggle('dark', theme === 'dark');
-  root.removeAttribute('data-palette');
-  root.style.colorScheme = theme;
-  try { localStorage.removeItem('jobforge-palette'); } catch(e) {}
-}catch(e){}})();
-`;

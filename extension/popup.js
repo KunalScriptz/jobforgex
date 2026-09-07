@@ -1,3 +1,5 @@
+// Note: Broad host permissions ("<all_urls>") were removed from manifest.json to satisfy
+// Chrome Web Store minimal privilege requirements. API calls rely on backend CORS headers.
 const $ = (id) => document.getElementById(id);
 
 const DEFAULT_HOST = "https://jobforgeapi.helixos.pro";

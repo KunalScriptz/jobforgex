@@ -1,8 +1,8 @@
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { resumesApi } from "@/api/resumes";
+import { useBaseResume } from "@/hooks/use-resumes";
 import { aiApi } from "@/api/ai";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,7 +21,7 @@ async function _scoreResume(args: { jd: string }) {
 }
 
 export default function CheckerPage() {
-  const { data: resume } = useQuery({ queryKey: ["resume","base"], queryFn: () => resumesApi.getBaseResume() });
+  const { data: resume } = useBaseResume();
   const [jd, setJd] = useState("");
   const [scoreReport, setScoreReport] = useState<any>(null);
   const [errText, setErrText] = useState<string>("");
