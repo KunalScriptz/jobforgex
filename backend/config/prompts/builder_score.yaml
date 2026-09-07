@@ -4,6 +4,18 @@ user_template: |
   Audit this resume. Return JSON:
 
   {
+    "section": {
+      "score": <0-100>,
+      "checks": [
+        {"label": "Contact", "ok": true},
+        {"label": "Summary", "ok": true},
+        {"label": "Skills", "ok": true},
+        {"label": "Experience", "ok": true},
+        {"label": "Education", "ok": true},
+        {"label": "Projects", "ok": true},
+        {"label": "Certifications", "ok": true}
+      ]
+    },
     "content_quality": {
       "score": <0-100>,
       "metrics":            { "status": "Great"|"Ok"|"Add", "note": <string> },

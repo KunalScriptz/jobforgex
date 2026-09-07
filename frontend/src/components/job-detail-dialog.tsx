@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import {
   Sparkles, ArrowLeft, Copy, Save, Loader2, MessagesSquare, Info, Wand2,
   FileText, Building2, StickyNote, ClipboardList, FolderOpen, Download, RefreshCw,
-  AlertTriangle, CheckCircle2, Tag, Target, GraduationCap, Users,
+  AlertTriangle, CheckCircle2, Tag, Target, GraduationCap, Users, Pencil,
 } from "lucide-react";
 import JSZip from "jszip";
 import ReactMarkdown from "react-markdown";
@@ -17,6 +17,7 @@ import { PaywallDialog, isPaywallError, extractPaywallInfo, type PaywallInfo } f
 
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
   DropdownMenu,
@@ -71,7 +72,7 @@ const ACCENT: Record<string, { chip: string; ring: string; text: string; glow: s
   rose:    { chip: "bg-rose-500/10 text-rose-500",       ring: "hover:ring-rose-500/40",     text: "text-rose-500",     glow: "from-rose-500/20" },
 };
 
-type Tab = "insights" | "ai" | "notes" | "documents" | "company";
+type Tab = "insights" | "ai" | "notes" | "documents" | "company" | "edit";
 
 export function JobDetailDialog({ jobId, open, onOpenChange }: {
   jobId: string | null; open: boolean; onOpenChange: (v: boolean) => void;
@@ -134,6 +135,7 @@ export function JobDetailDialog({ jobId, open, onOpenChange }: {
               ["notes", "Notes", StickyNote],
               ["documents", "Documents", FolderOpen],
               ["company", "Company", Building2],
+              ["edit", "Edit", Pencil],
             ] as [Tab, string, any][]).map(([id, label, Icon]) => (
               <button
                 key={id}
@@ -156,6 +158,7 @@ export function JobDetailDialog({ jobId, open, onOpenChange }: {
           {tab === "notes" && <NotesTab job={job} />}
           {tab === "documents" && <DocumentsTab artifacts={artifacts} jobId={jobId!} job={job} />}
           {tab === "company" && <CompanyTab job={job} />}
+          {tab === "edit" && <EditTab job={job} />}
           {tab === "ai" && (
             activeToolId
               ? <AiToolRunner jobId={jobId!} toolId={activeToolId} onBack={() => setActiveToolId(null)} job={job} />
@@ -480,6 +483,83 @@ function NotesTab({ job }: { job: any }) {
   );
 }
 
+function EditTab({ job }: { job: any }) {
+  const qc = useQueryClient();
+  const [form, setForm] = useState({
+    company: "", title: "", url: "", location: "", description: "", notes: "",
+    status: "wishlist" as Status,
+  });
+
+  useEffect(() => {
+    if (!job) return;
+    setForm({
+      company: job.company ?? "",
+      title: job.title ?? "",
+      url: job.url ?? "",
+      location: job.location ?? "",
+      description: job.description ?? "",
+      notes: job.notes ?? "",
+      status: job.status ?? "wishlist",
+    });
+  }, [job?.id]);
+
+  const save = useMutation({
+    mutationFn: async () => {
+      const payload: Partial<any> = { ...form };
+      if (!payload.url) delete payload.url;
+      if (!payload.location) delete payload.location;
+      if (!payload.notes) delete payload.notes;
+      return jobsApi.updateJob(job.id, payload);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["jobs", job.id] });
+      qc.invalidateQueries({ queryKey: ["jobs"] });
+      toast.success("Job updated");
+    },
+    onError: (e: any) => toast.error(String(e?.message ?? e).slice(0, 200)),
+  });
+
+  if (!job) return null;
+
+  return (
+    <div className="space-y-3">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div><Label>Company</Label><Input value={form.company} onChange={(e) => setForm({ ...form, company: e.target.value })} /></div>
+        <div><Label>Job title</Label><Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} /></div>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div><Label>Post URL</Label><Input value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} placeholder="https://…" /></div>
+        <div><Label>Location</Label><Input value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} placeholder="e.g. Remote · Bengaluru, IN" /></div>
+      </div>
+      <div>
+        <Label>Status</Label>
+        <div className="mt-1.5 flex flex-wrap gap-1.5">
+          {STATUSES.map((s) => (
+            <button
+              key={s}
+              type="button"
+              onClick={() => setForm({ ...form, status: s })}
+              className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium capitalize transition ${
+                form.status === s
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted/60 text-muted-foreground hover:bg-muted"
+              }`}
+            >{s}</button>
+          ))}
+        </div>
+      </div>
+      <div><Label>Description</Label><Textarea rows={8} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></div>
+      <div><Label>Notes</Label><Textarea rows={3} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
+      <div className="flex justify-end">
+        <Button onClick={() => save.mutate()} disabled={save.isPending}>
+          {save.isPending ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Save className="mr-1.5 h-4 w-4" />}
+          Save
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 function DocumentsTab({ artifacts, jobId, job }: { artifacts: any[]; jobId: string; job?: any }) {
   const [zipping, setZipping] = useState(false);
   const qc = useQueryClient();
@@ -614,6 +694,14 @@ function DocumentsTab({ artifacts, jobId, job }: { artifacts: any[]; jobId: stri
 
   return (
     <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="text-sm font-semibold">Tailored documents</div>
+        <Button size="sm" variant="outline" asChild>
+          <Link to={`/builder/${jobId}`}>
+            <Wand2 className="mr-1.5 h-3.5 w-3.5" /> Open in Resume Builder
+          </Link>
+        </Button>
+      </div>
       {job && job.description && job.description.length >= 30 ? (
         <div className="rounded-xl border bg-card p-4">
           <div className="mb-3 text-sm font-semibold">Generate documents</div>

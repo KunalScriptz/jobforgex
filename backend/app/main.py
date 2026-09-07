@@ -8,7 +8,7 @@ from app.config import settings
 from app.middleware.setup import SecurityHeadersMiddleware, RequestLoggingMiddleware
 from app.middleware.logging import setup_logging
 from app.middleware.cors import WildcardCORSMiddleware
-from app.routers import auth, workspace, jobs, resumes, ai, billing, extension, webhooks, files, health, admin, users
+from app.routers import auth, workspace, jobs, resumes, ai, builder, billing, extension, webhooks, files, health, admin, users
 
 setup_logging()
 logger = structlog.get_logger()
@@ -48,6 +48,7 @@ app.include_router(workspace.router)
 app.include_router(jobs.router)
 app.include_router(resumes.router)
 app.include_router(ai.router)
+app.include_router(builder.router)
 app.include_router(billing.router)
 app.include_router(extension.router)
 app.include_router(webhooks.router)
