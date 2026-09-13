@@ -2,6 +2,7 @@ import json
 import hmac
 import hashlib
 import base64
+import uuid
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -20,14 +21,18 @@ async def razorpay_webhook(request: Request, db: AsyncSession = Depends(get_db))
     signature = request.headers.get("x-razorpay-signature", "")
 
     secret = settings.RAZORPAY_WEBHOOK_SECRET
-    if secret:
-        expected = hmac.new(
-            secret.encode(),
-            body,
-            hashlib.sha256,
-        ).hexdigest()
-        if not hmac.compare_digest(signature, expected):
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid signature")
+    if not secret:
+        # Fail closed: an unset secret must never be treated as "skip verification" —
+        # that would let anyone POST a forged payload and activate/cancel subscriptions.
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Webhook secret not configured")
+
+    expected = hmac.new(
+        secret.encode(),
+        body,
+        hashlib.sha256,
+    ).hexdigest()
+    if not hmac.compare_digest(signature, expected):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid signature")
 
     try:
         payload = json.loads(body)
@@ -54,7 +59,6 @@ async def razorpay_webhook(request: Request, db: AsyncSession = Depends(get_db))
     user_id = notes.get("user_id")
 
     if user_id and rp_sub_id:
-        import uuid
         sub_result = await db.execute(
             select(Subscription).where(Subscription.razorpay_subscription_id == rp_sub_id)
         )

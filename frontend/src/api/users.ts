@@ -8,11 +8,30 @@ export interface UserProfile {
   salary_currency: string | null;
   salary_frequency: string | null;
   location: string | null;
+  avatar_preset: string | null;
+  phone: string | null;
+  linkedin_url: string | null;
+  portfolio_url: string | null;
+  current_title: string | null;
+  current_company: string | null;
   profile_complete: boolean;
 }
 
 export type UserProfileUpdate = Partial<
-  Pick<UserProfile, "full_name" | "current_salary" | "salary_currency" | "salary_frequency" | "location">
+  Pick<
+    UserProfile,
+    | "full_name"
+    | "current_salary"
+    | "salary_currency"
+    | "salary_frequency"
+    | "location"
+    | "avatar_preset"
+    | "phone"
+    | "linkedin_url"
+    | "portfolio_url"
+    | "current_title"
+    | "current_company"
+  >
 >;
 
 export const usersApi = {

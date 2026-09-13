@@ -12,6 +12,12 @@ class UserProfileOut(BaseModel):
     salary_currency: Optional[str] = None
     salary_frequency: Optional[str] = None
     location: Optional[str] = None
+    avatar_preset: Optional[str] = None
+    phone: Optional[str] = None
+    linkedin_url: Optional[str] = None
+    portfolio_url: Optional[str] = None
+    current_title: Optional[str] = None
+    current_company: Optional[str] = None
     profile_complete: bool = False
 
     model_config = {"from_attributes": True}
@@ -23,3 +29,9 @@ class UserProfileUpdate(BaseModel):
     salary_currency: Optional[str] = None
     salary_frequency: Optional[str] = None
     location: Optional[str] = None
+    avatar_preset: Optional[str] = None
+    phone: Optional[str] = None
+    linkedin_url: Optional[str] = None
+    portfolio_url: Optional[str] = None
+    current_title: Optional[str] = None
+    current_company: Optional[str] = None

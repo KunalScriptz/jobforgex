@@ -137,6 +137,13 @@
       const m = location.pathname.match(/^\/([^\/]+)/);
       if (m) return prettify(m[1]);
     }
+    // Workable: apply.workable.com/<company-slug>/j/<id>/
+    if (host.includes("workable.com")) {
+      const wk = document.querySelector('[data-ui="company-name"], .styles--company, [class*="companyName"]');
+      if (wk && text(wk)) return text(wk);
+      const m = location.pathname.match(/^\/([^\/]+)/);
+      if (m) return prettify(m[1]);
+    }
     // LinkedIn / Indeed / generic
     const li = document.querySelector('a[href*="/company/"], a[data-tracking-control-name*="company"]');
     if (li && text(li)) return text(li).trim();
@@ -243,6 +250,12 @@
       "seek.co": [
         '[data-automation="jobAdDetails"]',
       ],
+      "workable.com": [
+        '[data-ui="job-description"]',
+        '#job-description',
+        '.job-description',
+        'section[class*="description"]',
+      ],
     };
     for (const key of Object.keys(siteSelectors)) {
       if (!host.includes(key)) continue;
@@ -258,23 +271,33 @@
       // Do NOT fall back to <main>/<body> — that dumps the whole page.
       if (host.includes("linkedin.com")) return findLinkedInAboutText();
     }
-    // Structured data
+    // Structured data (including JobPosting nested under a top-level @graph array,
+    // which the site-specific selectors above can't see and which some ATS/self-hosted
+    // career pages use instead of a flat JobPosting node).
     try {
       const scripts = document.querySelectorAll('script[type="application/ld+json"]');
       for (const s of scripts) {
         const parsed = JSON.parse(s.textContent || "null");
         const arr = Array.isArray(parsed) ? parsed : [parsed];
-        for (const node of arr) {
+        const nodes = [];
+        for (const n of arr) {
+          if (!n) continue;
+          nodes.push(n);
+          if (Array.isArray(n["@graph"])) nodes.push(...n["@graph"]);
+        }
+        for (const node of nodes) {
           if (node && node["@type"] === "JobPosting" && node.description) {
             const tmp = document.createElement("div");
             tmp.innerHTML = String(node.description);
             const t = (tmp.innerText || tmp.textContent || "").trim();
-              const cleaned = goodDescription(t);
-              if (cleaned) return cleaned;
+            const cleaned = goodDescription(t);
+            if (cleaned) return cleaned;
           }
         }
       }
     } catch (_) {}
+    const metaDescription = goodDescription(pickMeta("og:description") || pickMeta("description"));
+    if (metaDescription) return metaDescription;
     const candidates = [
       '[data-testid*="job-description"]',
       "#job_description",
@@ -426,6 +449,7 @@
       "ashbyhq.com":   ['[class*="location"]'],
       "jobstreet.":    ['[data-automation="job-detail-location"]', '[data-automation="job-location"]'],
       "seek.co":       ['[data-automation="job-detail-location"]'],
+      "workable.com":  ['[data-ui="job-location"]', '[class*="location"]'],
     };
     for (const key of Object.keys(siteSelectors)) {
       if (!host.includes(key)) continue;
@@ -579,7 +603,7 @@
       <div class="field"><label>Job description (preview)</label><textarea id="jf-desc" rows="6"></textarea></div>
       <div class="actions">
         <button id="jf-save">Save to board</button>
-        <button id="jf-autofill" class="secondary" title="Coming soon">Autofill</button>
+        <button id="jf-autofill" class="secondary" title="Fill matching fields on this page from your JobForge profile">Autofill</button>
       </div>
       <div class="status" id="jf-status"></div>
     `;
@@ -700,10 +724,109 @@
     panel.querySelector(".close").addEventListener("click", () => { panel.remove(); panel = null; });
   }
 
-  // Basic label/name-based autofill — populates common application fields
-  // from data pulled from the JobForge profile (future enhancement).
+  // ---------- Autofill ---------------------------------------------------
+  // Best-effort: matches visible text/email/tel/url/textarea fields against a
+  // keyword table built from each field's id/name/label/aria-label/placeholder,
+  // and fills whatever it recognizes from the user's JobForge profile. This is
+  // a heuristic pass across many unrelated ATS sites, not a guaranteed 100% match.
+
+  const AUTOFILL_FIELD_MATCHERS = [
+    { key: "linkedin_url", test: /linkedin/i },
+    { key: "portfolio_url", test: /portfolio|personal\s*website|website\s*url|\bgithub\b/i },
+    { key: "email", test: /e[-\s]?mail/i },
+    { key: "phone", test: /phone|mobile|contact\s*number|telephone/i },
+    { key: "current_title", test: /current\s*(job\s*)?title|job\s*title|current\s*position|current\s*role/i },
+    { key: "current_company", test: /current\s*employer|current\s*company|employer\s*name|company\s*name/i },
+    { key: "full_name", test: /\b(full\s*name|your\s*name|applicant\s*name|candidate\s*name|legal\s*name)\b|^name$/i },
+    { key: "location", test: /\b(location|city|current\s*address|based\s*in)\b/i },
+  ];
+
+  function fieldSignature(el) {
+    const parts = [];
+    if (el.id) {
+      parts.push(el.id);
+      try {
+        const lbl = document.querySelector(`label[for="${CSS.escape(el.id)}"]`);
+        if (lbl) parts.push(text(lbl));
+      } catch (_) {}
+    }
+    if (el.name) parts.push(el.name);
+    const ariaLabel = el.getAttribute("aria-label");
+    if (ariaLabel) parts.push(ariaLabel);
+    const labelledBy = el.getAttribute("aria-labelledby");
+    if (labelledBy) {
+      for (const id of labelledBy.split(/\s+/)) {
+        const n = document.getElementById(id);
+        if (n) parts.push(text(n));
+      }
+    }
+    if (el.placeholder) parts.push(el.placeholder);
+    const wrapLabel = el.closest("label");
+    if (wrapLabel) parts.push(text(wrapLabel));
+    return parts.join(" ").trim();
+  }
+
+  function matchAutofillKey(el) {
+    const sig = fieldSignature(el);
+    if (!sig) return null;
+    for (const { key, test } of AUTOFILL_FIELD_MATCHERS) {
+      if (test.test(sig)) return key;
+    }
+    return null;
+  }
+
+  function setNativeValue(el, value) {
+    // React (and most modern ATS forms) track input via the native setter, not
+    // the DOM attribute — assigning el.value directly leaves their state stale.
+    const proto = el.tagName === "TEXTAREA" ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype;
+    const setter = Object.getOwnPropertyDescriptor(proto, "value") && Object.getOwnPropertyDescriptor(proto, "value").set;
+    if (setter) setter.call(el, value); else el.value = value;
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+    el.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+
   function tryAutofill() {
-    status("Autofill coming soon — profile fields are being built.", "err");
+    status("Loading your profile…");
+    chrome.storage.local.get(["host", "token"], async (cfg) => {
+      const host = (cfg.host || HOST_FALLBACK).replace(/\/$/, "");
+      const token = cfg.token;
+      if (!token) { status("Open the extension popup and paste your token.", "err"); return; }
+
+      let profile;
+      try {
+        const res = await fetch(`${host}/api/v1/extension/profile`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.status === 401) { status("Token rejected — reconnect.", "err"); return; }
+        if (!res.ok) { status(`Couldn't load profile (${res.status}).`, "err"); return; }
+        profile = await res.json();
+      } catch (e) { status(e.message, "err"); return; }
+
+      const candidates = Array.from(
+        document.querySelectorAll(
+          'input[type="text"], input[type="email"], input[type="tel"], input[type="url"], input:not([type]), textarea'
+        )
+      ).filter((el) => el.offsetParent !== null && !el.disabled && !el.readOnly && !el.closest("#jobforge-panel"));
+
+      let filled = 0;
+      let matched = 0;
+      for (const el of candidates) {
+        const key = matchAutofillKey(el);
+        if (!key) continue;
+        const value = profile[key];
+        if (!value) continue;
+        matched++;
+        if (el.value && el.value.trim()) continue; // don't clobber what the user already typed
+        setNativeValue(el, value);
+        filled++;
+      }
+
+      if (filled === 0) {
+        status(matched > 0 ? "Matching fields already had values." : "No matching fields detected on this page.", "err");
+      } else {
+        status(`Filled ${filled} field${filled === 1 ? "" : "s"} — please double-check before submitting.`, "ok");
+      }
+    });
   }
 
   // ---------- Version check --------------------------------------------

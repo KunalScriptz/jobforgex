@@ -108,7 +108,7 @@ export default function GeneratePage() {
       return _scoreResume({ jd: selectedJob.description, job_id: selectedJob.id, resume_latex: template?.latex_source || "" });
     },
     onSuccess: (r: any) => { setReport(r.report); setTotalCost((c) => c + Number(r.cost)); qc.invalidateQueries({ queryKey: ["billing"] }); },
-    onError: (e: any) => toast.error(e.message),
+    onError: (e: any) => toast.error(String(e?.response?.data?.detail || e?.message || "Failed")),
   });
 
   const genMut = useMutation({
@@ -155,7 +155,7 @@ export default function GeneratePage() {
     },
     onError: (e: any) => {
       if (isPaywallError(e)) { setPaywallOpen(true); return; }
-      toast.error(e.message);
+      toast.error(String(e?.response?.data?.detail || e?.message || "Failed"));
     },
   });
 

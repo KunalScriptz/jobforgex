@@ -75,7 +75,7 @@ user_template: |
 
   GOAL: After reading this letter, the recruiter should want to reply. Even if the candidate isn't hired, the best outcome is a personal "thank you for applying" written by a human, not an automation.
 
-  Header note: Parse the candidate's name and contact info from the resume LaTeX. Show them as plain text in the header (no icons, no fancy formatting).
+  Header note: Use the candidate's Name from the USER PROFILE block above if it is non-empty — never invent or infer a name from an email address. Only if that Name is blank, parse a name from the resume LaTeX. Parse contact info (phone, email, location) from the resume LaTeX regardless. Show them as plain text in the header (no icons, no fancy formatting).
 
   Output the ENTIRE LaTeX document, starting with \documentclass and ending with \end{document}.
 

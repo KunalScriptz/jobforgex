@@ -6,7 +6,7 @@
 
 - **Item Name**: JobForge Autofill
 - **Item ID**: `kigpedieokcmgmhhapiminllfkgkmkfo`
-- **Current Version**: `1.3.5`
+- **Current Version**: `1.4.0`
 - **Status**: Ready for Resubmission (Fixed CWS Policy Violation)
 
 ---
@@ -16,6 +16,7 @@
 | Date | Violation ID / Ref | Issue Reported | Root Cause | Fix Applied | Resubmitted |
 |------|--------------------|----------------|------------|-------------|-------------|
 | 2026-08-17 | `Purple Potassium` | Requesting but not using permissions: `activeTab`, `scripting` | `activeTab` and `scripting` were declared in `manifest.json` but never used in background scripts or popups (content scripts are declaratively matched via `content_scripts.matches`). | Removed `"activeTab"` and `"scripting"` from `manifest.json`. Bumped version to `1.3.5`. Re-built ZIP package. | Pending |
+| 2026-09-13 | — | Feature release, not a violation. | Added Workable support, broader generic job-site scraping, and application-form autofill. | No new permissions needed — autofill runs inside the already-declaratively-injected content script. Bumped version to `1.4.0`. Re-built ZIP package. | N/A |
 
 ---
 
@@ -37,20 +38,21 @@
 JobForge Autofill allows job seekers to seamlessly save job listings directly from major job portals into their self-hosted or cloud JobForge dashboard.
 
 Key Features:
-- Direct 1-click saving from popular job portals (LinkedIn, Greenhouse, Lever, Ashby, Workday, Indeed, Glassdoor, Naukri, Monster, and more).
+- Direct 1-click saving from popular job portals (LinkedIn, Greenhouse, Lever, Ashby, Workday, Workable, Indeed, Glassdoor, Naukri, Monster, and more).
 - Automatic extraction of Job Title, Company Name, Location, Job URL, and Job Description.
+- One-click autofill of common application form fields (name, email, phone, location, LinkedIn/portfolio links, current title/company) from your JobForge profile.
 - Custom backend host and security token configuration stored locally on your device.
 
 How to Use:
 1. Log in to your JobForge dashboard and copy your API Token from Settings.
 2. Click the JobForge icon in your browser toolbar and paste your API Token & Host URL.
-3. Browse any supported job site and click the "Save to JobForge" floating button on job listings.
+3. Browse any supported job site and click the "Save to JobForge" floating button on job listings, or click "Autofill" on an application form to fill in your profile details.
 
 Privacy Note:
-JobForge Autofill only processes job posting details on user action. Your authentication credentials and job data are sent strictly to your specified JobForge backend server.
+JobForge Autofill only processes job posting details and profile data on user action (clicking "Save to board" or "Autofill"). Your authentication credentials, job data, and profile fields used for autofill are sent strictly to your specified JobForge backend server.
 
 - **Category**: Productivity
-- **Single Purpose**: Automatically extracts job posting details from job portals and saves them to the user's JobForge application tracker board.
+- **Single Purpose**: Automatically extracts job posting details from job portals, saves them to the user's JobForge application tracker board, and autofills application forms with the user's JobForge profile data.
 - **Primary Language**: English
 - **Privacy Policy URL**: `https://jobforge.helixos.pro/privacy`
 
@@ -58,12 +60,12 @@ JobForge Autofill only processes job posting details on user action. Your authen
 
 ## Resubmission Instructions for Developer Dashboard
 
-1. **Locate Build ZIP**: Use the generated ZIP archive at `extension/jobforge-extension-v1.3.5.zip`.
+1. **Locate Build ZIP**: Use the generated ZIP archive at `extension/jobforge-extension-v1.4.0.zip`.
 2. **Open Developer Dashboard**: Go to [Chrome Developer Dashboard](https://chrome.google.com/webstore/devconsole/) and select **JobForge Autofill** (`kigpedieokcmgmhhapiminllfkgkmkfo`).
 3. **Upload New Package**:
    - Go to **Package** tab.
    - Click **Upload new package**.
-   - Select `extension/jobforge-extension-v1.3.5.zip`.
+   - Select `extension/jobforge-extension-v1.4.0.zip`.
 4. **Verify Permissions**:
    - Under **Privacy Practices** -> **Permissions Justification**, confirm only `storage` is listed.
    - Enter the justification: *"Used to save and retrieve the user's API token, server URL, and location preferences locally in the browser."*

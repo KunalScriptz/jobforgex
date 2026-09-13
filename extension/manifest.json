@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "JobForge Autofill",
-  "version": "1.3.5",
-  "description": "Save jobs to your JobForge board with one click from any job posting.",
+  "version": "1.4.0",
+  "description": "Save jobs to your JobForge board and autofill applications from any job posting.",
   "permissions": [
     "storage"
   ],
@@ -35,6 +35,7 @@
         "*://*.wellfound.com/*",
         "*://*.smartrecruiters.com/*",
         "*://*.jobvite.com/*",
+        "*://*.workable.com/*",
         "*://*.naukri.com/*",
         "*://*.naukrigulf.com/*",
         "*://*.monster.com/*",
@@ -64,7 +65,9 @@
         "*://*/careers/*",
         "*://*/jobs/*",
         "*://*/*-jobs*/*",
-        "*://*/job/*"
+        "*://*/job/*",
+        "*://*/*/j/*",
+        "*://*/apply/*"
       ],
       "js": [
         "content.js"

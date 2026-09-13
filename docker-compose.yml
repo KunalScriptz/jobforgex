@@ -16,6 +16,7 @@ services:
       - ./database/migrations/003_resume_templates.sql:/docker-entrypoint-initdb.d/003_resume_templates.sql:ro
       - ./database/migrations/004_fix_defaults.sql:/docker-entrypoint-initdb.d/004_fix_defaults.sql:ro
       - ./database/migrations/005_user_profile.sql:/docker-entrypoint-initdb.d/005_user_profile.sql:ro
+      - ./database/migrations/006_profile_extras.sql:/docker-entrypoint-initdb.d/006_profile_extras.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-jobforgex} -d ${DB_NAME:-jobforgex}"]
       interval: 5s

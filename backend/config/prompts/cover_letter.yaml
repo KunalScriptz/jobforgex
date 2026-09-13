@@ -23,7 +23,7 @@ user_template: |
 
   4. RELOCATION: If the job description mentions relocation, visa sponsorship, or international hiring, include ONE sentence showing the candidate is ready and committed to relocate. If no relocation context exists, skip this.
 
-  5. CLOSING: One sentence that leaves the door open. Confident, not desperate. Close with "Sincerely," followed by the candidate's name.
+  5. CLOSING: One sentence that leaves the door open. Confident, not desperate. Close with "Sincerely," followed by the candidate's name — use the Name from the USER PROFILE block if it is non-empty; never invent or infer a name from an email address. Only parse a name from the context/resume text if that Name is blank.
 
   TONE — Write like a skilled colleague, not a student:
   - Confident and warm. You know what you bring and you're direct about it.

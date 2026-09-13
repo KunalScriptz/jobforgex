@@ -1,7 +1,7 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { ListTodo, Wand2, FileText, ClipboardCheck, CreditCard, Settings, Sparkles, LogOut, Map } from "lucide-react";
 import { toast } from "sonner";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import logoImg from "@/assets/logo.png";
 
 import { cn } from "@/lib/utils";
@@ -9,6 +9,8 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { useAuth } from "@/context/auth-context";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { useTour } from "@/components/tour";
+import { usersApi } from "@/api/users";
+import { UserAvatar } from "@/components/user-avatar";
 
 const NAV = [
   { to: "/jobs", label: "Jobs", icon: ListTodo, tour: "nav-jobs" },
@@ -26,6 +28,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const qc = useQueryClient();
   const { logout } = useAuth();
   const { data: ws } = useWorkspace();
+  const { data: profile } = useQuery({ queryKey: ["me"], queryFn: () => usersApi.getMe() });
   const tour = useTour();
 
   async function signOut() {
@@ -61,6 +64,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           })}
         </nav>
         <div className="border-t p-3 text-xs">
+          {profile && (
+            <div className="mb-2 flex items-center gap-2">
+              <UserAvatar fullName={profile.full_name} email={profile.email} avatarPreset={profile.avatar_preset} />
+              <div className="min-w-0">
+                <div className="truncate font-medium text-foreground">{profile.full_name || profile.email}</div>
+              </div>
+            </div>
+          )}
           <div className="truncate font-medium">{ws?.name ?? "Workspace"}</div>
           <div className="mt-2 flex flex-col gap-1.5">
             <ThemeToggle />

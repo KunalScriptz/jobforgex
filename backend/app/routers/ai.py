@@ -42,9 +42,12 @@ def _build_profile_block(profile) -> str | None:
     """Stable, cacheable user-profile prefix injected into the system prompt on every AI call."""
     if not profile:
         return None
+    name_line = f"Name: {profile.full_name or ''}\n"
+    if profile.full_name:
+        name_line += "Use this exact name for the candidate; never invent or infer a name from an email address or any other text.\n"
     return (
         "\n\n=== USER PROFILE (candidate memory — always apply) ===\n"
-        f"Name: {profile.full_name or ''}\n"
+        f"{name_line}"
         f"Current location: {profile.location or ''}\n"
         f"Current salary: {_format_salary(profile.current_salary, profile.salary_currency, profile.salary_frequency)}\n"
     )
@@ -102,7 +105,10 @@ async def ai_generate(
     if not allowed:
         raise HTTPException(status_code=status.HTTP_402_PAYMENT_REQUIRED, detail="Free trial limit reached")
 
-    render_vars = dict(data.vars)
+    render_vars = {
+        k: (ai_service._strip_artifact_placeholders(v) if isinstance(v, str) else v)
+        for k, v in data.vars.items()
+    }
 
     profile = await user_service.get_profile(db, uuid.UUID(user["user_id"]))
     profile_block = _build_profile_block(profile)

@@ -1,1 +1,1 @@
-{"version":"1.3.5","download":"/api/v1/extension/download","notes":"Removed unused activeTab and scripting permissions for CWS compliance."}
+{"version":"1.4.0","download":"/api/v1/extension/download","notes":"Added Workable support, broader job-site scraping, and application form autofill."}

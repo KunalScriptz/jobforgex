@@ -20,6 +20,12 @@ def _to_out(user) -> UserProfileOut:
         salary_currency=user.salary_currency,
         salary_frequency=user.salary_frequency,
         location=user.location,
+        avatar_preset=user.avatar_preset,
+        phone=user.phone,
+        linkedin_url=user.linkedin_url,
+        portfolio_url=user.portfolio_url,
+        current_title=user.current_title,
+        current_company=user.current_company,
         profile_complete=bool(user.location),
     )
 

@@ -21,9 +21,33 @@ from app.schemas.extension import (
 from app.models.extension_token import ExtensionToken
 from app.models.board import Board
 from app.models.job import Job, JobStatus
+from app.models.user import User
 from app.services import workspace as workspace_service
 
 router = APIRouter(prefix="/api/v1/extension", tags=["extension"])
+
+
+def _bearer_token(request: Request) -> str:
+    auth_header = request.headers.get("authorization", "")
+    m = __import__("re").match(r"^Bearer\s+(\S+)$", auth_header)
+    if not m:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing bearer token")
+    token = m.group(1)
+    if not token.startswith("jfx_"):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token format")
+    return token
+
+
+async def _extension_token(request: Request, db: AsyncSession) -> ExtensionToken:
+    token = _bearer_token(request)
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
+    result = await db.execute(
+        select(ExtensionToken).where(ExtensionToken.token_hash == token_hash)
+    )
+    tok = result.scalar_one_or_none()
+    if not tok:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unknown token")
+    return tok
 
 
 @router.get("/tokens", response_model=list[ExtensionTokenOut])
@@ -84,16 +108,32 @@ async def revoke_token(
     return {"ok": True}
 
 
+@router.get("/profile")
+async def get_profile_via_extension(request: Request, db: AsyncSession = Depends(get_db)):
+    """Profile fields used by the extension's autofill feature, authenticated the same
+    way as /jobs (a personal jfx_ token), not the user's JWT."""
+    tok = await _extension_token(request, db)
+
+    result = await db.execute(select(User).where(User.id == tok.user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    return {
+        "full_name": user.full_name,
+        "email": user.email,
+        "phone": user.phone,
+        "location": user.location,
+        "linkedin_url": user.linkedin_url,
+        "portfolio_url": user.portfolio_url,
+        "current_title": user.current_title,
+        "current_company": user.current_company,
+    }
+
+
 @router.post("/jobs")
 async def submit_job_via_extension(request: Request, db: AsyncSession = Depends(get_db)):
-    auth_header = request.headers.get("authorization", "")
-    m = __import__("re").match(r"^Bearer\s+(\S+)$", auth_header)
-    if not m:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing bearer token")
-
-    token = m.group(1)
-    if not token.startswith("jfx_"):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token format")
+    tok = await _extension_token(request, db)
 
     body = await request.json()
     try:
@@ -101,15 +141,6 @@ async def submit_job_via_extension(request: Request, db: AsyncSession = Depends(
         data = ExtensionJobCreate(**body)
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
-
-    import hashlib
-    token_hash = hashlib.sha256(token.encode()).hexdigest()
-    result = await db.execute(
-        select(ExtensionToken).where(ExtensionToken.token_hash == token_hash)
-    )
-    tok = result.scalar_one_or_none()
-    if not tok:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unknown token")
 
     board_result = await db.execute(
         select(Board)

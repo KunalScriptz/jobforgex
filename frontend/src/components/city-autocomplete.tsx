@@ -26,6 +26,7 @@ export function CityAutocomplete({
   const [items, setItems] = useState<string[]>([]);
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
+  const typingRef = useRef(false);
 
   useEffect(() => {
     let mounted = true;
@@ -37,7 +38,9 @@ export function CityAutocomplete({
     const q = value.trim();
     if (!search || q.length < 2) { setItems([]); setOpen(false); return; }
     setItems(search(q));
-    setOpen(true);
+    // Only pop the suggestion list open in response to the user typing — not when
+    // `value` changes because a saved profile loaded or a suggestion was just picked.
+    if (typingRef.current) setOpen(true);
   }, [value, search]);
 
   useEffect(() => {
@@ -52,8 +55,8 @@ export function CityAutocomplete({
     <div ref={wrapRef} className="relative">
       <Input
         value={value}
-        onChange={(e) => onChange(e.target.value)}
-        onFocus={() => items.length && setOpen(true)}
+        onChange={(e) => { typingRef.current = true; onChange(e.target.value); }}
+        onFocus={() => items.length && typingRef.current && setOpen(true)}
         placeholder={placeholder}
         required={required}
         autoComplete="off"
@@ -64,7 +67,7 @@ export function CityAutocomplete({
             <button
               type="button"
               key={c}
-              onClick={() => { onChange(c); setOpen(false); }}
+              onClick={() => { typingRef.current = false; onChange(c); setOpen(false); }}
               className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground"
             >
               <span className="truncate">{c}</span>

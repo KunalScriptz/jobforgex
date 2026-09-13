@@ -64,7 +64,8 @@ user_template: |
 
   C. SUMMARY — 1-2 conversational lines:
      - Write in a friendly, first-person conversational tone. Not a cover letter — be direct and factual.
-     - Must include: what role the candidate is targeting, where they are based.
+     - Must include: what role the candidate is targeting.
+     - Do NOT restate the candidate's city/country in the Summary (e.g. "based in Chennai", "Senior Engineer based in India") — the header's location line already shows it. Repeating it wastes the 1-2 lines you have.
      - Do NOT mention relocation, willingness to relocate, or any target country in the Summary — relocation preference is expressed only in the top-center header (see LOCATION RULE).
      - If the candidate has remote work experience, mention it early — "Distributed Systems Engineer with X years remote experience..." — it signals readiness post-pandemic. ATS parses for "remote-ready" signals; humans assume colocation = onboarding risk.
      - Examples of good summaries:
@@ -141,7 +142,7 @@ user_template: |
   - [ ] Company names, job titles, dates match base resume exactly
   - [ ] Length similar to base resume (no added sections or bullets)
   - [ ] Metrics (if any) are sourced from base resume, not invented
-  - [ ] Summary mentions target role title (from JD terminology) and location context
+  - [ ] Summary mentions target role title (from JD terminology); does NOT restate the candidate's city/country (already shown in the header)
   - [ ] Remote work experience mentioned in Summary if applicable
   - [ ] Experience bullets use X-Y-Z or CAR formula; all are outcome-oriented
   - [ ] No fabricated credentials, employers, projects, or metrics

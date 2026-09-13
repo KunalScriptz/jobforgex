@@ -22,6 +22,12 @@ class User(Base):
     salary_currency: Mapped[str | None] = mapped_column(String(3), nullable=True)
     salary_frequency: Mapped[str | None] = mapped_column(String(10), nullable=True)
     location: Mapped[str | None] = mapped_column(String, nullable=True)
+    avatar_preset: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    phone: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    linkedin_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    portfolio_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    current_title: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    current_company: Mapped[str | None] = mapped_column(String(255), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 

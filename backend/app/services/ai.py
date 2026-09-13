@@ -97,6 +97,27 @@ def _extract_section(latex: str, name: str) -> str | None:
     return m.group(1) if m else None
 
 
+_ARTIFACT_PLACEHOLDER_RE = re.compile(
+    r"\[Image\s*#?\d*\]|!\[[^\]]*\]\([^)]*\)|\[Attachment[^\]]*\]|\[File[^\]]*\]",
+    re.IGNORECASE,
+)
+
+
+def _strip_artifact_placeholders(text: str) -> str:
+    """Strip chat-export/markdown artifacts (e.g. "[Image #1]", "![alt](url)") that sometimes
+    ride along in pasted job descriptions or resume text and would otherwise get echoed
+    verbatim into AI output."""
+    if not text:
+        return text
+    cleaned = _ARTIFACT_PLACEHOLDER_RE.sub("", text)
+    return re.sub(r"[ \t]{2,}", " ", cleaned)
+
+
+def _is_latex_balanced(text: str) -> bool:
+    """Cheap truncation signal: a complete LaTeX document has matching brace counts."""
+    return text.count("{") == text.count("}")
+
+
 def _replace_section(latex: str, name: str, new_body: str) -> str:
     """Replace the body of the first \\section{...<name>...} block with new_body."""
     pattern = (
@@ -133,10 +154,11 @@ async def call_deepseek(
     render_vars = dict(vars)
     render_vars.setdefault("today_date", f"{datetime.now():%B %-d, %Y}")
 
+    is_latex_output = prompt_name in LATEX_OUTPUT_PROMPTS
     body = {
         "model": model,
         "temperature": override_temperature if override_temperature is not None else prompt.get("temperature", 0.3),
-        "max_tokens": 8192,
+        "max_tokens": 16384 if is_latex_output else 8192,
         "messages": [
             {"role": "system", "content": system},
             {"role": "user", "content": render_prompt(prompt["user_template"], render_vars)},
@@ -146,60 +168,80 @@ async def call_deepseek(
     if prompt.get("response_format") == "json_object":
         body["response_format"] = {"type": "json_object"}
 
-    max_retries = 3
-    last_error = None
-    for attempt in range(max_retries):
-        try:
-            async with httpx.AsyncClient(timeout=120) as client:
-                res = await client.post(
-                    f"{base_url}/chat/completions",
-                    headers={"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"},
-                    json=body,
-                )
-                if res.status_code == 200:
-                    data = res.json()
-                    content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
-                    usage = data.get("usage", {})
-                    in_tok = usage.get("prompt_tokens", 0)
-                    cache_hit = usage.get("prompt_cache_hit_tokens", 0)
-                    cache_miss = usage.get("prompt_cache_miss_tokens", max(in_tok - cache_hit, 0))
-                    out_tok = usage.get("completion_tokens", 0)
-                    break
+    async def _single_call() -> dict:
+        max_retries = 3
+        last_error = None
+        data = None
+        for attempt in range(max_retries):
+            try:
+                async with httpx.AsyncClient(timeout=120) as client:
+                    res = await client.post(
+                        f"{base_url}/chat/completions",
+                        headers={"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"},
+                        json=body,
+                    )
+                    if res.status_code == 200:
+                        data = res.json()
+                        break
 
-                text = res.text[:500]
-                if res.status_code in (429, 503) and attempt < max_retries - 1:
+                    text = res.text[:500]
+                    if res.status_code in (429, 503) and attempt < max_retries - 1:
+                        wait = (2 ** attempt) * 1.5
+                        await asyncio.sleep(wait)
+                        last_error = RuntimeError(f"AI provider busy (attempt {attempt + 1}/{max_retries}), retrying in {wait}s...")
+                        continue
+                    raise RuntimeError(f"AI provider error {res.status_code}: {text}")
+            except (httpx.TimeoutException, httpx.ConnectError, httpx.RemoteProtocolError) as e:
+                if attempt < max_retries - 1:
                     wait = (2 ** attempt) * 1.5
                     await asyncio.sleep(wait)
-                    last_error = RuntimeError(f"AI provider busy (attempt {attempt + 1}/{max_retries}), retrying in {wait}s...")
+                    last_error = RuntimeError(f"AI provider connection error (attempt {attempt + 1}/{max_retries}): {e}")
                     continue
-                raise RuntimeError(f"AI provider error {res.status_code}: {text}")
-        except (httpx.TimeoutException, httpx.ConnectError, httpx.RemoteProtocolError) as e:
-            if attempt < max_retries - 1:
-                wait = (2 ** attempt) * 1.5
-                await asyncio.sleep(wait)
-                last_error = RuntimeError(f"AI provider connection error (attempt {attempt + 1}/{max_retries}): {e}")
-                continue
-            raise
+                raise
 
-    if last_error and not 'data' in locals():
-        raise last_error
+        if data is None:
+            raise last_error or RuntimeError("AI provider request failed")
 
-    in_cost = (cache_miss / 1_000_000) * settings.DEEPSEEK_INPUT_PRICE_PER_1M
-    in_cost += (cache_hit / 1_000_000) * settings.DEEPSEEK_CACHE_HIT_PRICE_PER_1M
-    out_cost = (out_tok / 1_000_000) * settings.DEEPSEEK_OUTPUT_PRICE_PER_1M
-    total_cost = in_cost + out_cost
+        choice = data.get("choices", [{}])[0]
+        content = choice.get("message", {}).get("content", "")
+        finish_reason = choice.get("finish_reason")
+        usage = data.get("usage", {})
+        in_tok = usage.get("prompt_tokens", 0)
+        cache_hit = usage.get("prompt_cache_hit_tokens", 0)
+        cache_miss = usage.get("prompt_cache_miss_tokens", max(in_tok - cache_hit, 0))
+        out_tok = usage.get("completion_tokens", 0)
 
-    return {
-        "content": content,
-        "input_tokens": in_tok,
-        "cache_hit_tokens": cache_hit,
-        "output_tokens": out_tok,
-        "total_cost": total_cost,
-        "model_name": settings.DEEPSEEK_MODEL,
-        "total_tokens": in_tok + out_tok,
-        "input_cost": in_cost,
-        "output_cost": out_cost,
-    }
+        in_cost = (cache_miss / 1_000_000) * settings.DEEPSEEK_INPUT_PRICE_PER_1M
+        in_cost += (cache_hit / 1_000_000) * settings.DEEPSEEK_CACHE_HIT_PRICE_PER_1M
+        out_cost = (out_tok / 1_000_000) * settings.DEEPSEEK_OUTPUT_PRICE_PER_1M
+
+        return {
+            "content": content,
+            "finish_reason": finish_reason,
+            "input_tokens": in_tok,
+            "cache_hit_tokens": cache_hit,
+            "output_tokens": out_tok,
+            "total_cost": in_cost + out_cost,
+            "model_name": settings.DEEPSEEK_MODEL,
+            "total_tokens": in_tok + out_tok,
+            "input_cost": in_cost,
+            "output_cost": out_cost,
+        }
+
+    def _was_truncated(result: dict) -> bool:
+        if result["finish_reason"] == "length":
+            return True
+        return is_latex_output and not _is_latex_balanced(result["content"])
+
+    result = await _single_call()
+    if _was_truncated(result):
+        result = await _single_call()
+        if _was_truncated(result):
+            raise RuntimeError("AI generation was cut off twice — try again or shorten the base resume.")
+
+    result["content"] = _strip_artifact_placeholders(result["content"])
+    result.pop("finish_reason", None)
+    return result
 
 
 async def compile_latex(source: str) -> tuple[bool, bytes | str]:

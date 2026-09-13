@@ -76,6 +76,7 @@ export default function OnboardingPage() {
 
 function Step1({ onDone }: { onDone: (ws: any) => void }) {
   const [name, setName] = useState("");
+  const [fullName, setFullName] = useState("");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => { setName(`${new Date().getFullYear()} Job Search`); }, []);
@@ -84,7 +85,10 @@ function Step1({ onDone }: { onDone: (ws: any) => void }) {
     e.preventDefault();
     setBusy(true);
     try {
-      const ws = await workspaceApi.createWorkspace({ name, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone });
+      const [ws] = await Promise.all([
+        workspaceApi.createWorkspace({ name, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone }),
+        fullName.trim() ? usersApi.updateMe({ full_name: fullName.trim() }) : Promise.resolve(),
+      ]);
       toast.success("Workspace created");
       onDone(ws);
     } catch (err: any) { toast.error(err.message ?? "Failed"); }
@@ -102,6 +106,11 @@ function Step1({ onDone }: { onDone: (ws: any) => void }) {
           <div>
             <Label htmlFor="wname">Workspace name</Label>
             <Input id="wname" value={name} onChange={(e) => setName(e.target.value)} maxLength={100} required />
+          </div>
+          <div>
+            <Label htmlFor="uname">Your name</Label>
+            <Input id="uname" value={fullName} onChange={(e) => setFullName(e.target.value)} maxLength={150} placeholder="e.g. Revathi Shree" />
+            <p className="mt-1 text-xs text-muted-foreground">Used on generated resumes and cover letters.</p>
           </div>
           <Button type="submit" disabled={busy}>{busy ? "Creating..." : "Continue"}</Button>
         </form>

@@ -21,6 +21,7 @@ import {
 import { Trash2, Plus, Chrome, ExternalLink, Copy, AlertTriangle, Save, User } from "lucide-react";
 import { PageTitle } from "@/components/page-title";
 import { CityAutocomplete } from "@/components/city-autocomplete";
+import { AVATAR_PRESETS, presetAvatarSvg } from "@/lib/avatars";
 
 const CURRENCIES = ["INR", "USD", "AED", "EUR", "GBP", "SGD", "MYR", "AUD", "CAD", "SAR", "QAR", "OMR", "JPY", "HKD", "NZD"];
 
@@ -40,18 +41,32 @@ export default function SettingsPage() {
 function ProfileCard() {
   const qc = useQueryClient();
   const { data: profile } = useQuery({ queryKey: ["me"], queryFn: () => usersApi.getMe() });
+  const [fullName, setFullName] = useState("");
+  const [avatarPreset, setAvatarPreset] = useState<string | null>(null);
   const [salary, setSalary] = useState("");
   const [currency, setCurrency] = useState("INR");
   const [frequency, setFrequency] = useState("annual");
   const [location, setLocation] = useState("");
+  const [phone, setPhone] = useState("");
+  const [linkedinUrl, setLinkedinUrl] = useState("");
+  const [portfolioUrl, setPortfolioUrl] = useState("");
+  const [currentTitle, setCurrentTitle] = useState("");
+  const [currentCompany, setCurrentCompany] = useState("");
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     if (profile && !loaded) {
+      setFullName(profile.full_name ?? "");
+      setAvatarPreset(profile.avatar_preset ?? null);
       setSalary(profile.current_salary != null ? String(profile.current_salary) : "");
       setCurrency(profile.salary_currency ?? "INR");
       setFrequency(profile.salary_frequency ?? "annual");
       setLocation(profile.location ?? "");
+      setPhone(profile.phone ?? "");
+      setLinkedinUrl(profile.linkedin_url ?? "");
+      setPortfolioUrl(profile.portfolio_url ?? "");
+      setCurrentTitle(profile.current_title ?? "");
+      setCurrentCompany(profile.current_company ?? "");
       setLoaded(true);
     }
   }, [profile, loaded]);
@@ -61,10 +76,17 @@ function ProfileCard() {
       const amount = salary.trim() ? Number(salary) : null;
       const valid = amount !== null && Number.isFinite(amount);
       return usersApi.updateMe({
+        full_name: fullName.trim() || null,
+        avatar_preset: avatarPreset,
         current_salary: valid ? amount : null,
         salary_currency: valid ? currency : null,
         salary_frequency: valid ? frequency : null,
         location: location.trim() || null,
+        phone: phone.trim() || null,
+        linkedin_url: linkedinUrl.trim() || null,
+        portfolio_url: portfolioUrl.trim() || null,
+        current_title: currentTitle.trim() || null,
+        current_company: currentCompany.trim() || null,
       });
     },
     onSuccess: () => { toast.success("Profile saved"); qc.invalidateQueries({ queryKey: ["me"] }); },
@@ -75,9 +97,46 @@ function ProfileCard() {
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2"><User className="h-4 w-4" /> Your profile</CardTitle>
-        <CardDescription>Your location and salary help Ask AI tailor compensation and relocation answers.</CardDescription>
+        <CardDescription>Your name appears on generated resumes and cover letters. Location and salary help Ask AI tailor compensation and relocation answers.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        <div>
+          <Label htmlFor="pf-name">Full name</Label>
+          <div className="mt-1">
+            <Input
+              id="pf-name"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              placeholder="e.g. Revathi Shree"
+            />
+          </div>
+        </div>
+        <div>
+          <Label>Avatar</Label>
+          <div className="mt-1 flex flex-wrap gap-2">
+            {AVATAR_PRESETS.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => setAvatarPreset(p.id)}
+                title={p.label}
+                className={`relative h-9 w-9 overflow-hidden rounded-full ring-offset-2 ring-offset-background transition ${
+                  avatarPreset === p.id ? "ring-2 ring-primary" : "ring-1 ring-border"
+                }`}
+                dangerouslySetInnerHTML={{ __html: presetAvatarSvg(p) }}
+              />
+            ))}
+            {avatarPreset && (
+              <button
+                type="button"
+                onClick={() => setAvatarPreset(null)}
+                className="flex h-9 items-center rounded-md border px-2 text-xs text-muted-foreground hover:bg-accent"
+              >
+                Use initials instead
+              </button>
+            )}
+          </div>
+        </div>
         <div>
           <Label htmlFor="pf-loc">Current location</Label>
           <div className="mt-1">
@@ -116,6 +175,34 @@ function ProfileCard() {
           </div>
           <p className="mt-1 text-xs text-muted-foreground">Leave blank if you'd rather not share.</p>
         </div>
+
+        <div className="border-t pt-4">
+          <p className="mb-3 text-sm font-medium">Autofill details</p>
+          <p className="mb-3 text-xs text-muted-foreground">Used by the Chrome extension to autofill job application forms.</p>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <Label htmlFor="pf-phone">Phone</Label>
+              <Input id="pf-phone" className="mt-1" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="e.g. +91 98765 43210" />
+            </div>
+            <div>
+              <Label htmlFor="pf-linkedin">LinkedIn URL</Label>
+              <Input id="pf-linkedin" className="mt-1" value={linkedinUrl} onChange={(e) => setLinkedinUrl(e.target.value)} placeholder="https://linkedin.com/in/..." />
+            </div>
+            <div>
+              <Label htmlFor="pf-portfolio">Portfolio / website</Label>
+              <Input id="pf-portfolio" className="mt-1" value={portfolioUrl} onChange={(e) => setPortfolioUrl(e.target.value)} placeholder="https://..." />
+            </div>
+            <div>
+              <Label htmlFor="pf-title">Current title</Label>
+              <Input id="pf-title" className="mt-1" value={currentTitle} onChange={(e) => setCurrentTitle(e.target.value)} placeholder="e.g. Senior Software Engineer" />
+            </div>
+            <div>
+              <Label htmlFor="pf-company">Current company</Label>
+              <Input id="pf-company" className="mt-1" value={currentCompany} onChange={(e) => setCurrentCompany(e.target.value)} placeholder="e.g. Acme Corp" />
+            </div>
+          </div>
+        </div>
+
         <Button onClick={() => save.mutate()} disabled={save.isPending}>
           <Save className="mr-1.5 h-4 w-4" /> {save.isPending ? "Saving..." : "Save profile"}
         </Button>

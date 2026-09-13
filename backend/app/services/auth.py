@@ -298,6 +298,8 @@ async def google_auth_user(db: AsyncSession, code: str) -> dict:
         if user:
             user.google_id = google_id
             user.avatar_url = picture
+            if not user.full_name and name:
+                user.full_name = name
             if email_verified and not user.email_verified:
                 user.email_verified = True
                 user.verified_at = datetime.now(timezone.utc)
