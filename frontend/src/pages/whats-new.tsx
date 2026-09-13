@@ -46,6 +46,48 @@ const MONTHS: Month[] = [
     border: "border-emerald-500/40",
     entries: [
       {
+        date: "Sep 13",
+        type: "feature",
+        title: "Your name and avatar in Settings",
+        description: "Add your full name and pick a professional avatar in Settings — it now shows in the sidebar and is used as your real name on generated resumes and cover letters instead of a guess.",
+      },
+      {
+        date: "Sep 13",
+        type: "feature",
+        title: "Autofill profile fields",
+        description: "Phone, LinkedIn, portfolio, current title, and current company can now be saved in Settings for the Chrome extension's autofill feature.",
+      },
+      {
+        date: "Sep 13",
+        type: "feature",
+        title: "Chrome extension: Workable support + autofill",
+        description: "The extension now works on Workable job postings, scrapes more sites more reliably, and can autofill application forms (name, email, phone, location, links) from your JobForge profile with one click.",
+      },
+      {
+        date: "Sep 13",
+        type: "improvement",
+        title: "Cleaner professional summaries",
+        description: "Tailored resumes no longer repeat your city/country in the Professional Summary — it already appears in the header.",
+      },
+      {
+        date: "Sep 13",
+        type: "fix",
+        title: "Occasional resume compile errors",
+        description: "Fixed a rare issue where a cut-off AI response during resume tailoring could produce a broken PDF. Generation now detects and retries automatically.",
+      },
+      {
+        date: "Sep 13",
+        type: "fix",
+        title: "Settings location field behaving oddly",
+        description: "The Current Location field no longer pops its suggestion list open every time the page loads, and no longer asks you to re-pick a value you already saved.",
+      },
+      {
+        date: "Sep 13",
+        type: "fix",
+        title: "Stray text artifacts in generated documents",
+        description: "Removed occasional leftover placeholder text (e.g. from pasted job descriptions) that could show up in a generated summary or letter.",
+      },
+      {
         date: "Sep 1",
         type: "feature",
         title: "ATS score after tailoring",
