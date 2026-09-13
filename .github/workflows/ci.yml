@@ -25,6 +25,53 @@ jobs:
           git fetch origin migration/self-hosted
           git reset --hard origin/migration/self-hosted
 
+      - name: Write .env
+        run: |
+          cd $HOME/jobforgex
+          cat > .env <<'EOF'
+          DB_HOST=${{ secrets.DB_HOST }}
+          DB_PORT=${{ secrets.DB_PORT }}
+          DB_NAME=${{ secrets.DB_NAME }}
+          DB_USER=${{ secrets.DB_USER }}
+          DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+          REDIS_URL=${{ secrets.REDIS_URL }}
+          JWT_SECRET=${{ secrets.JWT_SECRET }}
+          JWT_ALGORITHM=${{ secrets.JWT_ALGORITHM }}
+          ACCESS_TOKEN_EXPIRE_MINUTES=${{ secrets.ACCESS_TOKEN_EXPIRE_MINUTES }}
+          REFRESH_TOKEN_EXPIRE_DAYS=${{ secrets.REFRESH_TOKEN_EXPIRE_DAYS }}
+          MINIO_ENDPOINT=${{ secrets.MINIO_ENDPOINT }}
+          MINIO_ACCESS_KEY=${{ secrets.MINIO_ACCESS_KEY }}
+          MINIO_SECRET_KEY=${{ secrets.MINIO_SECRET_KEY }}
+          MINIO_BUCKET=${{ secrets.MINIO_BUCKET }}
+          MINIO_SECURE=${{ secrets.MINIO_SECURE }}
+          MINIO_PUBLIC_ENDPOINT=${{ secrets.MINIO_PUBLIC_ENDPOINT }}
+          PGADMIN_EMAIL=${{ secrets.PGADMIN_EMAIL }}
+          PGADMIN_PASSWORD=${{ secrets.PGADMIN_PASSWORD }}
+          DEEPSEEK_API_KEY=${{ secrets.DEEPSEEK_API_KEY }}
+          DEEPSEEK_BASE_URL=${{ secrets.DEEPSEEK_BASE_URL }}
+          DEEPSEEK_MODEL=${{ secrets.DEEPSEEK_MODEL }}
+          DEEPSEEK_INPUT_PRICE_PER_1M=${{ secrets.DEEPSEEK_INPUT_PRICE_PER_1M }}
+          DEEPSEEK_OUTPUT_PRICE_PER_1M=${{ secrets.DEEPSEEK_OUTPUT_PRICE_PER_1M }}
+          DEEPSEEK_KEY_ENC_SECRET=${{ secrets.DEEPSEEK_KEY_ENC_SECRET }}
+          LATEX_COMPILE_URL=${{ secrets.LATEX_COMPILE_URL }}
+          LATEX_SHARED_SECRET=${{ secrets.LATEX_SHARED_SECRET }}
+          RAZORPAY_KEY_ID=${{ secrets.RAZORPAY_KEY_ID }}
+          RAZORPAY_KEY_SECRET=${{ secrets.RAZORPAY_KEY_SECRET }}
+          RAZORPAY_WEBHOOK_SECRET=${{ secrets.RAZORPAY_WEBHOOK_SECRET }}
+          SMTP_HOST=${{ secrets.SMTP_HOST }}
+          SMTP_PORT=${{ secrets.SMTP_PORT }}
+          SMTP_USER=${{ secrets.SMTP_USER }}
+          SMTP_PASS=${{ secrets.SMTP_PASS }}
+          SMTP_FROM=${{ secrets.SMTP_FROM }}
+          GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
+          GOOGLE_REDIRECT_URI=${{ secrets.GOOGLE_REDIRECT_URI }}
+          ENVIRONMENT=${{ secrets.ENVIRONMENT }}
+          LOG_LEVEL=${{ secrets.LOG_LEVEL }}
+          VITE_API_URL=${{ secrets.VITE_API_URL }}
+          CORS_ORIGINS=${{ secrets.CORS_ORIGINS }}
+          EOF
+
       - name: Deploy services
         run: |
           cd $HOME/jobforgex
