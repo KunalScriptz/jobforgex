@@ -12,13 +12,14 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Trash2, Plus, Chrome, ExternalLink, Copy, AlertTriangle, Save, User } from "lucide-react";
+import { Trash2, Plus, Chrome, ExternalLink, Copy, AlertTriangle, Save, User, Mail } from "lucide-react";
 import { PageTitle } from "@/components/page-title";
 import { CityAutocomplete } from "@/components/city-autocomplete";
 import { AVATAR_PRESETS, presetAvatarSvg } from "@/lib/avatars";
@@ -90,6 +91,22 @@ function ProfileCard() {
       });
     },
     onSuccess: () => { toast.success("Profile saved"); qc.invalidateQueries({ queryKey: ["me"] }); },
+    onError: (e: any) => toast.error(String(e?.response?.data?.detail || e?.message || "Failed").slice(0, 200)),
+  });
+
+  // The digest switch saves immediately (it is not part of "Save profile").
+  const toggleDigest = useMutation({
+    mutationFn: (enabled: boolean) => usersApi.updateMe({ digest_enabled: enabled }),
+    onSuccess: (p) => {
+      toast.success(p.digest_enabled ? "Digest emails turned on" : "Digest emails turned off");
+      qc.invalidateQueries({ queryKey: ["me"] });
+    },
+    onError: (e: any) => toast.error(String(e?.response?.data?.detail || e?.message || "Failed").slice(0, 200)),
+  });
+
+  const testDigest = useMutation({
+    mutationFn: () => usersApi.sendTestDigest(),
+    onSuccess: () => toast.success("Test digest queued. It should reach your inbox within a minute."),
     onError: (e: any) => toast.error(String(e?.response?.data?.detail || e?.message || "Failed").slice(0, 200)),
   });
 
@@ -201,6 +218,32 @@ function ProfileCard() {
               <Input id="pf-company" className="mt-1" value={currentCompany} onChange={(e) => setCurrentCompany(e.target.value)} placeholder="e.g. Acme Corp" />
             </div>
           </div>
+        </div>
+
+        <div className="border-t pt-4">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium">Daily digest email</p>
+              <p className="text-xs text-muted-foreground">
+                A summary of your job search, sent around 7 AM and 6 PM IST. Takes effect immediately.
+              </p>
+            </div>
+            <Switch
+              aria-label="Daily digest email"
+              checked={profile?.digest_enabled ?? true}
+              disabled={!profile || toggleDigest.isPending}
+              onCheckedChange={(v) => toggleDigest.mutate(v)}
+            />
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="mt-3"
+            onClick={() => testDigest.mutate()}
+            disabled={testDigest.isPending}
+          >
+            <Mail className="mr-1.5 h-4 w-4" /> {testDigest.isPending ? "Queuing..." : "Send me a test digest"}
+          </Button>
         </div>
 
         <Button onClick={() => save.mutate()} disabled={save.isPending}>

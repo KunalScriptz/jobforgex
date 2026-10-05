@@ -26,6 +26,8 @@ PUBLIC_ROUTES = {
     ("GET", "/api/v1/auth/google/login"), ("GET", "/api/v1/auth/google/callback"),
     # public pricing page
     ("GET", "/api/v1/billing/pricing"),
+    # one-click unsubscribe from the digest email: the signed token is the credential
+    ("POST", "/api/v1/users/digest/unsubscribe"),
     # Chrome extension: authenticated with its own `jfx_` token, not the user JWT
     ("GET", "/api/v1/extension/profile"), ("POST", "/api/v1/extension/jobs"),
     ("GET", "/api/v1/extension/download"),
@@ -108,9 +110,11 @@ def test_digest_beat_schedule_is_opt_in(monkeypatch):
 
         monkeypatch.setattr(settings, "DIGEST_ENABLED", True)
         importlib.reload(celery_module)
-        assert {e["task"] for e in celery_module.celery_app.conf.beat_schedule.values()} == {
-            "app.tasks.digest.send_daily_digest"
-        }
+        schedule = celery_module.celery_app.conf.beat_schedule
+        assert {e["task"] for e in schedule.values()} == {"app.tasks.digest.send_daily_digest"}
+        # 7:00 AM IST = 01:30 UTC and 6:00 PM IST = 12:30 UTC
+        times = sorted((next(iter(e["schedule"].hour)), next(iter(e["schedule"].minute))) for e in schedule.values())
+        assert times == [(1, 30), (12, 30)]
     finally:
         monkeypatch.undo()
         importlib.reload(celery_module)

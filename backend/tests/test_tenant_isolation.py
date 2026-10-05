@@ -4,17 +4,12 @@ DB-backed: needs TEST_DATABASE_URL_SYNC (see conftest.py); skipped otherwise. Ev
 through the real HTTP routes with real JWTs, so a route that forgets its auth dependency or its
 workspace filter fails here.
 """
-import os
 import uuid
 from types import SimpleNamespace
 
 import pytest
-import pytest_asyncio
-from httpx import ASGITransport, AsyncClient
 from sqlalchemy import create_engine
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.orm import Session
-from sqlalchemy.pool import NullPool
 
 pytestmark = pytest.mark.usefixtures("migrated_db")
 
@@ -71,45 +66,6 @@ def tenants(migrated_db):
     finally:
         engine.dispose()
     return a, b
-
-
-@pytest_asyncio.fixture
-async def client(migrated_db, monkeypatch):
-    from app.database import get_db
-    from app.main import app
-    from app.services import ai as ai_service
-    from app.services import storage as storage_service
-
-    # The tests never need object storage or an LLM; make any accidental call loud.
-    async def fake_pdf_bytes(path):
-        return b"%PDF-1.4 fake"
-
-    async def no_llm(*args, **kwargs):
-        raise AssertionError("call_deepseek must not be reached for a rejected request")
-
-    monkeypatch.setattr(storage_service, "get_pdf_bytes", fake_pdf_bytes)
-    monkeypatch.setattr(ai_service, "call_deepseek", no_llm)
-
-    # A pool-less engine per test: the app's global pool can't be shared across pytest's loops.
-    engine = create_async_engine(os.environ["DATABASE_URL"], poolclass=NullPool)
-    factory = async_sessionmaker(engine, expire_on_commit=False)
-
-    async def override_get_db():
-        async with factory() as session:
-            try:
-                yield session
-                await session.commit()
-            except Exception:
-                await session.rollback()
-                raise
-
-    app.dependency_overrides[get_db] = override_get_db
-    try:
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
-            yield c
-    finally:
-        app.dependency_overrides.pop(get_db, None)
-        await engine.dispose()
 
 
 # --------------------------------------------------------------------------- helpers

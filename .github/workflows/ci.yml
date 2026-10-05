@@ -1,9 +1,9 @@
 name: CI/CD
 
+# push only: this job deploys the branch head to production (`docker compose down` + `up`), so a
+# pull_request trigger would redeploy prod just for opening a PR, without even building the PR.
 on:
   push:
-    branches: [migration/self-hosted]
-  pull_request:
     branches: [migration/self-hosted]
 
 permissions:

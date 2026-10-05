@@ -46,6 +46,44 @@ def decode_access_token(token: str) -> dict:
     return jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
 
 
+# --- Digest unsubscribe links -------------------------------------------------------------
+# Signed with a key DERIVED from JWT_SECRET, never JWT_SECRET itself. An unsubscribe link sits in
+# an inbox for a year (and gets forwarded/archived), so if it shared the access-token key a leaked
+# link would also be a valid API login. A different key makes the two token kinds unusable for
+# each other: decode_access_token() rejects these, and the decoder below rejects access tokens.
+_DIGEST_UNSUB_PURPOSE = "digest_unsub"
+DIGEST_UNSUB_TTL = timedelta(days=365)
+
+
+def _digest_unsub_key() -> str:
+    return hashlib.sha256(f"digest-unsub|{settings.JWT_SECRET}".encode()).hexdigest()
+
+
+def create_digest_unsubscribe_token(user_id: str) -> str:
+    claims = {
+        "sub": str(user_id),
+        "purpose": _DIGEST_UNSUB_PURPOSE,
+        "exp": datetime.now(timezone.utc) + DIGEST_UNSUB_TTL,
+    }
+    return jwt.encode(claims, _digest_unsub_key(), algorithm="HS256")
+
+
+def decode_digest_unsubscribe_token(token: str) -> str | None:
+    """The user id the token was issued for, or None if it is invalid, expired or the wrong kind."""
+    try:
+        claims = jwt.decode(token, _digest_unsub_key(), algorithms=["HS256"])
+    except JWTError:
+        return None
+    if claims.get("purpose") != _DIGEST_UNSUB_PURPOSE:
+        return None
+    sub = str(claims.get("sub") or "")
+    try:
+        uuid.UUID(sub)
+    except ValueError:
+        return None
+    return sub
+
+
 async def register_user(db: AsyncSession, email: str, password: str, full_name: str | None = None) -> dict:
     existing = await db.execute(select(User).where(User.email == email))
     if existing.scalar_one_or_none():

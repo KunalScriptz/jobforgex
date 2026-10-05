@@ -13,6 +13,7 @@ import os
 from pathlib import Path
 
 import pytest
+import pytest_asyncio
 
 TEST_DB_SYNC = os.environ.get("TEST_DATABASE_URL_SYNC", "")
 
@@ -49,3 +50,46 @@ def migrated_db():
     cfg.set_main_option("script_location", str(BACKEND_DIR / "alembic"))
     command.upgrade(cfg, "head")
     return TEST_DB_SYNC
+
+
+@pytest_asyncio.fixture
+async def client(migrated_db, monkeypatch):
+    from httpx import ASGITransport, AsyncClient
+    from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+    from sqlalchemy.pool import NullPool
+
+    from app.database import get_db
+    from app.main import app
+    from app.services import ai as ai_service
+    from app.services import storage as storage_service
+
+    # The tests never need object storage or an LLM; make any accidental call loud.
+    async def fake_pdf_bytes(path):
+        return b"%PDF-1.4 fake"
+
+    async def no_llm(*args, **kwargs):
+        raise AssertionError("call_deepseek must not be reached for a rejected request")
+
+    monkeypatch.setattr(storage_service, "get_pdf_bytes", fake_pdf_bytes)
+    monkeypatch.setattr(ai_service, "call_deepseek", no_llm)
+
+    # A pool-less engine per test: the app's global pool can't be shared across pytest's loops.
+    engine = create_async_engine(os.environ["DATABASE_URL"], poolclass=NullPool)
+    factory = async_sessionmaker(engine, expire_on_commit=False)
+
+    async def override_get_db():
+        async with factory() as session:
+            try:
+                yield session
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                raise
+
+    app.dependency_overrides[get_db] = override_get_db
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+            yield c
+    finally:
+        app.dependency_overrides.pop(get_db, None)
+        await engine.dispose()

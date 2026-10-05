@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 from decimal import Decimal
-from sqlalchemy import String, Boolean, DateTime, ForeignKey, Numeric, func
+from sqlalchemy import String, Boolean, DateTime, ForeignKey, Numeric, func, true
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database import Base
@@ -28,6 +28,8 @@ class User(Base):
     portfolio_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     current_title: Mapped[str | None] = mapped_column(String(255), nullable=True)
     current_company: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    # Opt-out for the twice-daily digest email (on by default).
+    digest_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default=true())
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 

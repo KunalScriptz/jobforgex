@@ -14,6 +14,7 @@ export interface UserProfile {
   portfolio_url: string | null;
   current_title: string | null;
   current_company: string | null;
+  digest_enabled: boolean;
   profile_complete: boolean;
 }
 
@@ -31,6 +32,7 @@ export type UserProfileUpdate = Partial<
     | "portfolio_url"
     | "current_title"
     | "current_company"
+    | "digest_enabled"
   >
 >;
 
@@ -39,4 +41,11 @@ export const usersApi = {
 
   updateMe: (data: UserProfileUpdate) =>
     apiClient.patch<UserProfile>("/api/v1/users/me", data).then((r) => r.data),
+
+  /** Queue a digest email to the signed-in user (goes through the real worker + SMTP path). */
+  sendTestDigest: () => apiClient.post<{ queued: boolean }>("/api/v1/users/me/digest/test").then((r) => r.data),
+
+  /** Public: the signed token from the email link is the credential. */
+  unsubscribeDigest: (token: string) =>
+    apiClient.post<{ ok: boolean }>("/api/v1/users/digest/unsubscribe", { token }).then((r) => r.data),
 };

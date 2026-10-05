@@ -47,7 +47,7 @@ Self-hosted job search command center. Docker Compose monolith with React fronte
 - `services/auth.py` — bcrypt, Google OAuth, JWT (15min access + 7-day UUID refresh)
 - `services/ai.py` — `call_deepseek()` retries 3× (1.5s→3s→6s), prompts from `config/prompts/*.yaml`
 - `services/email.py` — HTML templates in-file: `welcome`, `account_deleted`, `password_reset`, `digest`
-- `tasks/digest.py` — Celery Beat at 8 AM / 6 PM IST (2:30 / 12:30 UTC); **off unless `DIGEST_ENABLED=true`** (task registration was broken until `celery_app.py` got an explicit `include=[...]`, so it never ran before)
+- `tasks/digest.py` — Celery Beat at 7 AM / 6 PM IST (1:30 / 12:30 UTC); **off unless `DIGEST_ENABLED=true`** (task registration was broken until `celery_app.py` got an explicit `include=[...]`, so it never ran before). Per-user opt-out is `users.digest_enabled` (Settings switch + signed unsubscribe link, `/unsubscribe` page); at most one send per workspace per half-day slot (Redis claim); Settings has a "Send me a test digest" button
 - `dependencies/workspace.py` — `current_workspace_id` dependency; every non-public route must be authenticated and workspace-scoped (`tests/test_foundations.py` fails on an open route)
 - `config/prompts/pdf_to_latex.yaml` — full JobForge LaTeX template skeleton for PDF import
 

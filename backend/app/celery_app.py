@@ -42,7 +42,7 @@ if settings.DIGEST_ENABLED:
         {
             "send-daily-digest-morning": {
                 "task": "app.tasks.digest.send_daily_digest",
-                "schedule": crontab(hour=2, minute=30),  # 8:00 AM IST = 2:30 AM UTC
+                "schedule": crontab(hour=1, minute=30),  # 7:00 AM IST = 1:30 AM UTC
             },
             "send-daily-digest-evening": {
                 "task": "app.tasks.digest.send_daily_digest",
