@@ -28,8 +28,15 @@ Self-hosted job search command center. Docker Compose monolith with React fronte
 ## CI/CD
 
 - GitHub Actions on `migration/self-hosted` branch → Oracle Cloud self-hosted runner
-- Runner runs `docker compose up -d --build` automatically
+- Runner runs `alembic upgrade head` first (while the old containers still serve, so a bad migration aborts the deploy), then `docker compose up -d --build`
 - **Never manually restart containers** — the pipeline owns deployments
+
+## Database Migrations
+
+- Schema is owned by **Alembic** (`backend/alembic/`); the old `database/migrations/*.sql` are frozen (vendored as `backend/alembic/baseline_sql/`)
+- `backend` runs `alembic upgrade head` on start (`RUN_MIGRATIONS=1`); worker/beat wait for it (`WAIT_FOR_MIGRATIONS=1`)
+- Revisions are expand-only (no drops/renames/type narrowing) and idempotent; `jobs.status` is VARCHAR(20)
+- New env vars need a `${VAR:-default}` entry in the `x-backend-env` anchor in `docker-compose.yml` and a line in the `.env` heredoc in `.github/workflows/ci.yml`
 
 ## Key Files
 
@@ -40,7 +47,8 @@ Self-hosted job search command center. Docker Compose monolith with React fronte
 - `services/auth.py` — bcrypt, Google OAuth, JWT (15min access + 7-day UUID refresh)
 - `services/ai.py` — `call_deepseek()` retries 3× (1.5s→3s→6s), prompts from `config/prompts/*.yaml`
 - `services/email.py` — HTML templates in-file: `welcome`, `account_deleted`, `password_reset`, `digest`
-- `tasks/digest.py` — Celery Beat at 7 AM / 6 PM IST (1:30 / 12:30 UTC)
+- `tasks/digest.py` — Celery Beat at 8 AM / 6 PM IST (2:30 / 12:30 UTC); **off unless `DIGEST_ENABLED=true`** (task registration was broken until `celery_app.py` got an explicit `include=[...]`, so it never ran before)
+- `dependencies/workspace.py` — `current_workspace_id` dependency; every non-public route must be authenticated and workspace-scoped (`tests/test_foundations.py` fails on an open route)
 - `config/prompts/pdf_to_latex.yaml` — full JobForge LaTeX template skeleton for PDF import
 
 `frontend/src/`

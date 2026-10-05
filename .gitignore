@@ -57,8 +57,8 @@ miniodata/
 pgadmindata/
 
 # Backend specific
-backend/alembic/versions/*.py
-!backend/alembic/versions/.gitkeep
+# NOTE: Alembic revisions (backend/alembic/versions/*.py) MUST be committed: they are the schema.
+# They used to be ignored here, which would have silently dropped the baseline from every deploy.
 backend/celerybeat-schedule
 jobforgex_260728.backup.zip
 package-lock.json

@@ -1,0 +1,2 @@
+# Shell scripts run inside Linux containers: never let a checkout rewrite them to CRLF.
+*.sh text eol=lf

@@ -1,4 +1,50 @@
 
+# Environment shared by backend, celery-worker and celery-beat, so a task that runs in the
+# worker sees the same DeepSeek/MinIO/LaTeX/Google/SMTP config as the API. Every value uses
+# `${VAR:-default}` on purpose: CI writes the .env from GitHub secrets, so an unset secret
+# arrives as an empty string, and `:-` treats empty as unset.
+x-backend-env: &backend-env
+  DB_HOST: ${DB_HOST:-postgres}
+  DB_PORT: ${DB_PORT:-5432}
+  DB_NAME: ${DB_NAME:-jobforgex}
+  DB_USER: ${DB_USER:-jobforgex}
+  DB_PASSWORD: ${DB_PASSWORD:-jobforgex}
+  REDIS_URL: redis://redis:6379/0
+  JWT_SECRET: ${JWT_SECRET}
+  JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+  ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-15}
+  REFRESH_TOKEN_EXPIRE_DAYS: ${REFRESH_TOKEN_EXPIRE_DAYS:-7}
+  MINIO_ENDPOINT: ${MINIO_ENDPOINT:-minio:9000}
+  MINIO_PUBLIC_ENDPOINT: ${MINIO_PUBLIC_ENDPOINT:-localhost:9000}
+  MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
+  MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin}
+  MINIO_BUCKET: ${MINIO_BUCKET:-job-artifacts}
+  MINIO_SECURE: ${MINIO_SECURE:-false}
+  DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY}
+  DEEPSEEK_BASE_URL: ${DEEPSEEK_BASE_URL:-https://api.deepseek.com/v1}
+  DEEPSEEK_MODEL: ${DEEPSEEK_MODEL:-deepseek-v4-flash}
+  DEEPSEEK_INPUT_PRICE_PER_1M: ${DEEPSEEK_INPUT_PRICE_PER_1M:-0.14}
+  DEEPSEEK_CACHE_HIT_PRICE_PER_1M: ${DEEPSEEK_CACHE_HIT_PRICE_PER_1M:-0.0028}
+  DEEPSEEK_OUTPUT_PRICE_PER_1M: ${DEEPSEEK_OUTPUT_PRICE_PER_1M:-0.28}
+  DEEPSEEK_KEY_ENC_SECRET: ${DEEPSEEK_KEY_ENC_SECRET}
+  LATEX_COMPILE_URL: ${LATEX_COMPILE_URL:-http://latex-server:5959}
+  LATEX_SHARED_SECRET: ${LATEX_SHARED_SECRET:-}
+  RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:-}
+  RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET:-}
+  RAZORPAY_WEBHOOK_SECRET: ${RAZORPAY_WEBHOOK_SECRET:-}
+  SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
+  SMTP_PORT: ${SMTP_PORT:-465}
+  SMTP_USER: ${SMTP_USER:-}
+  SMTP_PASS: ${SMTP_PASS:-}
+  SMTP_FROM: ${SMTP_FROM:-JobForge <noreply@jobforge.local>}
+  GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+  GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+  GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-http://localhost:5454/api/v1/auth/google/callback}
+  DIGEST_ENABLED: ${DIGEST_ENABLED:-false}
+  ENVIRONMENT: ${ENVIRONMENT:-development}
+  LOG_LEVEL: ${LOG_LEVEL:-INFO}
+  CORS_ORIGINS: ${CORS_ORIGINS:-*,http://localhost:5173,http://localhost:5454,https://*.helixos.pro}
+
 services:
   postgres:
     image: postgres:17-alpine
@@ -11,12 +57,8 @@ services:
       - "5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./database/migrations/001_init.sql:/docker-entrypoint-initdb.d/001_init.sql:ro
-      - ./database/migrations/002_company_domain.sql:/docker-entrypoint-initdb.d/002_company_domain.sql:ro
-      - ./database/migrations/003_resume_templates.sql:/docker-entrypoint-initdb.d/003_resume_templates.sql:ro
-      - ./database/migrations/004_fix_defaults.sql:/docker-entrypoint-initdb.d/004_fix_defaults.sql:ro
-      - ./database/migrations/005_user_profile.sql:/docker-entrypoint-initdb.d/005_user_profile.sql:ro
-      - ./database/migrations/006_profile_extras.sql:/docker-entrypoint-initdb.d/006_profile_extras.sql:ro
+      # Schema is owned by Alembic (backend/alembic). The backend container runs
+      # `alembic upgrade head` on start; there are no initdb scripts any more.
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-jobforgex} -d ${DB_NAME:-jobforgex}"]
       interval: 5s
@@ -110,45 +152,8 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     environment:
-      DB_HOST: ${DB_HOST:-postgres}
-      DB_PORT: ${DB_PORT:-5432}
-      DB_NAME: ${DB_NAME:-jobforgex}
-      DB_USER: ${DB_USER:-jobforgex}
-      DB_PASSWORD: ${DB_PASSWORD:-jobforgex}
-      REDIS_URL: redis://redis:6379/0
-      JWT_SECRET: ${JWT_SECRET}
-      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
-      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-15}
-      REFRESH_TOKEN_EXPIRE_DAYS: ${REFRESH_TOKEN_EXPIRE_DAYS:-7}
-      MINIO_ENDPOINT: ${MINIO_ENDPOINT:-minio:9000}
-      MINIO_PUBLIC_ENDPOINT: ${MINIO_PUBLIC_ENDPOINT:-localhost:9000}
-      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
-      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin}
-      MINIO_BUCKET: ${MINIO_BUCKET:-job-artifacts}
-      MINIO_SECURE: ${MINIO_SECURE:-false}
-      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY}
-      DEEPSEEK_BASE_URL: ${DEEPSEEK_BASE_URL:-https://api.deepseek.com/v1}
-      DEEPSEEK_MODEL: ${DEEPSEEK_MODEL:-deepseek-v4-flash}
-      DEEPSEEK_INPUT_PRICE_PER_1M: ${DEEPSEEK_INPUT_PRICE_PER_1M:-0.14}
-      DEEPSEEK_CACHE_HIT_PRICE_PER_1M: ${DEEPSEEK_CACHE_HIT_PRICE_PER_1M:-0.0028}
-      DEEPSEEK_OUTPUT_PRICE_PER_1M: ${DEEPSEEK_OUTPUT_PRICE_PER_1M:-0.28}
-      DEEPSEEK_KEY_ENC_SECRET: ${DEEPSEEK_KEY_ENC_SECRET}
-      LATEX_COMPILE_URL: ${LATEX_COMPILE_URL:-http://latex-server:5959}
-      LATEX_SHARED_SECRET: ${LATEX_SHARED_SECRET:-}
-      RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:-}
-      RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET:-}
-      RAZORPAY_WEBHOOK_SECRET: ${RAZORPAY_WEBHOOK_SECRET:-}
-      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
-      SMTP_PORT: ${SMTP_PORT:-465}
-      SMTP_USER: ${SMTP_USER:-}
-      SMTP_PASS: ${SMTP_PASS:-}
-      SMTP_FROM: ${SMTP_FROM:-JobForge <noreply@jobforge.local>}
-      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
-      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
-      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-http://localhost:5454/api/v1/auth/google/callback}
-      ENVIRONMENT: ${ENVIRONMENT:-development}
-      LOG_LEVEL: ${LOG_LEVEL:-INFO}
-      CORS_ORIGINS: ${CORS_ORIGINS:-*,http://localhost:5173,http://localhost:5454,https://*.helixos.pro}
+      <<: *backend-env
+      RUN_MIGRATIONS: "1"  # the only service that applies Alembic migrations
     ports:
       - "5454:5454"
     volumes:
@@ -171,23 +176,15 @@ services:
     restart: unless-stopped
     command: celery -A app.celery_app worker --loglevel=${LOG_LEVEL:-INFO} --concurrency=2
     environment:
-      DB_HOST: ${DB_HOST:-postgres}
-      DB_PORT: ${DB_PORT:-5432}
-      DB_NAME: ${DB_NAME:-jobforgex}
-      DB_USER: ${DB_USER:-jobforgex}
-      DB_PASSWORD: ${DB_PASSWORD:-jobforgex}
-      REDIS_URL: redis://redis:6379/0
-      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
-      SMTP_PORT: ${SMTP_PORT:-465}
-      SMTP_USER: ${SMTP_USER:-}
-      SMTP_PASS: ${SMTP_PASS:-}
-      SMTP_FROM: ${SMTP_FROM:-JobForge <noreply@jobforge.local>}
-      ENVIRONMENT: ${ENVIRONMENT:-development}
+      <<: *backend-env
+      WAIT_FOR_MIGRATIONS: "1"
     volumes:
       - ./backend:/app
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
       - jobforge
 
@@ -196,20 +193,17 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     restart: unless-stopped
-    command: celery -A app.celery_app beat --loglevel=${LOG_LEVEL:-INFO}
+    command: celery -A app.celery_app beat --loglevel=${LOG_LEVEL:-INFO} -s /tmp/celerybeat-schedule
     environment:
-      DB_HOST: ${DB_HOST:-postgres}
-      DB_PORT: ${DB_PORT:-5432}
-      DB_NAME: ${DB_NAME:-jobforgex}
-      DB_USER: ${DB_USER:-jobforgex}
-      DB_PASSWORD: ${DB_PASSWORD:-jobforgex}
-      REDIS_URL: redis://redis:6379/0
-      ENVIRONMENT: ${ENVIRONMENT:-development}
+      <<: *backend-env
+      WAIT_FOR_MIGRATIONS: "1"
     volumes:
       - ./backend:/app
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
       - jobforge
 

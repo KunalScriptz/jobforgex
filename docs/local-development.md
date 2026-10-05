@@ -56,24 +56,38 @@ node server.js
 
 ## Database Migrations
 
-The initial schema is applied automatically via `docker-entrypoint-initdb.d/001_init.sql` when PostgreSQL starts fresh.
+The schema is owned by **Alembic** (`backend/alembic/`). There are no PostgreSQL initdb scripts.
 
-For incremental migrations:
+- `docker compose up` applies migrations automatically: the `backend` container runs
+  `alembic upgrade head` on start, and the worker/beat containers wait for it.
+- `0001_baseline` builds the schema on an empty database (replaying the legacy SQL in
+  `backend/alembic/baseline_sql/`) and only applies idempotent `ADD COLUMN IF NOT EXISTS`
+  statements to an existing one, so it is safe on both.
+- Revisions are hand-written and expand-only (no drops, renames or type narrowing), with
+  idempotent DDL. See `backend/alembic/script.py.mako`.
 
 ```bash
 cd backend
 
-# Run Alembic migrations
+# Apply migrations by hand (e.g. against a database outside docker compose)
 alembic upgrade head
 
-# Create new migration
-alembic revision --autogenerate -m "description"
+# Create a new revision (write the DDL yourself; don't rely on --autogenerate)
+alembic revision -m "description"
 
-# Apply new migration
-alembic upgrade head
-
-# Rollback
+# Roll back the latest revision
 alembic downgrade -1
+```
+
+### Running the DB-backed tests
+
+Most tests need no database. The cross-tenant isolation tests are opt-in; point them at a
+**scratch** database (they insert rows) and they migrate it to head themselves:
+
+```bash
+cd backend
+TEST_DATABASE_URL_SYNC=postgresql+psycopg2://jobforgex:jobforgex@localhost:5433/jobforgex_test \
+  .venv/bin/python -m pytest -q
 ```
 
 ## API Documentation

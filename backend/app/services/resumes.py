@@ -190,32 +190,48 @@ async def set_default_template(
 
 
 async def update_resume_colors(
-    db: AsyncSession, resume_id: uuid.UUID, primary_color: str, secondary_color: str
-) -> None:
-    result = await db.execute(select(Resume).where(Resume.id == resume_id))
-    resume = result.scalar_one_or_none()
-    if resume:
-        resume.primary_color = primary_color
-        resume.secondary_color = secondary_color
-        await db.flush()
+    db: AsyncSession,
+    workspace_id: uuid.UUID,
+    resume_id: uuid.UUID,
+    primary_color: str,
+    secondary_color: str,
+) -> bool:
+    """Returns False when the resume isn't in this workspace."""
+    resume = await get_resume(db, workspace_id, resume_id)
+    if not resume:
+        return False
+    resume.primary_color = primary_color
+    resume.secondary_color = secondary_color
+    await db.flush()
+    return True
 
 
-async def list_resume_versions(db: AsyncSession, resume_id: uuid.UUID) -> list[ResumeVersion]:
+async def list_resume_versions(
+    db: AsyncSession, workspace_id: uuid.UUID, resume_id: uuid.UUID
+) -> list[ResumeVersion]:
     result = await db.execute(
         select(ResumeVersion)
-        .where(ResumeVersion.resume_id == resume_id)
+        .where(ResumeVersion.resume_id == resume_id, ResumeVersion.workspace_id == workspace_id)
         .order_by(ResumeVersion.created_at.desc())
     )
     return list(result.scalars().all())
 
 
-async def restore_resume_version(db: AsyncSession, version_id: uuid.UUID) -> ResumeVersion | None:
-    result = await db.execute(select(ResumeVersion).where(ResumeVersion.id == version_id))
+async def restore_resume_version(
+    db: AsyncSession, workspace_id: uuid.UUID, version_id: uuid.UUID
+) -> ResumeVersion | None:
+    result = await db.execute(
+        select(ResumeVersion).where(
+            ResumeVersion.id == version_id, ResumeVersion.workspace_id == workspace_id
+        )
+    )
     version = result.scalar_one_or_none()
     if not version:
         return None
 
-    resume_result = await db.execute(select(Resume).where(Resume.id == version.resume_id))
+    resume_result = await db.execute(
+        select(Resume).where(Resume.id == version.resume_id, Resume.workspace_id == workspace_id)
+    )
     resume = resume_result.scalar_one_or_none()
     if resume:
         resume.latex_source = version.latex_source

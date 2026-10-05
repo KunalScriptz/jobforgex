@@ -593,7 +593,11 @@ function DocumentsTab({ artifacts, jobId, job }: { artifacts: any[]; jobId: stri
         if (a.pdf_storage_path) {
           try {
             const { url, filename } = await resumesApi.getPdfUrl(a.id);
-            const res = await fetch(url);
+            // /files/stream/* requires the Bearer token, like downloadPdf/openPreview below.
+            const token = localStorage.getItem("access_token");
+            const res = await fetch(url, {
+              headers: token ? { Authorization: `Bearer ${token}` } : {},
+            });
             if (res.ok) zip.file(unique(filename), await res.arrayBuffer());
           } catch { /* skip failed pdf */ }
         }

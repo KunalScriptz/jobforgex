@@ -6,6 +6,27 @@ from app.models.job import Job, JobArtifact, JobStatus, ArtifactKind
 from app.models.board import Board
 
 
+class NotFoundError(LookupError):
+    """A row doesn't exist *in the caller's workspace*.
+
+    Cross-tenant ids are deliberately indistinguishable from missing ones, so routers
+    map this to a plain 404 and never reveal that the row exists elsewhere.
+    """
+
+
+async def get_job(db: AsyncSession, workspace_id: uuid.UUID, job_id: uuid.UUID) -> Job | None:
+    result = await db.execute(select(Job).where(Job.id == job_id, Job.workspace_id == workspace_id))
+    return result.scalar_one_or_none()
+
+
+async def _require_board(db: AsyncSession, workspace_id: uuid.UUID, board_id: uuid.UUID) -> None:
+    result = await db.execute(
+        select(Board.id).where(Board.id == board_id, Board.workspace_id == workspace_id)
+    )
+    if result.scalar_one_or_none() is None:
+        raise NotFoundError("Board not found")
+
+
 async def list_jobs(
     db: AsyncSession,
     workspace_id: uuid.UUID,
@@ -31,9 +52,10 @@ async def list_jobs(
     return list(result.scalars().all())
 
 
-async def get_job_detail(db: AsyncSession, job_id: uuid.UUID) -> dict:
-    result = await db.execute(select(Job).where(Job.id == job_id))
-    job = result.scalar_one_or_none()
+async def get_job_detail(db: AsyncSession, workspace_id: uuid.UUID, job_id: uuid.UUID) -> dict:
+    job = await get_job(db, workspace_id, job_id)
+    if job is None:
+        raise NotFoundError("Job not found")
 
     art_result = await db.execute(
         select(JobArtifact).where(JobArtifact.job_id == job_id).order_by(JobArtifact.created_at)
@@ -60,6 +82,8 @@ async def create_job(
 ) -> Job:
     from datetime import date as dt_date
 
+    await _require_board(db, workspace_id, board_id)
+
     job = Job(
         workspace_id=workspace_id,
         board_id=board_id,
@@ -81,16 +105,20 @@ async def create_job(
 
 async def update_job(
     db: AsyncSession,
+    workspace_id: uuid.UUID,
     job_id: uuid.UUID,
     **kwargs,
 ) -> None:
-    result = await db.execute(select(Job).where(Job.id == job_id))
-    job = result.scalar_one_or_none()
+    job = await get_job(db, workspace_id, job_id)
     if not job:
-        raise ValueError("Job not found")
-    
+        raise NotFoundError("Job not found")
+
+    # Moving a job to another board must stay inside the caller's workspace.
+    if kwargs.get("board_id") is not None:
+        await _require_board(db, workspace_id, kwargs["board_id"])
+
     from datetime import date as dt_date
-    
+
     for key, value in kwargs.items():
         if value is not None:
             if key == "date_applied" and isinstance(value, str):
@@ -99,15 +127,23 @@ async def update_job(
     await db.flush()
 
 
-async def delete_job(db: AsyncSession, job_id: uuid.UUID) -> None:
-    await db.execute(delete(Job).where(Job.id == job_id))
+async def delete_job(db: AsyncSession, workspace_id: uuid.UUID, job_id: uuid.UUID) -> None:
+    # Idempotent: deleting something that isn't there (or isn't yours) is a quiet no-op.
+    await db.execute(delete(Job).where(Job.id == job_id, Job.workspace_id == workspace_id))
     await db.flush()
 
 
-async def bulk_update_status(db: AsyncSession, ids: list[uuid.UUID], status: JobStatus) -> None:
+async def bulk_update_status(
+    db: AsyncSession, workspace_id: uuid.UUID, ids: list[uuid.UUID], status: JobStatus
+) -> int:
     from sqlalchemy import update
-    await db.execute(update(Job).where(Job.id.in_(ids)).values(status=status))
+    result = await db.execute(
+        update(Job)
+        .where(Job.id.in_(ids), Job.workspace_id == workspace_id)
+        .values(status=status)
+    )
     await db.flush()
+    return result.rowcount
 
 
 async def bulk_delete_jobs(db: AsyncSession, workspace_id: uuid.UUID, ids: list[uuid.UUID]) -> int:
@@ -126,6 +162,9 @@ async def create_artifact(
     filename: str,
     latex_source: str = "",
 ) -> JobArtifact:
+    if await get_job(db, workspace_id, job_id) is None:
+        raise NotFoundError("Job not found")
+
     art = JobArtifact(
         workspace_id=workspace_id,
         job_id=job_id,
@@ -138,8 +177,14 @@ async def create_artifact(
     return art
 
 
-async def get_artifact(db: AsyncSession, artifact_id: uuid.UUID) -> JobArtifact | None:
-    result = await db.execute(select(JobArtifact).where(JobArtifact.id == artifact_id))
+async def get_artifact(
+    db: AsyncSession, workspace_id: uuid.UUID, artifact_id: uuid.UUID
+) -> JobArtifact | None:
+    result = await db.execute(
+        select(JobArtifact).where(
+            JobArtifact.id == artifact_id, JobArtifact.workspace_id == workspace_id
+        )
+    )
     return result.scalar_one_or_none()
 
 
@@ -154,18 +199,21 @@ async def update_artifact_pdf_path(
         await db.flush()
 
 
-async def delete_artifact(db: AsyncSession, artifact_id: uuid.UUID) -> None:
-    await db.execute(delete(JobArtifact).where(JobArtifact.id == artifact_id))
+async def delete_artifact(db: AsyncSession, workspace_id: uuid.UUID, artifact_id: uuid.UUID) -> None:
+    await db.execute(
+        delete(JobArtifact).where(
+            JobArtifact.id == artifact_id, JobArtifact.workspace_id == workspace_id
+        )
+    )
     await db.flush()
 
 
 async def update_artifact_source(
-    db: AsyncSession, artifact_id: uuid.UUID, latex_source: str
+    db: AsyncSession, workspace_id: uuid.UUID, artifact_id: uuid.UUID, latex_source: str
 ) -> JobArtifact | None:
     import re
 
-    result = await db.execute(select(JobArtifact).where(JobArtifact.id == artifact_id))
-    art = result.scalar_one_or_none()
+    art = await get_artifact(db, workspace_id, artifact_id)
     if art:
         errors = []
         for tag in ["itemize", "document", "center"]:

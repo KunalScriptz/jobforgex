@@ -58,17 +58,28 @@ async def create_board(db: AsyncSession, workspace_id: uuid.UUID, name: str) -> 
     return board
 
 
-async def rename_board(db: AsyncSession, board_id: uuid.UUID, name: str) -> None:
-    result = await db.execute(select(Board).where(Board.id == board_id))
+async def rename_board(
+    db: AsyncSession, workspace_id: uuid.UUID, board_id: uuid.UUID, name: str
+) -> bool:
+    """Returns False when the board isn't in this workspace."""
+    result = await db.execute(
+        select(Board).where(Board.id == board_id, Board.workspace_id == workspace_id)
+    )
     board = result.scalar_one_or_none()
-    if board:
-        board.name = name
-        await db.flush()
-
-
-async def delete_board(db: AsyncSession, board_id: uuid.UUID) -> None:
-    await db.execute(delete(Board).where(Board.id == board_id))
+    if not board:
+        return False
+    board.name = name
     await db.flush()
+    return True
+
+
+async def delete_board(db: AsyncSession, workspace_id: uuid.UUID, board_id: uuid.UUID) -> bool:
+    """Returns False when the board isn't in this workspace."""
+    result = await db.execute(
+        delete(Board).where(Board.id == board_id, Board.workspace_id == workspace_id)
+    )
+    await db.flush()
+    return result.rowcount > 0
 
 
 async def update_budget(db: AsyncSession, user_id: uuid.UUID, budget: float | None) -> None:

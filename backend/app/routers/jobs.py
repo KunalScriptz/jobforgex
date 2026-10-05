@@ -41,7 +41,11 @@ async def list_jobs(
     db: AsyncSession = Depends(get_db),
 ):
     ws_id = await get_workspace_id(user, db)
-    status_enum = JobStatus(status) if status else None
+    try:
+        status_enum = JobStatus(status) if status else None
+    except ValueError:
+        # `status` is shadowed by the query param here, so use the literal code.
+        raise HTTPException(status_code=400, detail=f"Unknown status '{status}'")
     return await jobs_service.list_jobs(db, ws_id, board_id, search, status_enum)
 
 
@@ -137,9 +141,14 @@ async def export_jobs(
 @router.get("/{job_id}", response_model=JobDetailOut)
 async def get_job(
     job_id: uuid.UUID,
+    user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    return await jobs_service.get_job_detail(db, job_id)
+    ws_id = await get_workspace_id(user, db)
+    try:
+        return await jobs_service.get_job_detail(db, ws_id, job_id)
+    except jobs_service.NotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
 @router.get("/{job_id}/company-info")
@@ -200,21 +209,24 @@ async def create_job(
     db: AsyncSession = Depends(get_db),
 ):
     ws_id = await get_workspace_id(user, db)
-    job = await jobs_service.create_job(
-        db,
-        workspace_id=ws_id,
-        board_id=data.board_id,
-        company=data.company,
-        title=data.title,
-        description=data.description or "",
-        url=data.url,
-        notes=data.notes,
-        location=data.location,
-        status=data.status,
-        date_applied=str(data.date_applied) if data.date_applied else None,
-        resume_score=data.resume_score,
-        company_domain=data.company_domain,
-    )
+    try:
+        job = await jobs_service.create_job(
+            db,
+            workspace_id=ws_id,
+            board_id=data.board_id,
+            company=data.company,
+            title=data.title,
+            description=data.description or "",
+            url=data.url,
+            notes=data.notes,
+            location=data.location,
+            status=data.status,
+            date_applied=str(data.date_applied) if data.date_applied else None,
+            resume_score=data.resume_score,
+            company_domain=data.company_domain,
+        )
+    except jobs_service.NotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     await db.refresh(job)
     return job
 
@@ -223,28 +235,37 @@ async def create_job(
 async def update_job(
     job_id: uuid.UUID,
     data: JobUpdate,
+    user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    ws_id = await get_workspace_id(user, db)
     updates = {k: v for k, v in data.model_dump().items() if v is not None}
-    await jobs_service.update_job(db, job_id, **updates)
+    try:
+        await jobs_service.update_job(db, ws_id, job_id, **updates)
+    except jobs_service.NotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     return {"ok": True}
 
 
 @router.delete("/{job_id}")
 async def delete_job(
     job_id: uuid.UUID,
+    user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    await jobs_service.delete_job(db, job_id)
+    ws_id = await get_workspace_id(user, db)
+    await jobs_service.delete_job(db, ws_id, job_id)
     return {"ok": True}
 
 
 @router.post("/bulk-status")
 async def bulk_update_status(
     data: BulkStatusUpdate,
+    user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    await jobs_service.bulk_update_status(db, data.ids, data.status)
+    ws_id = await get_workspace_id(user, db)
+    await jobs_service.bulk_update_status(db, ws_id, data.ids, data.status)
     return {"ok": True}
 
 
@@ -262,9 +283,14 @@ async def bulk_delete_jobs(
 @router.get("/artifacts/{job_id}", response_model=list[JobArtifactOut])
 async def list_artifacts(
     job_id: uuid.UUID,
+    user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    detail = await jobs_service.get_job_detail(db, job_id)
+    ws_id = await get_workspace_id(user, db)
+    try:
+        detail = await jobs_service.get_job_detail(db, ws_id, job_id)
+    except jobs_service.NotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     return detail["artifacts"]
 
 
@@ -275,14 +301,17 @@ async def create_artifact(
     db: AsyncSession = Depends(get_db),
 ):
     ws_id = await get_workspace_id(user, db)
-    artifact = await jobs_service.create_artifact(
-        db,
-        workspace_id=ws_id,
-        job_id=data.job_id,
-        kind=ArtifactKind(data.kind.value),
-        filename=data.filename,
-        latex_source=data.latex_source,
-    )
+    try:
+        artifact = await jobs_service.create_artifact(
+            db,
+            workspace_id=ws_id,
+            job_id=data.job_id,
+            kind=ArtifactKind(data.kind.value),
+            filename=data.filename,
+            latex_source=data.latex_source,
+        )
+    except jobs_service.NotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     await db.refresh(artifact)
     return artifact
 
@@ -290,9 +319,11 @@ async def create_artifact(
 @router.delete("/artifacts/{artifact_id}")
 async def delete_artifact(
     artifact_id: uuid.UUID,
+    user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    await jobs_service.delete_artifact(db, artifact_id)
+    ws_id = await get_workspace_id(user, db)
+    await jobs_service.delete_artifact(db, ws_id, artifact_id)
     return {"ok": True}
 
 
@@ -304,10 +335,12 @@ class ArtifactUpdateRequest(BaseModel):
 async def update_artifact(
     artifact_id: uuid.UUID,
     data: ArtifactUpdateRequest,
+    user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    ws_id = await get_workspace_id(user, db)
     try:
-        art = await jobs_service.update_artifact_source(db, artifact_id, data.latex_source)
+        art = await jobs_service.update_artifact_source(db, ws_id, artifact_id, data.latex_source)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     if not art:

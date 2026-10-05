@@ -70,7 +70,21 @@ jobs:
           LOG_LEVEL=${{ secrets.LOG_LEVEL }}
           VITE_API_URL=${{ secrets.VITE_API_URL }}
           CORS_ORIGINS=${{ secrets.CORS_ORIGINS }}
+          DIGEST_ENABLED=${{ secrets.DIGEST_ENABLED }}
           EOF
+
+      # Run Alembic BEFORE tearing anything down: if a migration fails, the workflow stops here
+      # and the previous containers keep serving. Migrations are expand-only, so the old code
+      # keeps working against the migrated schema. (The backend container also runs
+      # `alembic upgrade head` on start; by then this is a no-op.)
+      - name: Migrate database
+        run: |
+          cd $HOME/jobforgex
+          if ! docker compose ps --status running --services | grep -qx postgres; then
+            docker compose up -d --wait postgres
+          fi
+          docker compose build backend
+          docker compose run --rm --no-deps -T -e RUN_MIGRATIONS=0 backend alembic upgrade head
 
       - name: Deploy services
         run: |

@@ -8,11 +8,16 @@ from app.database import Base
 
 
 class JobStatus(str, enum.Enum):
+    # Application lifecycle. `jobs.status` is VARCHAR(20), so every value must stay <= 20 chars.
+    # "interview" keeps its original value for compatibility (the UI labels it "Interviewing").
     WISHLIST = "wishlist"
     APPLIED = "applied"
+    ACKNOWLEDGED = "acknowledged"
+    SCREENING = "screening"
     INTERVIEW = "interview"
-    REJECTED = "rejected"
     OFFER = "offer"
+    NEGOTIATING = "negotiating"
+    REJECTED = "rejected"
 
 
 class ArtifactKind(str, enum.Enum):

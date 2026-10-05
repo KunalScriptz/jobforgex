@@ -5,21 +5,30 @@ import io
 import uuid
 
 from app.database import get_db
-from app.dependencies.auth import get_current_user
+from app.dependencies.workspace import current_workspace_id
 from app.services import storage as storage_service
 from app.services import jobs as jobs_service
 
 router = APIRouter(prefix="/api/v1/files", tags=["files"])
 
 
+async def _get_own_artifact(db: AsyncSession, ws_id: uuid.UUID, artifact_id: str):
+    """Load an artifact only if it belongs to the caller's workspace (else None)."""
+    try:
+        parsed = uuid.UUID(artifact_id)
+    except ValueError:
+        return None
+    return await jobs_service.get_artifact(db, ws_id, parsed)
+
+
 @router.get("/download/{artifact_id}")
 async def download_pdf(
     artifact_id: str,
     inline: bool = False,
+    ws_id: uuid.UUID = Depends(current_workspace_id),
     db: AsyncSession = Depends(get_db),
 ):
-    import uuid
-    artifact = await jobs_service.get_artifact(db, uuid.UUID(artifact_id))
+    artifact = await _get_own_artifact(db, ws_id, artifact_id)
     if not artifact or not artifact.pdf_storage_path:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No PDF stored")
 
@@ -31,11 +40,10 @@ async def download_pdf(
 @router.delete("/{artifact_id}")
 async def delete_file(
     artifact_id: str,
-    user: dict = Depends(get_current_user),
+    ws_id: uuid.UUID = Depends(current_workspace_id),
     db: AsyncSession = Depends(get_db),
 ):
-    import uuid
-    artifact = await jobs_service.get_artifact(db, uuid.UUID(artifact_id))
+    artifact = await _get_own_artifact(db, ws_id, artifact_id)
     if artifact and artifact.pdf_storage_path:
         await storage_service.delete_pdf(artifact.pdf_storage_path)
     return {"ok": True}
@@ -45,9 +53,10 @@ async def delete_file(
 async def stream_pdf(
     artifact_id: str,
     inline: bool = True,
+    ws_id: uuid.UUID = Depends(current_workspace_id),
     db: AsyncSession = Depends(get_db),
 ):
-    artifact = await jobs_service.get_artifact(db, uuid.UUID(artifact_id))
+    artifact = await _get_own_artifact(db, ws_id, artifact_id)
     if not artifact or not artifact.pdf_storage_path:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No PDF stored")
 

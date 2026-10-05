@@ -18,6 +18,7 @@ from app.schemas.ai import (
 from app.services import ai as ai_service
 from app.services import workspace as workspace_service
 from app.services import user as user_service
+from app.services import jobs as jobs_service
 from app.models.job import Job
 
 router = APIRouter(prefix="/api/v1/ai", tags=["ai"])
@@ -93,6 +94,24 @@ async def get_workspace_info(user: dict, db: AsyncSession):
     return ws
 
 
+async def _require_own_job(db: AsyncSession, workspace_id: uuid.UUID, job_id: str | None) -> Job | None:
+    """Validate a client-supplied job_id against the caller's workspace.
+
+    The id is attached to cost logs and used to write insights/scores back onto the job, so a
+    foreign or malformed id must never get through. Returns None when no job_id was supplied.
+    """
+    if not job_id:
+        return None
+    try:
+        parsed = uuid.UUID(job_id)
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
+    job = await jobs_service.get_job(db, workspace_id, parsed)
+    if not job:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
+    return job
+
+
 @router.post("/generate", response_model=DeepSeekResult)
 async def ai_generate(
     data: DeepSeekRequest,
@@ -100,6 +119,7 @@ async def ai_generate(
     db: AsyncSession = Depends(get_db),
 ):
     ws = await get_workspace_info(user, db)
+    await _require_own_job(db, ws.id, data.job_id)
 
     allowed = await ai_service.check_entitlement(db, str(ws.id), data.job_id)
     if not allowed:
@@ -145,7 +165,7 @@ async def ai_generate(
             if isinstance(parsed, dict):
                 await db.execute(
                     sa_update(Job)
-                    .where(Job.id == uuid.UUID(data.job_id))
+                    .where(Job.id == uuid.UUID(data.job_id), Job.workspace_id == ws.id)
                     .values(insights=parsed)
                 )
                 await db.flush()
@@ -158,7 +178,7 @@ async def ai_generate(
             if isinstance(parsed, dict):
                 await db.execute(
                     sa_update(Job)
-                    .where(Job.id == uuid.UUID(data.job_id))
+                    .where(Job.id == uuid.UUID(data.job_id), Job.workspace_id == ws.id)
                     .values(base_fit_score=parsed)
                 )
                 await db.flush()
@@ -217,6 +237,7 @@ async def edit_resume(
     db: AsyncSession = Depends(get_db),
 ):
     ws = await get_workspace_info(user, db)
+    await _require_own_job(db, ws.id, data.job_id)
 
     allowed = await ai_service.check_entitlement(db, str(ws.id), data.job_id)
     if not allowed:
@@ -245,14 +266,13 @@ async def ats_score(
     db: AsyncSession = Depends(get_db),
 ):
     ws = await get_workspace_info(user, db)
+    job = await _require_own_job(db, ws.id, data.job_id)
+    if not job:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
 
     allowed = await ai_service.check_entitlement(db, str(ws.id), data.job_id)
     if not allowed:
         raise HTTPException(status_code=status.HTTP_402_PAYMENT_REQUIRED, detail="Free trial limit reached")
-
-    job = (await db.execute(select(Job).where(Job.id == uuid.UUID(data.job_id)))).scalar_one_or_none()
-    if not job:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
 
     profile = await user_service.get_profile(db, uuid.UUID(user["user_id"]))
     profile_block = _build_profile_block(profile)
@@ -296,7 +316,9 @@ async def ats_score(
     job_match_score = max(0, min(100, job_match_score))
 
     await db.execute(
-        sa_update(Job).where(Job.id == uuid.UUID(data.job_id)).values(resume_score=job_match_score)
+        sa_update(Job)
+        .where(Job.id == uuid.UUID(data.job_id), Job.workspace_id == ws.id)
+        .values(resume_score=job_match_score)
     )
     await db.flush()
 
@@ -318,5 +340,6 @@ async def check_entitlement(
     db: AsyncSession = Depends(get_db),
 ):
     ws = await get_workspace_info(user, db)
+    await _require_own_job(db, ws.id, job_id)
     allowed = await ai_service.check_entitlement(db, str(ws.id), job_id)
     return {"allowed": allowed}

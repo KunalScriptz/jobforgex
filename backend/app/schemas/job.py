@@ -4,13 +4,10 @@ from uuid import UUID
 from datetime import datetime, date
 from enum import Enum
 
+from app.models.job import JobStatus
 
-class JobStatusEnum(str, Enum):
-    wishlist = "wishlist"
-    applied = "applied"
-    interview = "interview"
-    rejected = "rejected"
-    offer = "offer"
+# Single source of truth: the API accepts/returns exactly the model's statuses.
+JobStatusEnum = JobStatus
 
 
 class ArtifactKindEnum(str, Enum):
@@ -29,7 +26,7 @@ class JobCreate(BaseModel):
     url: Optional[str] = Field(None, max_length=1000)
     notes: Optional[str] = Field(None, max_length=5000)
     location: Optional[str] = Field(None, max_length=200)
-    status: JobStatusEnum = JobStatusEnum.wishlist
+    status: JobStatusEnum = JobStatusEnum.WISHLIST
     date_applied: Optional[date] = None
     resume_score: Optional[int] = None
 

@@ -72,6 +72,10 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_SECRET: str = ""
     GOOGLE_REDIRECT_URI: str = "http://localhost:5454/api/v1/auth/google/callback"
 
+    # Scheduled digest email. Off by default: the Celery task registration bug meant the digest
+    # never actually ran, so enabling it is an explicit opt-in (set DIGEST_ENABLED=true).
+    DIGEST_ENABLED: bool = False
+
     # App
     ENVIRONMENT: str = "development"
     LOG_LEVEL: str = "INFO"

@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.dependencies.auth import get_current_user, get_current_workspace
+from app.dependencies.workspace import current_workspace_id
 from app.schemas.workspace import (
     WorkspaceCreate,
     WorkspaceUpdate,
@@ -87,18 +88,22 @@ async def create_board(
 async def rename_board(
     board_id: uuid.UUID,
     data: BoardUpdate,
+    ws_id: uuid.UUID = Depends(current_workspace_id),
     db: AsyncSession = Depends(get_db),
 ):
-    await workspace_service.rename_board(db, board_id, data.name)
+    if not await workspace_service.rename_board(db, ws_id, board_id, data.name):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Board not found")
     return {"ok": True}
 
 
 @router.delete("/boards/{board_id}")
 async def delete_board(
     board_id: uuid.UUID,
+    ws_id: uuid.UUID = Depends(current_workspace_id),
     db: AsyncSession = Depends(get_db),
 ):
-    await workspace_service.delete_board(db, board_id)
+    if not await workspace_service.delete_board(db, ws_id, board_id):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Board not found")
     return {"ok": True}
 
 

@@ -152,27 +152,34 @@ async def update_colors(
     resume_id: uuid.UUID,
     primary_color: str,
     secondary_color: str,
+    user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    await resumes_service.update_resume_colors(db, resume_id, primary_color, secondary_color)
+    ws_id = await get_workspace_id(user, db)
+    if not await resumes_service.update_resume_colors(db, ws_id, resume_id, primary_color, secondary_color):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume template not found")
     return {"ok": True}
 
 
 @router.get("/{resume_id}/versions", response_model=list[ResumeVersionOut])
 async def list_versions(
     resume_id: uuid.UUID,
+    user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    return await resumes_service.list_resume_versions(db, resume_id)
+    ws_id = await get_workspace_id(user, db)
+    return await resumes_service.list_resume_versions(db, ws_id, resume_id)
 
 
 @router.post("/{resume_id}/versions")
 async def restore_version(
     resume_id: uuid.UUID,
     data: ResumeVersionCreate,
+    user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    version = await resumes_service.restore_resume_version(db, resume_id)
+    ws_id = await get_workspace_id(user, db)
+    version = await resumes_service.restore_resume_version(db, ws_id, resume_id)
     if not version:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Version not found")
     return {"ok": True}
@@ -184,7 +191,8 @@ async def compile_artifact(
     user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    artifact = await jobs_service.get_artifact(db, data.artifact_id)
+    ws_id = await get_workspace_id(user, db)
+    artifact = await jobs_service.get_artifact(db, ws_id, data.artifact_id)
     if not artifact:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Artifact not found")
     if not artifact.latex_source or len(artifact.latex_source) < 10:
@@ -195,7 +203,6 @@ async def compile_artifact(
         await jobs_service.update_artifact_pdf_path(db, artifact.id, "", str(result))
         return CompileResult(ok=False, error=str(result))
 
-    ws_id = await get_workspace_id(user, db)
     path = await storage_service.upload_pdf(result, str(ws_id), str(artifact.id))
     await jobs_service.update_artifact_pdf_path(db, artifact.id, path)
     return CompileResult(ok=True, storage_path=path)
@@ -207,7 +214,8 @@ async def get_pdf_url(
     user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    artifact = await jobs_service.get_artifact(db, data.artifact_id)
+    ws_id = await get_workspace_id(user, db)
+    artifact = await jobs_service.get_artifact(db, ws_id, data.artifact_id)
     if not artifact:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Artifact not found")
 
@@ -216,7 +224,6 @@ async def get_pdf_url(
         ok, result = await ai_service.compile_latex(artifact.latex_source)
         if not ok:
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Recompile failed: {str(result)[:500]}")
-        ws_id = await get_workspace_id(user, db)
         path = await storage_service.upload_pdf(result, str(ws_id), str(artifact.id))
         await jobs_service.update_artifact_pdf_path(db, artifact.id, path)
         artifact.pdf_storage_path = path
@@ -230,7 +237,10 @@ async def get_pdf_url(
 
 
 @router.post("/latex-compile")
-async def latex_compile(data: LatexCompileRequest):
+async def latex_compile(
+    data: LatexCompileRequest,
+    user: dict = Depends(get_current_user),
+):
     source = data.source
     if not source or len(source) < 10:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Source too short")
