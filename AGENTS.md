@@ -49,6 +49,10 @@ Self-hosted job search command center. Docker Compose monolith with React fronte
 - `services/email.py` — HTML templates in-file: `welcome`, `account_deleted`, `password_reset`, `digest`
 - `tasks/digest.py` — Celery Beat at 7 AM / 6 PM IST (1:30 / 12:30 UTC); **off unless `DIGEST_ENABLED=true`** (task registration was broken until `celery_app.py` got an explicit `include=[...]`, so it never ran before). Per-user opt-out is `users.digest_enabled` (Settings switch + signed unsubscribe link, `/unsubscribe` page); at most one send per workspace per half-day slot (Redis claim); Settings has a "Send me a test digest" button
 - `dependencies/workspace.py` — `current_workspace_id` dependency; every non-public route must be authenticated and workspace-scoped (`tests/test_foundations.py` fails on an open route)
+- `services/job_state.py` — **the only place a job's status may change** (`change_status`): stamps `applied_at` / `last_reply_at` / `interview_at`, arms `follow_up_at`, writes a `job_events` row. Automated actors (gmail, pipeline, discovery) can only move forward and never touch saved/closed cards. Statuses: wishlist (shown as "Saved"), applied, acknowledged, screening, interview, offer, negotiating, rejected
+- `services/job_url.py` — URL normalisation + `url_hash` / `content_hash` / `detect_source`. One posting per workspace (unique `(workspace_id, url_hash)`); `jobs.create_job` raises `DuplicateJobError` (router → 409), the extension endpoint answers `{ok, id, duplicate}`. Changing the normalisation needs a re-hash migration
+- `services/metrics.py` + `routers/overview.py` — Overview funnel / per-source reply rates / weekly target / attention, Today, Setup checklist. `GET /jobs/cards` is the slim list for boards (no description); `GET /jobs/` still returns full jobs
+- `FEATURE_PIPELINE` / `FEATURE_GMAIL` — flags returned by `GET /workspace/features`; the sidebar hides pages whose flag is off
 - `config/prompts/pdf_to_latex.yaml` — full JobForge LaTeX template skeleton for PDF import
 
 `frontend/src/`

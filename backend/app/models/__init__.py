@@ -7,7 +7,8 @@ from app.models.resume import Resume, ResumeVersion
 from app.models.plan import Plan, GeoPricing
 from app.models.subscription import Subscription, PaymentEvent
 from app.models.ai_cost_log import AICostLog
-from app.models.job import Job, JobArtifact
+from app.models.job import Job, JobArtifact, JobEvent
+from app.models.workspace_settings import WorkspaceSettings
 from app.models.extension_token import ExtensionToken
 from app.models.builder_resume import BuilderResume, BuilderResumeVersion
 from app.models.download_log import DownloadLog
@@ -32,6 +33,8 @@ __all__ = [
     "AICostLog",
     "Job",
     "JobArtifact",
+    "JobEvent",
+    "WorkspaceSettings",
     "ExtensionToken",
     "BuilderResume",
     "BuilderResumeVersion",

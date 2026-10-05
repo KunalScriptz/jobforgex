@@ -6,7 +6,7 @@ It is sent even when every count is zero, to every workspace owner who has not o
 """
 import asyncio
 import html
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from celery.utils.log import get_task_logger
 from sqlalchemy import create_engine
@@ -31,10 +31,14 @@ def _slot(now: datetime) -> str:
     return f"{now:%Y-%m-%d}-{'am' if now.hour < 6 else 'pm'}"
 
 
-def collect_stats(session: Session, workspace_id, since: datetime) -> dict:
+def collect_stats(session: Session, workspace_id, since: datetime, today: date | None = None) -> dict:
+    """Counts for the window. Applied / replies / interviews come from the lifecycle timestamps
+    that services/job_state.py stamps when a card moves, so they mean "moved in the window", not
+    "touched in the window". `today` is the workspace-local date used for follow-ups due."""
     from app.models.ai_cost_log import AICostLog
-    from app.models.job import Job, JobStatus
+    from app.models.job import Job
     from app.models.resume import ResumeVersion
+    from app.services.job_state import FOLLOW_UP_STATUSES
 
     def count_jobs(*conditions) -> int:
         return session.query(Job).filter(Job.workspace_id == workspace_id, *conditions).count()
@@ -42,11 +46,15 @@ def collect_stats(session: Session, workspace_id, since: datetime) -> dict:
     costs = session.query(AICostLog).filter(
         AICostLog.workspace_id == workspace_id, AICostLog.created_at >= since
     ).all()
+    today = today or datetime.now(timezone.utc).date()
     return {
         "jobs_added": count_jobs(Job.created_at >= since),
-        # Compare against the string values: Job.status is a plain VARCHAR column.
-        "applied": count_jobs(Job.updated_at >= since, Job.status == JobStatus.APPLIED.value),
-        "interview": count_jobs(Job.updated_at >= since, Job.status == JobStatus.INTERVIEW.value),
+        "applied": count_jobs(Job.applied_at >= since),
+        "replies": count_jobs(Job.last_reply_at >= since),
+        "interview": count_jobs(Job.interview_at >= since),
+        "follow_ups_due": count_jobs(
+            Job.status.in_(FOLLOW_UP_STATUSES), Job.follow_up_at.isnot(None), Job.follow_up_at <= today
+        ),
         "resume_versions": session.query(ResumeVersion).filter(
             ResumeVersion.workspace_id == workspace_id, ResumeVersion.created_at >= since
         ).count(),
@@ -61,7 +69,9 @@ def build_digest_html(workspace_name: str, stats: dict, unsubscribe_url: str) ->
     rows = [
         ("Jobs added", str(stats["jobs_added"])),
         ("Applied", str(stats["applied"])),
+        ("Replies", str(stats["replies"])),
         ("Moved to interview", str(stats["interview"])),
+        ("Follow-ups due", str(stats["follow_ups_due"])),
         ("Resume versions", str(stats["resume_versions"])),
         ("AI cost", f"${stats['ai_cost']:.4f}"),
     ]
@@ -85,7 +95,9 @@ def build_digest_html(workspace_name: str, stats: dict, unsubscribe_url: str) ->
 
 
 def _deliver(loop: asyncio.AbstractEventLoop, session: Session, ws, user, since: datetime) -> bool:
-    stats = collect_stats(session, ws.id, since)
+    from app.services.metrics import local_today
+
+    stats = collect_stats(session, ws.id, since, local_today(datetime.now(timezone.utc), ws.timezone))
     token = create_digest_unsubscribe_token(str(user.id))
     unsubscribe_url = f"{settings.FRONTEND_URL}/unsubscribe?token={token}"
     body = build_digest_html(ws.name, stats, unsubscribe_url)

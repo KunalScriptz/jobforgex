@@ -41,6 +41,8 @@ x-backend-env: &backend-env
   GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
   GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-http://localhost:5454/api/v1/auth/google/callback}
   DIGEST_ENABLED: ${DIGEST_ENABLED:-false}
+  FEATURE_PIPELINE: ${FEATURE_PIPELINE:-false}
+  FEATURE_GMAIL: ${FEATURE_GMAIL:-false}
   ENVIRONMENT: ${ENVIRONMENT:-development}
   LOG_LEVEL: ${LOG_LEVEL:-INFO}
   CORS_ORIGINS: ${CORS_ORIGINS:-*,http://localhost:5173,http://localhost:5454,https://*.helixos.pro}

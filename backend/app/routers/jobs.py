@@ -1,5 +1,6 @@
 import uuid
-from fastapi import APIRouter, Depends, HTTPException, status
+from datetime import datetime, timezone
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
@@ -9,6 +10,9 @@ from app.schemas.job import (
     JobCreate,
     JobUpdate,
     JobOut,
+    JobCardOut,
+    JobEventOut,
+    FollowUpUpdate,
     JobDetailOut,
     JobSearchParams,
     BulkStatusUpdate,
@@ -20,6 +24,7 @@ from app.models.job import Job, JobStatus, ArtifactKind
 from app.services import jobs as jobs_service
 from app.services import workspace as workspace_service
 from app.services import company as company_service
+from app.services import metrics as metrics_service
 from pydantic import BaseModel
 
 router = APIRouter(prefix="/api/v1/jobs", tags=["jobs"])
@@ -49,6 +54,67 @@ async def list_jobs(
     return await jobs_service.list_jobs(db, ws_id, board_id, search, status_enum)
 
 
+def _duplicate_409(exc: jobs_service.DuplicateJobError) -> HTTPException:
+    return HTTPException(
+        status_code=status.HTTP_409_CONFLICT,
+        detail={"message": str(exc), "existing_job_id": str(exc.existing_id)},
+    )
+
+
+@router.get("/cards", response_model=list[JobCardOut])
+async def list_job_cards(
+    response: Response,
+    board_id: uuid.UUID | None = None,
+    search: str | None = None,
+    status: str | None = None,
+    source: str | None = None,
+    min_fit: int | None = None,
+    location: str | None = None,
+    limit: int = 500,
+    offset: int = 0,
+    user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Slim job list for boards and tables. `status` may be a comma-separated list. The total
+    number of matches (ignoring limit/offset) is returned in the X-Total-Count header."""
+    ws_id = await get_workspace_id(user, db)
+    statuses = None
+    if status:
+        statuses = [s.strip() for s in status.split(",") if s.strip()]
+        try:
+            statuses = [JobStatus(s).value for s in statuses]
+        except ValueError:
+            raise HTTPException(status_code=400, detail=f"Unknown status in '{status}'")
+    rows, total = await jobs_service.list_cards(
+        db, ws_id,
+        board_id=board_id, search=search, statuses=statuses, source=source,
+        min_fit=min_fit, location=location,
+        limit=max(1, min(limit, 1000)), offset=max(0, offset),
+    )
+    response.headers["X-Total-Count"] = str(total)
+    return rows
+
+
+@router.get("/stats")
+async def job_stats(
+    user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    ws_id = await get_workspace_id(user, db)
+    ws = await workspace_service.get_workspace_for_user(db, uuid.UUID(user["user_id"]))
+    return await metrics_service.job_stats(db, ws_id, datetime.now(timezone.utc), ws.timezone if ws else None)
+
+
+@router.get("/events", response_model=list[JobEventOut])
+async def list_events(
+    limit: int = 100,
+    user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    ws_id = await get_workspace_id(user, db)
+    return await jobs_service.list_job_events(db, ws_id, limit=max(1, min(limit, 500)))
+
+
 @router.get("/export")
 async def export_jobs(
     user: dict = Depends(get_current_user),
@@ -68,7 +134,7 @@ async def export_jobs(
     headers = [
         "Company", "Title", "Location", "Status", "Date Applied",
         "Company Domain", "Job URL", "Resume Score", "Notes", "Description",
-        "Insights", "Base Fit Score", "Created At", "Updated At",
+        "Insights", "Base Fit Score", "Source", "Applied At", "Follow-up", "Created At", "Updated At",
     ]
 
     def _flatten(value):
@@ -111,6 +177,9 @@ async def export_jobs(
             job.description or "",
             _flatten(job.insights),
             _flatten(job.base_fit_score),
+            job.source or "",
+            str(job.applied_at) if job.applied_at else "",
+            str(job.follow_up_at) if job.follow_up_at else "",
             str(job.created_at) if job.created_at else "",
             str(job.updated_at) if job.updated_at else "",
         ])
@@ -120,7 +189,7 @@ async def export_jobs(
             cell.border = border
             cell.alignment = Alignment(vertical="top", wrap_text=True)
 
-    for i, w in enumerate([18, 22, 16, 12, 13, 20, 30, 13, 30, 50, 40, 40, 22, 22], start=1):
+    for i, w in enumerate([18, 22, 16, 12, 13, 20, 30, 13, 30, 50, 40, 40, 14, 22, 14, 22, 22], start=1):
         ws.column_dimensions[get_column_letter(i)].width = w
 
     ws.freeze_panes = "A2"
@@ -227,6 +296,8 @@ async def create_job(
         )
     except jobs_service.NotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except jobs_service.DuplicateJobError as e:
+        raise _duplicate_409(e)
     await db.refresh(job)
     return job
 
@@ -244,7 +315,37 @@ async def update_job(
         await jobs_service.update_job(db, ws_id, job_id, **updates)
     except jobs_service.NotFoundError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    except jobs_service.DuplicateJobError as e:
+        raise _duplicate_409(e)
     return {"ok": True}
+
+
+@router.put("/{job_id}/follow-up")
+async def set_follow_up(
+    job_id: uuid.UUID,
+    data: FollowUpUpdate,
+    user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Set (or clear, with null) the date to chase this application."""
+    ws_id = await get_workspace_id(user, db)
+    try:
+        job = await jobs_service.set_follow_up(db, ws_id, job_id, data.follow_up_at)
+    except jobs_service.NotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+    return {"ok": True, "follow_up_at": job.follow_up_at}
+
+
+@router.get("/{job_id}/events", response_model=list[JobEventOut])
+async def list_job_events(
+    job_id: uuid.UUID,
+    user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    ws_id = await get_workspace_id(user, db)
+    if await jobs_service.get_job(db, ws_id, job_id) is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
+    return await jobs_service.list_job_events(db, ws_id, job_id=job_id, limit=200)
 
 
 @router.delete("/{job_id}")

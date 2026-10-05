@@ -71,6 +71,8 @@ jobs:
           VITE_API_URL=${{ secrets.VITE_API_URL }}
           CORS_ORIGINS=${{ secrets.CORS_ORIGINS }}
           DIGEST_ENABLED=${{ secrets.DIGEST_ENABLED }}
+          FEATURE_PIPELINE=${{ secrets.FEATURE_PIPELINE }}
+          FEATURE_GMAIL=${{ secrets.FEATURE_GMAIL }}
           EOF
 
       # Run Alembic BEFORE tearing anything down: if a migration fails, the workflow stops here

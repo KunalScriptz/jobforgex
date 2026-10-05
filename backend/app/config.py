@@ -76,6 +76,10 @@ class Settings(BaseSettings):
     # never actually ran, so enabling it is an explicit opt-in (set DIGEST_ENABLED=true).
     DIGEST_ENABLED: bool = False
 
+    # Feature flags. Each gates a whole area (nav items + routes' behaviour) that ships dark first.
+    FEATURE_PIPELINE: bool = False
+    FEATURE_GMAIL: bool = False
+
     # App
     ENVIRONMENT: str = "development"
     LOG_LEVEL: str = "INFO"

@@ -19,9 +19,8 @@ from app.schemas.extension import (
     ExtensionJobCreate,
 )
 from app.models.extension_token import ExtensionToken
-from app.models.board import Board
-from app.models.job import Job, JobStatus
 from app.models.user import User
+from app.services import ingest as ingest_service
 from app.services import workspace as workspace_service
 
 router = APIRouter(prefix="/api/v1/extension", tags=["extension"])
@@ -142,33 +141,27 @@ async def submit_job_via_extension(request: Request, db: AsyncSession = Depends(
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
-    board_result = await db.execute(
-        select(Board)
-        .where(Board.workspace_id == tok.workspace_id)
-        .order_by(Board.created_at)
-        .limit(1)
-    )
-    board = board_result.scalar_one_or_none()
-    if not board:
+    try:
+        result = await ingest_service.ingest_job(
+            db,
+            tok.workspace_id,
+            company=data.company,
+            title=data.title,
+            url=data.url,
+            description=data.description or "",
+            location=data.location,
+            apply_url=data.apply_url,
+            source_hint=data.source,
+            actor="extension",
+        )
+    except ingest_service.NoBoardError:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No board found")
-
-    job = Job(
-        workspace_id=tok.workspace_id,
-        board_id=board.id,
-        company=data.company,
-        title=data.title,
-        url=data.url,
-        description=data.description or "",
-        location=data.location,
-        status=JobStatus.WISHLIST,
-    )
-    db.add(job)
-    await db.flush()
 
     tok.last_used_at = datetime.now(timezone.utc)
     await db.flush()
 
-    return {"ok": True, "id": str(job.id)}
+    # `duplicate` is additive: older extension builds ignore it and treat the response as a save.
+    return {"ok": True, "id": str(result.job_id), "duplicate": result.duplicate}
 
 
 @router.get("/download")

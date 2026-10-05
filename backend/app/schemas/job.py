@@ -75,10 +75,60 @@ class JobOut(BaseModel):
     resume_score: Optional[int] = None
     insights: Optional[dict] = None
     base_fit_score: Optional[dict] = None
+    source: str = "manual"
+    apply_url: Optional[str] = None
+    applied_at: Optional[datetime] = None
+    last_reply_at: Optional[datetime] = None
+    interview_at: Optional[datetime] = None
+    tailored_at: Optional[datetime] = None
+    follow_up_at: Optional[date] = None
     created_at: datetime
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class JobCardOut(BaseModel):
+    """Slim job for lists and boards: no description, notes or insights (those can be 100 KB each
+    and the Tracker re-fetches every few seconds). `fit` is the base resume's score, if any."""
+
+    id: UUID
+    board_id: UUID
+    company: str
+    company_domain: Optional[str] = None
+    title: str
+    url: Optional[str] = None
+    location: Optional[str] = None
+    status: JobStatusEnum
+    source: str = "manual"
+    date_applied: Optional[date] = None
+    resume_score: Optional[int] = None
+    fit: Optional[int] = None
+    tailored_at: Optional[datetime] = None
+    applied_at: Optional[datetime] = None
+    last_reply_at: Optional[datetime] = None
+    interview_at: Optional[datetime] = None
+    follow_up_at: Optional[date] = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class JobEventOut(BaseModel):
+    id: UUID
+    job_id: UUID
+    kind: str
+    from_status: Optional[str] = None
+    to_status: Optional[str] = None
+    actor: str
+    confidence: Optional[float] = None
+    meta: dict = {}
+    occurred_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class FollowUpUpdate(BaseModel):
+    follow_up_at: Optional[date] = None
 
 
 class JobArtifactCreate(BaseModel):

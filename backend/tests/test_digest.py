@@ -10,13 +10,16 @@ from app.services import auth
 from app.tasks import digest
 
 USER_ID = "3f2c1a4e-9b7d-4c1e-8a55-0d6f3b2a1c90"
-STATS = {"jobs_added": 3, "applied": 2, "interview": 1, "resume_versions": 4, "ai_cost": 0.01234}
+STATS = {
+    "jobs_added": 3, "applied": 2, "replies": 5, "interview": 1, "follow_ups_due": 6,
+    "resume_versions": 4, "ai_cost": 0.01234,
+}
 
 
 # --------------------------------------------------------------------------- html
 def test_digest_html_shows_the_numbers_and_an_unsubscribe_link():
     html = digest.build_digest_html("My Search", STATS, "https://app.example/unsubscribe?token=abc")
-    for needle in ("Jobs added", "Applied", "Moved to interview", "Resume versions", "$0.0123"):
+    for needle in ("Jobs added", "Applied", "Replies", "Moved to interview", "Follow-ups due", "Resume versions", "$0.0123"):
         assert needle in html
     assert 'href="https://app.example/unsubscribe?token=abc"' in html
 
@@ -29,7 +32,10 @@ def test_digest_html_escapes_the_user_controlled_workspace_name_and_url():
 
 
 def test_digest_is_still_rendered_when_every_count_is_zero():
-    zero = {"jobs_added": 0, "applied": 0, "interview": 0, "resume_versions": 0, "ai_cost": 0.0}
+    zero = {
+        "jobs_added": 0, "applied": 0, "replies": 0, "interview": 0, "follow_ups_due": 0,
+        "resume_versions": 0, "ai_cost": 0.0,
+    }
     assert "$0.0000" in digest.build_digest_html("ws", zero, "https://x.example/u")
 
 

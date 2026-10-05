@@ -33,3 +33,7 @@ class ExtensionJobCreate(BaseModel):
     url: Optional[str] = Field(None, max_length=1000)
     description: Optional[str] = Field(None, max_length=100000)
     location: Optional[str] = Field(None, max_length=200)
+    # What the extension thinks the board is (its hostname or a known board name). Only honoured
+    # when it names a board we recognise; the URL is the primary signal.
+    source: Optional[str] = Field(None, max_length=100)
+    apply_url: Optional[str] = Field(None, max_length=1000)
