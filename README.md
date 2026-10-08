@@ -42,7 +42,7 @@ Job hunting is a pipeline problem: dozens of postings, a different resume for ea
 | **Tracking engine** | One place where every status change is recorded (timestamps, follow-up dates, audit trail); URL-based duplicate detection; overview metrics API |
 | **Digest** | Optional 7 AM / 6 PM (IST) summary email with one-click unsubscribe |
 | **Cost ledger** | Every AI call logs tokens, cost, model and purpose per workspace |
-| **Billing (optional)** | Razorpay subscriptions and webhooks, with a free trial tier |
+| **Payments (backend only)** | Razorpay subscriptions and webhooks exist in the API; the pricing page is switched off for now |
 
 > The backend already exposes richer tracking (eight statuses, per-board reply rates, follow-ups, `/api/v1/overview/*`); the web UI for it is being rebuilt. See [Roadmap](#roadmap).
 

@@ -10,7 +10,6 @@ import ResumesPage from "@/pages/resumes";
 import GeneratePage from "@/pages/generate";
 import CheckerPage from "@/pages/checker";
 import BuilderPage from "@/pages/builder";
-import BillingPage from "@/pages/billing";
 import SettingsPage from "@/pages/settings";
 import LandingPage from "@/pages/landing";
 import PrivacyPage from "@/pages/privacy";
@@ -54,8 +53,9 @@ export default function App() {
         <Route path="/generate" element={<ProtectedRoute><GeneratePage /></ProtectedRoute>} />
         <Route path="/checker" element={<ProtectedRoute><CheckerPage /></ProtectedRoute>} />
         <Route path="/builder/:jobId" element={<ProtectedRoute><BuilderPage /></ProtectedRoute>} />
-        <Route path="/billing" element={<ProtectedRoute><BillingPage /></ProtectedRoute>} />
-        <Route path="/billing-test" element={<ProtectedRoute><BillingPage /></ProtectedRoute>} />
+        {/* Pricing is switched off for now; keep old links working. */}
+        <Route path="/billing" element={<Navigate to="/jobs" replace />} />
+        <Route path="/billing-test" element={<Navigate to="/jobs" replace />} />
         <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
         <Route path="/whats-new" element={<ProtectedRoute><WhatsNewPage /></ProtectedRoute>} />
         <Route path="*" element={<Navigate to="/" replace />} />

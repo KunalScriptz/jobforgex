@@ -30,11 +30,6 @@ const STEPS: TourStep[] = [
     body: "Score your base resume against any job and see keyword gaps before you tailor it.",
   },
   {
-    target: "nav-billing",
-    title: "Billing",
-    body: "Manage your plan and subscription. The free trial covers two distinct tailored applications.",
-  },
-  {
     target: "nav-settings",
     title: "Settings",
     body: "Update your profile, location and salary, manage boards, and connect the Chrome extension.",

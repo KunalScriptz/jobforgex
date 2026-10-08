@@ -199,7 +199,6 @@ export default function Landing() {
                   Send feedback
                 </a>
               </li>
-              <li><Link to="/billing" className="hover:text-foreground">Pricing</Link></li>
               <li><Link to="/privacy" className="hover:text-foreground">Privacy policy</Link></li>
             </ul>
           </div>

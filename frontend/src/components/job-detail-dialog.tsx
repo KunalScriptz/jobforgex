@@ -1166,7 +1166,6 @@ function AiToolRunner({ jobId, toolId, onBack, job }: { jobId: string; toolId: s
           <span className="text-muted-foreground">
             <span className="font-medium text-foreground">{remaining}</span> of {q.trial_limit} free prompts remaining
           </span>
-          <Link to="/billing" className="font-medium text-primary hover:underline">Upgrade</Link>
         </div>
       )}
 

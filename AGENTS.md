@@ -94,7 +94,7 @@ Self-hosted job search command center. Docker Compose monolith with React fronte
 ## Billing
 
 - Free trial: 2 apps (distinct jobs with tailored resume/cover letter)
-- `FALLBACK_PLANS` in `billing.tsx` keyed by country — works with empty DB pricing table
+- The pricing/billing page is switched off (`/billing` redirects to `/jobs`; `pages/billing.tsx` removed, see git history). Backend billing routes and the 2-app trial limit are still active
 - `GET /api/v1/billing/pricing` joins `plans` + `geo_pricing`, falls back to plan defaults
 
 ## Email Sending Pattern
