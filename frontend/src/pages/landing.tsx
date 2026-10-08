@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Sparkles, FileText, LayoutDashboard, ClipboardCheck, Mail, Wand2 } from "lucide-react";
+import { Sparkles, FileText, LayoutDashboard, ClipboardCheck, Github, Wand2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { PageTitle } from "@/components/page-title";
@@ -8,6 +8,8 @@ import { useAuth } from "@/context/auth-context";
 import logoImg from "@/assets/logo.png";
 import screenshotKanban from "@/assets/screenshot-kanban.png";
 import screenshotResume from "@/assets/screenshot-resume.png";
+
+const REPO_URL = "https://github.com/KunalScriptz/jobforgex";
 
 const PHRASES = [
   "tailor resumes with AI.",
@@ -170,22 +172,12 @@ export default function Landing() {
             <div className="text-sm font-medium">Support</div>
             <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
               <li>
-                <a
-                  className="hover:text-foreground"
-                  href={`mailto:murkyaxe@gmail.com?subject=${encodeURIComponent("JobForge support request")}&body=${encodeURIComponent(
-                    "Hi JobForge team,\n\n• What I was trying to do:\n• What happened instead:\n• Workspace email:\n• Steps to reproduce (if any):\n\nThanks!"
-                  )}`}
-                >
-                  Contact support
+                <a className="hover:text-foreground" href={`${REPO_URL}/issues/new`} target="_blank" rel="noreferrer">
+                  Report an issue
                 </a>
               </li>
               <li>
-                <a
-                  className="hover:text-foreground"
-                  href={`mailto:murkyaxe@gmail.com?subject=${encodeURIComponent("JobForge feedback")}&body=${encodeURIComponent(
-                    "Hi JobForge team,\n\nHere's some feedback:\n\n"
-                  )}`}
-                >
+                <a className="hover:text-foreground" href={`${REPO_URL}/issues`} target="_blank" rel="noreferrer">
                   Send feedback
                 </a>
               </li>
@@ -193,19 +185,18 @@ export default function Landing() {
             </ul>
           </div>
           <div>
-            <div className="text-sm font-medium">Contact</div>
+            <div className="text-sm font-medium">Open source</div>
             <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
-              <li className="flex items-center gap-2">
-                <Mail className="h-4 w-4" />
-                <a className="hover:text-foreground" href="mailto:murkyaxe@gmail.com">
-                  murkyaxe@gmail.com
+              <li>
+                <a className="flex items-center gap-2 hover:text-foreground" href={REPO_URL} target="_blank" rel="noreferrer">
+                  <Github className="h-4 w-4" /> View on GitHub
                 </a>
               </li>
             </ul>
           </div>
         </div>
         <div className="border-t px-6 py-4 text-center text-xs text-muted-foreground">
-          &copy; {new Date().getFullYear()} JobForge. All rights reserved.
+          &copy; {new Date().getFullYear()} JobForge contributors. Open source under the MIT license.
         </div>
       </footer>
     </div>

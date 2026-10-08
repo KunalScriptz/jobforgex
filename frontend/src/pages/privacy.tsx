@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { PageTitle } from "@/components/page-title";
-import { ArrowLeft, ShieldCheck, Mail } from "lucide-react";
+import { ArrowLeft, ShieldCheck, Github } from "lucide-react";
 
 export default function PrivacyPage() {
   return (
@@ -216,12 +216,12 @@ export default function PrivacyPage() {
                 Contact Us
               </h2>
               <p className="text-muted-foreground">
-                If you have any questions or concerns regarding this Privacy Policy or our data practices, please reach out to us at:
+                If you have any questions or concerns regarding this Privacy Policy or our data practices, please open an issue on our GitHub repository:
               </p>
               <div className="flex items-center space-x-2 text-primary font-medium">
-                <Mail className="h-4 w-4" />
-                <a href="mailto:murkyaxe@gmail.com" className="hover:underline">
-                  murkyaxe@gmail.com
+                <Github className="h-4 w-4" />
+                <a href="https://github.com/KunalScriptz/jobforgex/issues" target="_blank" rel="noreferrer" className="hover:underline">
+                  github.com/KunalScriptz/jobforgex/issues
                 </a>
               </div>
             </section>
