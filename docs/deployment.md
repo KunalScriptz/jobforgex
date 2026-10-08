@@ -26,10 +26,10 @@ docker compose ps
 
 # 5. Access the application
 # Frontend: http://localhost:5173
-# Backend API: http://localhost:8000
-# API Docs: http://localhost:8000/docs
-# pgAdmin: http://localhost:5050 (admin@jobforge.local / admin)
-# MinIO Console: http://localhost:9001 (minioadmin / minioadmin)
+# Backend API: http://localhost:5454
+# API Docs: http://localhost:5454/docs
+# pgAdmin: http://localhost:5051 (admin@jobforge.local / admin)
+# MinIO Console: http://localhost:9003 (minioadmin / minioadmin)
 ```
 
 ## Services
@@ -37,13 +37,13 @@ docker compose ps
 | Service | Port | Description |
 |---------|------|-------------|
 | frontend | 5173 | React SPA development server |
-| backend | 8000 | FastAPI REST API |
-| postgres | 5432 | PostgreSQL 16 database |
-| redis | 6379 | Redis 7 for caching and Celery |
-| minio | 9000 | S3-compatible object storage |
-| minio | 9001 | MinIO web console |
-| pgadmin | 5050 | PostgreSQL admin interface |
-| latex-server | 8080 | TeX Live PDF compiler |
+| backend | 5454 | FastAPI REST API |
+| postgres | 5433 | PostgreSQL 17 database |
+| redis | 6380 | Redis 8 for caching and Celery |
+| minio | 9002 | S3-compatible object storage |
+| minio | 9003 | MinIO web console |
+| pgadmin | 5051 | PostgreSQL admin interface |
+| latex-server | 5959 | TeX Live PDF compiler |
 | celery-worker | — | Background task worker |
 | celery-beat | — | Scheduled task scheduler |
 
@@ -98,7 +98,7 @@ server {
 
     # Backend API
     location /api/ {
-        proxy_pass http://localhost:8000;
+        proxy_pass http://localhost:5454;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_read_timeout 120s;
@@ -106,7 +106,7 @@ server {
 
     # WebSocket (if needed)
     location /ws/ {
-        proxy_pass http://localhost:8000;
+        proxy_pass http://localhost:5454;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
@@ -131,15 +131,15 @@ cat backup.sql | docker compose exec -T postgres psql -U jobforgex jobforgex
 
 ```bash
 # Backend health
-curl http://localhost:8000/health
+curl http://localhost:5454/health
 # → {"status":"healthy","version":"1.0.0"}
 
 # Readiness
-curl http://localhost:8000/health/ready
+curl http://localhost:5454/health/ready
 # → {"status":"ready"}
 
 # Liveness
-curl http://localhost:8000/health/live
+curl http://localhost:5454/health/live
 # → {"status":"alive"}
 ```
 
