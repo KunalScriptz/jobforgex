@@ -125,7 +125,7 @@ function ProfileCard() {
               id="pf-name"
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
-              placeholder="e.g. Revathi Shree"
+              placeholder="e.g. Alex Morgan"
             />
           </div>
         </div>
