@@ -42,7 +42,6 @@ Job hunting is a pipeline problem: dozens of postings, a different resume for ea
 | **Tracking engine** | One place where every status change is recorded (timestamps, follow-up dates, audit trail); URL-based duplicate detection; overview metrics API |
 | **Digest** | Optional 7 AM / 6 PM (IST) summary email with one-click unsubscribe |
 | **Cost ledger** | Every AI call logs tokens, cost, model and purpose per workspace |
-| **Payments (backend only)** | Razorpay subscriptions and webhooks exist in the API; the pricing page is switched off for now |
 
 > The backend already exposes richer tracking (eight statuses, per-board reply rates, follow-ups, `/api/v1/overview/*`); the web UI for it is being rebuilt. See [Roadmap](#roadmap).
 
@@ -117,7 +116,6 @@ Everything is configured through environment variables; [`.env.example`](.env.ex
 | `DB_PASSWORD`, `MINIO_SECRET_KEY`, `PGADMIN_PASSWORD` | Change from the defaults |
 | `SMTP_*` | Only needed for emails (welcome, password reset, digest) |
 | `DIGEST_ENABLED` | `true` to send the twice-daily digest (off by default) |
-| `RAZORPAY_*` | Only needed if you enable paid plans |
 | `CORS_ORIGINS`, `VITE_API_URL` | Set both when serving from your own domain |
 | `FEATURE_PIPELINE`, `FEATURE_GMAIL` | Feature flags for upcoming areas; leave `false` |
 

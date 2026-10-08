@@ -109,10 +109,6 @@ All environment variables are documented in `../.env.example`.
 - `DEEPSEEK_API_KEY` — DeepSeek API key
 - `DEEPSEEK_KEY_ENC_SECRET` — encryption key for stored API keys
 
-### Required for billing:
-- `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET` — Razorpay credentials
-- `RAZORPAY_WEBHOOK_SECRET` — Razorpay webhook signing secret (Dashboard → Settings → Webhooks). Required in production: the `/api/v1/webhooks/razorpay` endpoint rejects all requests with a 503 if this is unset, rather than silently skipping signature verification.
-
 ### Required for email:
 - `SMTP_USER`, `SMTP_PASS` — Gmail app credentials
 

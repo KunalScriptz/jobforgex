@@ -13,7 +13,6 @@ import remarkGfm from "remark-gfm";
 
 import { Checkbox } from "@/components/ui/checkbox";
 import { TailoringLoader } from "@/components/tailoring-loader";
-import { PaywallDialog, isPaywallError } from "@/components/paywall-dialog";
 
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -50,7 +49,6 @@ import apiClient from "@/api/client";
 import { jobsApi, type JobDetail } from "@/api/jobs";
 import { aiApi, type AtsScoreResult } from "@/api/ai";
 import { resumesApi } from "@/api/resumes";
-import { billingApi } from "@/api/billing";
 import { AI_TOOLS_META } from "@/lib/ai-tools";
 import { extractResumeName, tailoredDocFilename } from "@/lib/filenames";
 import TemplatePicker from "@/components/template-picker";
@@ -487,7 +485,6 @@ function DocumentsTab({ artifacts, jobId, job }: { artifacts: any[]; jobId: stri
 
   const [doTailor, setDoTailor] = useState(true);
   const [doCover, setDoCover] = useState(false);
-  const [paywallOpen, setPaywallOpen] = useState(false);
   const [ats, setAts] = useState<AtsScoreResult | null>(null);
   const [atsPending, setAtsPending] = useState(false);
 
@@ -561,7 +558,6 @@ function DocumentsTab({ artifacts, jobId, job }: { artifacts: any[]; jobId: stri
     onSuccess: ({ tailoredLatex }: { tailoredLatex: string | null }) => {
       qc.invalidateQueries({ queryKey: ["jobs", jobId] });
       qc.invalidateQueries({ queryKey: ["jobs"] });
-      qc.invalidateQueries({ queryKey: ["billing"] });
       toast.success("Documents generated");
       if (tailoredLatex) {
         setAtsPending(true);
@@ -572,7 +568,6 @@ function DocumentsTab({ artifacts, jobId, job }: { artifacts: any[]; jobId: stri
       }
     },
     onError: (e: any) => {
-      if (isPaywallError(e)) { setPaywallOpen(true); return; }
       toast.error(e.message);
     },
   });
@@ -681,7 +676,6 @@ function DocumentsTab({ artifacts, jobId, job }: { artifacts: any[]; jobId: stri
           </div>
         </>
       )}
-      <PaywallDialog open={paywallOpen} onOpenChange={setPaywallOpen} />
     </div>
   );
 }
@@ -1089,22 +1083,9 @@ function AiToolRunner({ jobId, toolId, onBack, job }: { jobId: string; toolId: s
   const [ctx, setCtx] = useState("");
   const [result, setResult] = useState<{ content: string; label: string } | null>(null);
   const [view, setView] = useState<"preview" | "edit">("preview");
-  const [paywallOpen, setPaywallOpen] = useState(false);
-
-  const quotaQ = useQuery({
-    queryKey: ["billing"],
-    queryFn: () => billingApi.getStatus(),
-  });
 
   const run = useMutation({
     mutationFn: async () => {
-      const gate = await aiApi.checkEntitlement(jobId);
-      if (!gate?.allowed) {
-        const err: any = new Error("QUOTA_REACHED");
-        err.__quota = true;
-        throw err;
-      }
-      qc.invalidateQueries({ queryKey: ["billing"] });
       const baseResume = await resumesApi.getBaseResume();
       const resumeText = baseResume?.latex_source ?? "";
       const fullContext = resumeText ? `=== CANDIDATE'S RESUME (for factual grounding) ===\n${resumeText}\n\n=== ADDITIONAL CONTEXT ===\n${ctx}` : ctx;
@@ -1117,11 +1098,6 @@ function AiToolRunner({ jobId, toolId, onBack, job }: { jobId: string; toolId: s
     },
     onSuccess: (r: any) => { setResult({ content: r.content, label: tool?.label ?? toolId }); qc.invalidateQueries({ queryKey: ["costs"] }); },
     onError: (e: any) => {
-      if (e?.__quota || String(e?.message ?? "").includes("QUOTA_REACHED")) {
-        setPaywallOpen(true);
-        return;
-      }
-      if (isPaywallError(e)) { setPaywallOpen(true); return; }
       toast.error(String(e?.message ?? e).slice(0, 200));
     },
   });
@@ -1152,9 +1128,6 @@ function AiToolRunner({ jobId, toolId, onBack, job }: { jobId: string; toolId: s
     const parts = [label, job?.company, job?.title].filter(Boolean).map((s: string) => String(s));
     return parts.join(" — ");
   };
-  const q: any = quotaQ.data;
-  const showQuota = !!q && !q.has_pro;
-  const remaining = showQuota ? Math.max(Number(q.trial_limit ?? 2) - Number(q.trial_used ?? 0), 0) : null;
 
   return (
     <div className="space-y-4">
@@ -1162,13 +1135,6 @@ function AiToolRunner({ jobId, toolId, onBack, job }: { jobId: string; toolId: s
         <ArrowLeft className="h-3.5 w-3.5" /> back to tools
       </button>
 
-      {showQuota && (
-        <div className="flex items-center justify-between rounded-lg border border-dashed bg-muted/30 px-3 py-2 text-xs">
-          <span className="text-muted-foreground">
-            <span className="font-medium text-foreground">{remaining}</span> of {q.trial_limit} free prompts remaining
-          </span>
-        </div>
-      )}
 
       <div className="rounded-xl border bg-gradient-to-br from-card to-muted/20 p-5">
         <div className="flex items-start gap-3">
@@ -1269,7 +1235,6 @@ function AiToolRunner({ jobId, toolId, onBack, job }: { jobId: string; toolId: s
           )}
         </div>
       )}
-      <PaywallDialog open={paywallOpen} onOpenChange={setPaywallOpen} />
     </div>
   );
 }

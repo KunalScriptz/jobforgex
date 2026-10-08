@@ -331,40 +331,13 @@ async def log_ai_cost(
 
 
 async def check_entitlement(db: AsyncSession, workspace_id: str, job_id: str | None = None) -> bool:
+    # JobForge is free: there is no trial cap on tailored applications. Kept as the single gate the
+    # AI routes call, so a future limit only has to change this function.
     from app.models.workspace import Workspace
-    from app.models.job import JobArtifact, ArtifactKind
     from sqlalchemy import select
     import uuid as _uuid
 
     ws_result = await db.execute(
         select(Workspace).where(Workspace.id == _uuid.UUID(workspace_id))
     )
-    ws = ws_result.scalar_one_or_none()
-    if not ws:
-        return False
-
-    if ws.plan == "pro":
-        return True
-
-    from app.models.subscription import Subscription
-
-    sub_result = await db.execute(
-        select(Subscription).where(Subscription.user_id == ws.owner_user_id)
-    )
-    sub = sub_result.scalar_one_or_none()
-    if sub and sub.subscription_status == "active" and not sub.suspended:
-        return True
-
-    art_result = await db.execute(
-        select(JobArtifact)
-        .where(JobArtifact.workspace_id == _uuid.UUID(workspace_id))
-        .where(JobArtifact.kind.in_([ArtifactKind.TAILORED_RESUME, ArtifactKind.COVER_LETTER]))
-    )
-    arts = list(art_result.scalars().all())
-
-    distinct_jobs = set(str(a.job_id) for a in arts if a.job_id)
-    if job_id and job_id in distinct_jobs:
-        return True
-
-    limit = ws.trial_apps_limit
-    return len(distinct_jobs) < limit
+    return ws_result.scalar_one_or_none() is not None
