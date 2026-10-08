@@ -93,8 +93,8 @@ Self-hosted job search command center. Docker Compose monolith with React fronte
 
 ## Billing
 
-- Free trial: 2 apps (distinct jobs with tailored resume/cover letter)
-- The pricing/billing page is switched off (`/billing` redirects to `/jobs`; `pages/billing.tsx` removed, see git history). Backend billing routes and the 2-app trial limit are still active
+- No usage limit: `ai_service.check_entitlement()` allows every workspace (the old 2-app free trial was removed; `workspaces.trial_apps_limit` is now unused)
+- The pricing/billing page is switched off (`/billing` redirects to `/jobs`; `pages/billing.tsx` removed, see git history). Backend billing routes are still present but nothing is gated on a plan
 - `GET /api/v1/billing/pricing` joins `plans` + `geo_pricing`, falls back to plan defaults
 
 ## Email Sending Pattern
