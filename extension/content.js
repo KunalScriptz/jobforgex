@@ -674,6 +674,7 @@
       location: panel.querySelector("#jf-location").value.trim(),
       url: panel.querySelector("#jf-url").value.trim(),
       description: panel.querySelector("#jf-desc").value.trim() || scrape().description,
+      source: location.hostname,
     };
     if (!payload.company || !payload.title) { status("Company and title required.", "err"); return; }
     status("Saving…");
@@ -688,7 +689,9 @@
           body: JSON.stringify(payload),
         });
         if (res.ok) {
-          showSavedScreen(host, "Wishlist");
+          let duplicate = false;
+          try { duplicate = !!(await res.json()).duplicate; } catch (_) {}
+          showSavedScreen(host, "Saved jobs", duplicate ? "You already saved this job. It is in" : "Your job is in");
           // Remember this location for future suggestions.
           if (payload.location) {
             try {
@@ -706,15 +709,15 @@
     });
   }
 
-  function showSavedScreen(host, listName) {
+  function showSavedScreen(host, listName, headline) {
     if (!panel) return;
     const webHost = host.includes("jobforgeapi") ? host.replace("jobforgeapi.", "jobforge.") : host;
     panel.innerHTML = `
       <button class="close" title="Close">×</button>
       <div style="text-align:center; padding: 18px 8px 8px;">
-        <div style="font-size:12px; color:#64748b; margin-bottom:6px;">Your job was saved to</div>
+        <div style="font-size:12px; color:#64748b; margin-bottom:6px;">${headline || "Your job is in"}</div>
         <div style="font-size:26px; font-weight:800; color:#0f172a; margin-bottom:14px;">${listName}</div>
-        <a id="jf-open" href="${webHost}/jobs" target="_blank"
+        <a id="jf-open" href="${webHost}/discovery" target="_blank"
            style="display:inline-block; background:#0f172a; color:white; text-decoration:none;
                   padding:9px 18px; border-radius:999px; font-weight:600; font-size:12px;">
           Open in JobForge

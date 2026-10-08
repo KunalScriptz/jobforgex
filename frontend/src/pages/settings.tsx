@@ -23,6 +23,7 @@ import { Trash2, Plus, Chrome, ExternalLink, Copy, AlertTriangle, Save, User, Ma
 import { PageTitle } from "@/components/page-title";
 import { CityAutocomplete } from "@/components/city-autocomplete";
 import { AVATAR_PRESETS, presetAvatarSvg } from "@/lib/avatars";
+import { useUpdateWorkspaceSettings, useWorkspaceSettings } from "@/hooks/use-overview";
 
 const CURRENCIES = ["INR", "USD", "AED", "EUR", "GBP", "SGD", "MYR", "AUD", "CAD", "SAR", "QAR", "OMR", "JPY", "HKD", "NZD"];
 
@@ -32,6 +33,7 @@ export default function SettingsPage() {
       <PageTitle title="Settings" />
       <h1 className="text-2xl font-bold">Settings</h1>
       <ProfileCard />
+      <SearchGoalsCard />
       <BoardsCard />
       <ExtensionCard />
       <DeleteAccountCard />
@@ -249,6 +251,55 @@ function ProfileCard() {
         <Button onClick={() => save.mutate()} disabled={save.isPending}>
           <Save className="mr-1.5 h-4 w-4" /> {save.isPending ? "Saving..." : "Save profile"}
         </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
+function SearchGoalsCard() {
+  const { data } = useWorkspaceSettings();
+  const update = useUpdateWorkspaceSettings();
+  const [target, setTarget] = useState("");
+  const [days, setDays] = useState("");
+  useEffect(() => {
+    if (data) { setTarget(String(data.weekly_target)); setDays(String(data.follow_up_days)); }
+  }, [data]);
+
+  const t = Number(target), d = Number(days);
+  const valid = Number.isInteger(t) && t >= 1 && t <= 200 && Number.isInteger(d) && d >= 1 && d <= 60;
+  const dirty = !!data && (t !== data.weekly_target || d !== data.follow_up_days);
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Search goals</CardTitle>
+        <CardDescription>Your weekly pace and how soon an unanswered application is flagged for a follow-up.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="grid max-w-md grid-cols-2 gap-3">
+          <div>
+            <Label htmlFor="weekly-target">Applications per week</Label>
+            <Input id="weekly-target" type="number" min={1} max={200} value={target} onChange={(e) => setTarget(e.target.value)} />
+          </div>
+          <div>
+            <Label htmlFor="follow-up-days">Follow up after (days)</Label>
+            <Input id="follow-up-days" type="number" min={1} max={60} value={days} onChange={(e) => setDays(e.target.value)} />
+          </div>
+        </div>
+        <Button
+          className="mt-3"
+          size="sm"
+          disabled={!valid || !dirty || update.isPending}
+          onClick={() =>
+            update.mutate(
+              { weekly_target: t, follow_up_days: d },
+              { onSuccess: () => toast.success("Saved"), onError: (e: any) => toast.error(String(e?.response?.data?.detail?.[0]?.msg ?? e?.message ?? e).slice(0, 200)) },
+            )
+          }
+        >
+          <Save className="mr-1.5 h-4 w-4" />Save goals
+        </Button>
+        <p className="mt-2 text-xs text-muted-foreground">New applications use the follow-up window from the moment you mark them applied; existing reminders keep their dates.</p>
       </CardContent>
     </Card>
   );

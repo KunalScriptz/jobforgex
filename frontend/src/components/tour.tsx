@@ -10,14 +10,34 @@ interface TourStep {
 
 const STEPS: TourStep[] = [
   {
-    target: "nav-jobs",
-    title: "Jobs board",
-    body: "Your pipeline lives here. Add jobs and drag cards across Wishlist → Applied → Interview → Offer. Export everything to Excel anytime.",
+    target: "nav-overview",
+    title: "Overview",
+    body: "Your funnel, weekly target and reply rate by job board, plus anything that needs attention.",
+  },
+  {
+    target: "nav-today",
+    title: "Today",
+    body: "A short list for today: follow-ups that are due, saved jobs ready to send, and what to tailor next.",
+  },
+  {
+    target: "nav-discovery",
+    title: "Discovery",
+    body: "Every job you've saved from the Chrome extension or added by hand, before you apply.",
   },
   {
     target: "nav-generate",
-    title: "Generate documents",
-    body: "Pick a saved job, score your fit, and generate a tailored resume and cover letter rewritten around the job description.",
+    title: "Tailor",
+    body: "Pick a saved job, score your fit, and generate a tailored resume and cover letter built from your own resume.",
+  },
+  {
+    target: "nav-tracker",
+    title: "Tracker",
+    body: "Applications by stage: Applied, Acknowledged, Screening, Interviewing, Offer, Negotiating, Rejected. Drag cards as things move.",
+  },
+  {
+    target: "nav-setup",
+    title: "Setup quest",
+    body: "A checklist of the few things that make JobForge work well: profile, base resume, extension and a weekly target.",
   },
   {
     target: "nav-resumes",
@@ -30,14 +50,14 @@ const STEPS: TourStep[] = [
     body: "Score your base resume against any job and see keyword gaps before you tailor it.",
   },
   {
+    target: "nav-settings",
+    title: "Settings & profile",
+    body: "Update your profile, weekly goals and boards, and connect the Chrome extension.",
+  },
+  {
     target: "nav-billing",
     title: "Billing",
     body: "Manage your plan and subscription. The free trial covers two distinct tailored applications.",
-  },
-  {
-    target: "nav-settings",
-    title: "Settings",
-    body: "Update your profile, location and salary, manage boards, and connect the Chrome extension.",
   },
   {
     target: "nav-whats-new",

@@ -59,7 +59,7 @@ export default function Landing() {
         </div>
         <nav className="flex items-center gap-3">
           {isAuthenticated ? (
-            <Button asChild size="sm"><Link to="/jobs">Open Dashboard</Link></Button>
+            <Button asChild size="sm"><Link to="/overview">Open Dashboard</Link></Button>
           ) : (
             <>
               <Link to="/auth" className="text-sm text-muted-foreground hover:text-foreground">Sign in</Link>
@@ -82,7 +82,7 @@ export default function Landing() {
         </p>
         <div className="mt-8 flex flex-wrap gap-3">
           {isAuthenticated ? (
-            <Button asChild size="lg"><Link to="/jobs">Open Dashboard</Link></Button>
+            <Button asChild size="lg"><Link to="/overview">Open Dashboard</Link></Button>
           ) : (
             <>
               <Button asChild size="lg"><Link to="/auth">Start free</Link></Button>
@@ -154,7 +154,7 @@ export default function Landing() {
             {isAuthenticated ? "Jump back into your job search." : "Start free with 2 applications. No credit card required."}
           </p>
           <Button asChild size="lg" className="mt-6">
-            <Link to={isAuthenticated ? "/jobs" : "/auth"}>{isAuthenticated ? "Open Dashboard" : "Get started"}</Link>
+            <Link to={isAuthenticated ? "/overview" : "/auth"}>{isAuthenticated ? "Open Dashboard" : "Get started"}</Link>
           </Button>
         </section>
       </main>

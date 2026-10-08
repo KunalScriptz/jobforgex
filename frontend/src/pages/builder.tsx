@@ -189,7 +189,7 @@ export default function BuilderPage() {
       <PageTitle title="Resume Builder" />
         {/* Top bar */}
         <div className="flex h-12 items-center gap-3 border-b bg-card px-4 text-sm">
-          <button onClick={() => navigate("/jobs")} className="flex items-center gap-1 text-muted-foreground hover:text-foreground">
+          <button onClick={() => navigate("/tracker")} className="flex items-center gap-1 text-muted-foreground hover:text-foreground">
             <ArrowLeft className="h-4 w-4" /> Back
           </button>
           <div className="text-muted-foreground">Resume Builder</div>

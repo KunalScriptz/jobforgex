@@ -36,7 +36,7 @@ export default function OnboardingPage() {
 
   useEffect(() => {
     if (ws) {
-      if (ws.onboarding_complete) navigate("/jobs");
+      if (ws.onboarding_complete) navigate("/overview");
       else setStep(ws.onboarding_step ?? 1);
     }
   }, [ws, navigate]);
@@ -66,7 +66,7 @@ export default function OnboardingPage() {
           onDone={() => {
             qc.invalidateQueries({ queryKey: ["ws"] });
             sessionStorage.setItem("jobforge_guide_pending", "1");
-            navigate("/jobs");
+            navigate("/overview");
           }}
         />}
       </div>
