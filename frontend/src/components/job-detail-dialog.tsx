@@ -44,6 +44,7 @@ import { Trash2, MessageSquare, Send } from "lucide-react";
 import { Eye } from "lucide-react";
 import { CompanyLogo } from "@/components/company-logo";
 import { resolveCompanyDomain } from "@/lib/company";
+import { formatDate } from "@/lib/format";
 
 import apiClient from "@/api/client";
 import { jobsApi, type JobDetail } from "@/api/jobs";
@@ -1022,7 +1023,7 @@ function CompanyTab({ job }: { job: any }) {
         {job.date_applied && (
           <div>
             <div className="text-xs uppercase text-muted-foreground">Applied</div>
-            <div>{job.date_applied}</div>
+            <div>{formatDate(job.date_applied)}</div>
           </div>
         )}
       </div>

@@ -23,6 +23,7 @@ import { Trash2, Plus, Chrome, ExternalLink, Copy, AlertTriangle, Save, User, Ma
 import { PageTitle } from "@/components/page-title";
 import { CityAutocomplete } from "@/components/city-autocomplete";
 import { AVATAR_PRESETS, presetAvatarSvg } from "@/lib/avatars";
+import { formatDate } from "@/lib/format";
 
 const CURRENCIES = ["INR", "USD", "AED", "EUR", "GBP", "SGD", "MYR", "AUD", "CAD", "SAR", "QAR", "OMR", "JPY", "HKD", "NZD"];
 
@@ -337,7 +338,7 @@ function ExtensionCard() {
           {tokens.length === 0 && <div className="text-xs text-muted-foreground">No tokens yet.</div>}
           {tokens.map((t: any) => (
             <div key={t.id} className="flex items-center justify-between rounded border p-2 text-xs">
-              <div><span className="font-mono">{t.token_prefix}…</span> · {t.label} · {new Date(t.created_at).toLocaleDateString()}</div>
+              <div><span className="font-mono">{t.token_prefix}…</span> · {t.label} · {formatDate(t.created_at)}</div>
               <Button size="sm" variant="ghost" onClick={() => revoke.mutate(t.id)}>
                 <Trash2 className="h-3.5 w-3.5" />
               </Button>

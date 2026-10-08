@@ -29,6 +29,7 @@ import { CompanyAutocomplete } from "@/components/company-autocomplete";
 import { JobDetailDialog } from "@/components/job-detail-dialog";
 import { CompanyLogo } from "@/components/company-logo";
 import { hostnameFromUrl } from "@/lib/company";
+import { formatDate } from "@/lib/format";
 import { PageTitle } from "@/components/page-title";
 import { OnboardingGuide } from "@/components/onboarding-guide";
 import { ProfileNudge } from "@/components/profile-nudge";
@@ -536,7 +537,7 @@ function JobCard({
       </div>
       <div className="mt-2 flex items-center justify-between">
         <span className="text-[10px] text-muted-foreground">
-          {job.date_applied ?? new Date(job.created_at).toLocaleDateString()}
+          {job.date_applied ? `Applied ${formatDate(job.date_applied)}` : `Added ${formatDate(job.created_at)}`}
         </span>
         <div className="flex items-center gap-2">
           {onEdit && (

@@ -49,6 +49,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { LatexPreview, type LatexPreviewHandle } from "@/components/latex-preview";
 import { PdfToLatexButton } from "@/components/pdf-to-latex-button";
 import { PageTitle } from "@/components/page-title";
+import { formatDate } from "@/lib/format";
 import TemplatePicker from "@/components/template-picker";
 import {
   useResumes, useResumeVersions, useCreateTemplate, useDeleteTemplate, useSetDefaultTemplate,
@@ -444,7 +445,7 @@ export default function ResumesPage() {
                 {versions.map((v: any) => (
                   <div key={v.id} className="flex items-center justify-between rounded border p-2">
                     <div>
-                      <div className="font-mono text-xs text-muted-foreground">{new Date(v.created_at).toLocaleString()}</div>
+                      <div className="font-mono text-xs text-muted-foreground">{formatDate(v.created_at)} {new Date(v.created_at).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}</div>
                       <div className="text-xs">{(v.latex_source ?? "").length.toLocaleString()} chars · {v.note ?? ""}</div>
                     </div>
                     <Button size="sm" variant="outline" onClick={async () => { await apiClient.post(`/api/v1/resumes/${selectedTemplate.id}/versions/${v.id}/restore`); qc.invalidateQueries({ queryKey: ["resumes"] }); toast.success("Restored"); }}>
