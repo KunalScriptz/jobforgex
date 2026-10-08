@@ -147,16 +147,6 @@ export default function Landing() {
             ))}
           </div>
         </section>
-
-        <section className="mt-20 rounded-2xl border bg-card p-10 text-center">
-          <h3 className="text-2xl font-semibold">Ready to end the copy-paste chaos?</h3>
-          <p className="mt-2 text-muted-foreground">
-            {isAuthenticated ? "Jump back into your job search." : "Start free with 2 applications. No credit card required."}
-          </p>
-          <Button asChild size="lg" className="mt-6">
-            <Link to={isAuthenticated ? "/jobs" : "/auth"}>{isAuthenticated ? "Open Dashboard" : "Get started"}</Link>
-          </Button>
-        </section>
       </main>
 
       <footer className="border-t bg-card/40">
