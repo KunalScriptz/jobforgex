@@ -55,10 +55,6 @@ class Settings(BaseSettings):
     LATEX_COMPILE_URL: str = "http://latex-server:5959"
     LATEX_SHARED_SECRET: str = ""
 
-    # Razorpay
-    RAZORPAY_KEY_ID: str = ""
-    RAZORPAY_KEY_SECRET: str = ""
-    RAZORPAY_WEBHOOK_SECRET: str = ""
 
     # SMTP
     SMTP_HOST: str = "smtp.gmail.com"

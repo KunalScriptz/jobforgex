@@ -13,7 +13,6 @@ import remarkGfm from "remark-gfm";
 
 import { Checkbox } from "@/components/ui/checkbox";
 import { TailoringLoader } from "@/components/tailoring-loader";
-import { PaywallDialog, isPaywallError } from "@/components/paywall-dialog";
 
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -486,7 +485,6 @@ function DocumentsTab({ artifacts, jobId, job }: { artifacts: any[]; jobId: stri
 
   const [doTailor, setDoTailor] = useState(true);
   const [doCover, setDoCover] = useState(false);
-  const [paywallOpen, setPaywallOpen] = useState(false);
   const [ats, setAts] = useState<AtsScoreResult | null>(null);
   const [atsPending, setAtsPending] = useState(false);
 
@@ -560,7 +558,6 @@ function DocumentsTab({ artifacts, jobId, job }: { artifacts: any[]; jobId: stri
     onSuccess: ({ tailoredLatex }: { tailoredLatex: string | null }) => {
       qc.invalidateQueries({ queryKey: ["jobs", jobId] });
       qc.invalidateQueries({ queryKey: ["jobs"] });
-      qc.invalidateQueries({ queryKey: ["billing"] });
       toast.success("Documents generated");
       if (tailoredLatex) {
         setAtsPending(true);
@@ -571,7 +568,6 @@ function DocumentsTab({ artifacts, jobId, job }: { artifacts: any[]; jobId: stri
       }
     },
     onError: (e: any) => {
-      if (isPaywallError(e)) { setPaywallOpen(true); return; }
       toast.error(e.message);
     },
   });
@@ -680,7 +676,6 @@ function DocumentsTab({ artifacts, jobId, job }: { artifacts: any[]; jobId: stri
           </div>
         </>
       )}
-      <PaywallDialog open={paywallOpen} onOpenChange={setPaywallOpen} />
     </div>
   );
 }
@@ -1088,17 +1083,9 @@ function AiToolRunner({ jobId, toolId, onBack, job }: { jobId: string; toolId: s
   const [ctx, setCtx] = useState("");
   const [result, setResult] = useState<{ content: string; label: string } | null>(null);
   const [view, setView] = useState<"preview" | "edit">("preview");
-  const [paywallOpen, setPaywallOpen] = useState(false);
 
   const run = useMutation({
     mutationFn: async () => {
-      const gate = await aiApi.checkEntitlement(jobId);
-      if (!gate?.allowed) {
-        const err: any = new Error("QUOTA_REACHED");
-        err.__quota = true;
-        throw err;
-      }
-      qc.invalidateQueries({ queryKey: ["billing"] });
       const baseResume = await resumesApi.getBaseResume();
       const resumeText = baseResume?.latex_source ?? "";
       const fullContext = resumeText ? `=== CANDIDATE'S RESUME (for factual grounding) ===\n${resumeText}\n\n=== ADDITIONAL CONTEXT ===\n${ctx}` : ctx;
@@ -1111,11 +1098,6 @@ function AiToolRunner({ jobId, toolId, onBack, job }: { jobId: string; toolId: s
     },
     onSuccess: (r: any) => { setResult({ content: r.content, label: tool?.label ?? toolId }); qc.invalidateQueries({ queryKey: ["costs"] }); },
     onError: (e: any) => {
-      if (e?.__quota || String(e?.message ?? "").includes("QUOTA_REACHED")) {
-        setPaywallOpen(true);
-        return;
-      }
-      if (isPaywallError(e)) { setPaywallOpen(true); return; }
       toast.error(String(e?.message ?? e).slice(0, 200));
     },
   });
@@ -1253,7 +1235,6 @@ function AiToolRunner({ jobId, toolId, onBack, job }: { jobId: string; toolId: s
           )}
         </div>
       )}
-      <PaywallDialog open={paywallOpen} onOpenChange={setPaywallOpen} />
     </div>
   );
 }

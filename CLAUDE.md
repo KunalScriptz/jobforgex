@@ -13,7 +13,6 @@ Self-hosted job search command center. Docker Compose monolith with React fronte
 | AI | DeepSeek API (httpx, retries 3× on 503/429) |
 | Auth | Google OAuth 2.0 only (no email/password signup in frontend) |
 | Email | Gmail SMTP (port 465), sent via background daemon thread (not Celery-dependent) |
-| Payments | Razorpay subscriptions + webhooks |
 
 ## Services & Ports
 
@@ -94,8 +93,7 @@ Self-hosted job search command center. Docker Compose monolith with React fronte
 ## Billing
 
 - No usage limit: `ai_service.check_entitlement()` allows every workspace (the old 2-app free trial was removed; `workspaces.trial_apps_limit` is now unused)
-- The pricing/billing page is switched off (`/billing` redirects to `/jobs`; `pages/billing.tsx` removed, see git history). Backend billing routes are still present but nothing is gated on a plan
-- `GET /api/v1/billing/pricing` joins `plans` + `geo_pricing`, falls back to plan defaults
+- Payments were removed: no billing/webhook routes, no paywall, no `RAZORPAY_*` settings (see git history). `/billing` redirects to `/jobs`. The `plans`, `geo_pricing`, `subscriptions` and `payment_events` tables and models stay (expand-only schema); signup still writes a `free` subscription row
 
 ## Email Sending Pattern
 

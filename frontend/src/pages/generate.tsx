@@ -6,7 +6,6 @@ import { jobsApi } from "@/api/jobs";
 import { resumesApi } from "@/api/resumes";
 import { aiApi, type AtsScoreResult } from "@/api/ai";
 import apiClient from "@/api/client";
-import { PaywallDialog, isPaywallError } from "@/components/paywall-dialog";
 import { AtsScoreCard } from "@/components/ats-score-card";
 
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
@@ -93,7 +92,6 @@ export default function GeneratePage() {
 
   const [doTailor, setDoTailor] = useState(true);
   const [doCover, setDoCover] = useState(false);
-  const [paywallOpen, setPaywallOpen] = useState(false);
 
   const [report, setReport] = useState<any>(null);
   const [tailored, setTailored] = useState<{ latex: string; filename: string } | null>(null);
@@ -107,7 +105,7 @@ export default function GeneratePage() {
       if (!selectedJob?.description || selectedJob.description.length < 30) throw new Error("Selected job has no description to score against.");
       return _scoreResume({ jd: selectedJob.description, job_id: selectedJob.id, resume_latex: template?.latex_source || "" });
     },
-    onSuccess: (r: any) => { setReport(r.report); setTotalCost((c) => c + Number(r.cost)); qc.invalidateQueries({ queryKey: ["billing"] }); },
+    onSuccess: (r: any) => { setReport(r.report); setTotalCost((c) => c + Number(r.cost)); },
     onError: (e: any) => toast.error(String(e?.response?.data?.detail || e?.message || "Failed")),
   });
 
@@ -143,7 +141,6 @@ export default function GeneratePage() {
       if (c) setCover(c);
       setTotalCost((x) => x + localCost);
       qc.invalidateQueries({ queryKey: ["jobs"] });
-      qc.invalidateQueries({ queryKey: ["billing"] });
       toast.success("Generated and saved to job");
       if (t && selectedJob) {
         setAtsPending(true);
@@ -154,7 +151,6 @@ export default function GeneratePage() {
       }
     },
     onError: (e: any) => {
-      if (isPaywallError(e)) { setPaywallOpen(true); return; }
       toast.error(String(e?.response?.data?.detail || e?.message || "Failed"));
     },
   });
@@ -272,7 +268,6 @@ export default function GeneratePage() {
           )}
         </div>
       </div>
-      <PaywallDialog open={paywallOpen} onOpenChange={setPaywallOpen} />
     </div>
   );
 }

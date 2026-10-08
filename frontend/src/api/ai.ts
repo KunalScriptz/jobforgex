@@ -39,7 +39,4 @@ export const aiApi = {
 
   atsScore: (data: { job_id: string; latex_source: string }) =>
     apiClient.post<AtsScoreResult>("/api/v1/ai/ats-score", data).then((r) => r.data),
-
-  checkEntitlement: (jobId?: string) =>
-    apiClient.get<{ allowed: boolean }>("/api/v1/ai/entitlement", { params: { job_id: jobId } }).then((r) => r.data),
 };

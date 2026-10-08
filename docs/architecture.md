@@ -26,12 +26,12 @@ JobForge is an AI-native job application command center. It tracks applications 
 │  └────┬─────┘ └────┬─────┘ └────┬─────┘ └────┬─────┘       │
 │       │             │             │             │             │
 │  ┌────┴─────┐ ┌────┴─────┐ ┌────┴─────┐ ┌────┴─────┐       │
-│  │ Billing  │ │ Extension│ │ Files    │ │ Health   │       │
+│  │ Users    │ │ Extension│ │ Files    │ │ Health   │       │
 │  │ Router   │ │ Router   │ │ Router   │ │ Router   │       │
 │  └──────────┘ └──────────┘ └──────────┘ └──────────┘       │
 │                                                             │
 │  Service Layer: auth, workspace, jobs, resumes, ai,         │
-│                 storage, email, billing                     │
+│                     storage, email                          │
 │                                                             │
 │  Repository Layer: SQLAlchemy 2.0 ORM                       │
 └────────────────────────────┬────────────────────────────────┘
@@ -48,12 +48,12 @@ JobForge is an AI-native job application command center. It tracks applications 
                     │ Worker+Beat │
                     └──────┬──────┘
                            │
-              ┌────────────┼────────────┐
-              ▼            ▼            ▼
-        ┌──────────┐ ┌──────────┐ ┌──────────┐
-        │  DeepSeek │ │ Razorpay │ │ Gmail    │
-        │  API      │ │ API      │ │ SMTP     │
-        └──────────┘ └──────────┘ └──────────┘
+              ┌────────────┴────────────┐
+              ▼                         ▼
+        ┌──────────┐              ┌──────────┐
+        │  DeepSeek │              │ Gmail    │
+        │  API      │              │ SMTP     │
+        └──────────┘              └──────────┘
 
               ┌──────────────────────┐
               │  LaTeX Compiler      │

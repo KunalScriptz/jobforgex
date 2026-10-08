@@ -60,8 +60,6 @@ DEEPSEEK_KEY_ENC_SECRET=<openssl rand -hex 32>
 
 # REQUIRED: Your API keys
 DEEPSEEK_API_KEY=sk-your-key
-RAZORPAY_KEY_ID=rzp_live_xxx
-RAZORPAY_KEY_SECRET=xxx
 
 # REQUIRED: SMTP for email
 SMTP_USER=your-email@gmail.com

@@ -24,15 +24,11 @@ PUBLIC_ROUTES = {
     ("POST", "/api/v1/auth/forgot-password"), ("POST", "/api/v1/auth/reset-password"),
     ("POST", "/api/v1/auth/verify-email"),
     ("GET", "/api/v1/auth/google/login"), ("GET", "/api/v1/auth/google/callback"),
-    # public pricing page
-    ("GET", "/api/v1/billing/pricing"),
     # one-click unsubscribe from the digest email: the signed token is the credential
     ("POST", "/api/v1/users/digest/unsubscribe"),
     # Chrome extension: authenticated with its own `jfx_` token, not the user JWT
     ("GET", "/api/v1/extension/profile"), ("POST", "/api/v1/extension/jobs"),
     ("GET", "/api/v1/extension/download"),
-    # signature-verified webhook
-    ("POST", "/api/v1/webhooks/razorpay"),
     # infra / static
     ("GET", "/health"), ("GET", "/health/ready"), ("GET", "/health/live"),
     ("GET", "/"), ("GET", "/logo.png"), ("GET", "/extension-version.json"),

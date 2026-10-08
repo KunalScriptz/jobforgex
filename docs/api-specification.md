@@ -387,46 +387,6 @@ Check if user can generate AI content.
 
 ---
 
-## Billing
-
-### GET /api/v1/billing/status
-
-Get current billing status.
-
-**Response:**
-```json
-{
-  "plan": "free",
-  "currency": "USD",
-  "trial_used": 0,
-  "trial_limit": 2,
-  "has_pro": false,
-  "current_period_end": null
-}
-```
-
-### POST /api/v1/billing/subscription/create
-
-Create a Razorpay subscription.
-
-**Request:**
-```json
-{
-  "plan_id": "pro",
-  "billing_cycle": "monthly",
-  "country_code": "US",
-  "trial": false
-}
-```
-
-### GET /api/v1/billing/pricing
-
-Get pricing for a country.
-
-**Query params:** `country_code` (default: "DEFAULT")
-
----
-
 ## Extension (Chrome Extension)
 
 ### GET /api/v1/extension/tokens
@@ -472,14 +432,6 @@ Submit a job via extension (Bearer `jfx_` token auth).
   "location": "SF"
 }
 ```
-
----
-
-## Webhooks
-
-### POST /api/v1/webhooks/razorpay
-
-Razorpay webhook handler (HMAC-SHA256 verified).
 
 ---
 
