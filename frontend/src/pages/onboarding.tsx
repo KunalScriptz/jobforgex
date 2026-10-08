@@ -109,7 +109,7 @@ function Step1({ onDone }: { onDone: (ws: any) => void }) {
           </div>
           <div>
             <Label htmlFor="uname">Your name</Label>
-            <Input id="uname" value={fullName} onChange={(e) => setFullName(e.target.value)} maxLength={150} placeholder="e.g. Revathi Shree" />
+            <Input id="uname" value={fullName} onChange={(e) => setFullName(e.target.value)} maxLength={150} placeholder="e.g. Alex Morgan" />
             <p className="mt-1 text-xs text-muted-foreground">Used on generated resumes and cover letters.</p>
           </div>
           <Button type="submit" disabled={busy}>{busy ? "Creating..." : "Continue"}</Button>
