@@ -23,13 +23,13 @@ export default function AuthPage() {
       if (isNewUser) {
         navigate("/onboarding");
       } else {
-        navigate("/overview");
+        navigate("/jobs");
       }
       return;
     }
 
     if (isAuthenticated) {
-      navigate("/overview");
+      navigate("/jobs");
     }
   }, [isAuthenticated, navigate, searchParams]);
 

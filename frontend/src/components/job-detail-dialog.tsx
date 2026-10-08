@@ -57,7 +57,8 @@ import { Label } from "@/components/ui/label";
 import { useResumes } from "@/hooks/use-resumes";
 import { AtsScoreCard } from "@/components/ats-score-card";
 
-import { ALL_STATUSES, statusLabel, type JobStatus as Status } from "@/lib/job-status";
+type Status = "wishlist" | "applied" | "interview" | "offer" | "rejected";
+const STATUSES: Status[] = ["wishlist","applied","interview","offer","rejected"];
 
 const ACCENT: Record<string, { chip: string; ring: string; text: string; glow: string }> = {
   indigo:  { chip: "bg-indigo-500/10 text-indigo-500",   ring: "hover:ring-indigo-500/40",   text: "text-indigo-500",   glow: "from-indigo-500/20" },
@@ -90,7 +91,7 @@ export function JobDetailDialog({ jobId, open, onOpenChange }: {
 
   const move = useMutation({
     mutationFn: async (status: Status) => jobsApi.bulkUpdateStatus([jobId!], status),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["jobs"] }); qc.invalidateQueries({ queryKey: ["overview"] }); toast.success("Moved"); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["jobs"] }); qc.invalidateQueries({ queryKey: ["jobs", jobId] }); toast.success("Moved"); },
   });
 
   return (
@@ -109,16 +110,16 @@ export function JobDetailDialog({ jobId, open, onOpenChange }: {
                   {isLoading ? "Loading…" : (job?.title ?? "Job")}
                 </h2>
                 <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                {ALL_STATUSES.map((s) => (
+                {STATUSES.map((s) => (
                   <button
                     key={s}
                     onClick={() => move.mutate(s)}
-                    className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium transition ${
+                    className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium capitalize transition ${
                       job?.status === s
                         ? "bg-primary text-primary-foreground"
                         : "bg-muted/60 text-muted-foreground hover:bg-muted"
                     }`}
-                  >{statusLabel(s)}</button>
+                  >{s}</button>
                 ))}
                 </div>
               </div>

@@ -1,6 +1,5 @@
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useState } from "react";
-import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 
 import { jobsApi } from "@/api/jobs";
@@ -89,9 +88,7 @@ export default function GeneratePage() {
     ? extractResumeName(template.latex_source) || template.name || "resume"
     : "resume";
 
-  // Deep link from Discovery / Today: /generate?job=<id>
-  const [searchParams] = useSearchParams();
-  const [selectedJobId, setSelectedJobId] = useState<string>(searchParams.get("job") ?? "");
+  const [selectedJobId, setSelectedJobId] = useState<string>("");
   const selectedJob = allJobs.find((j: any) => j.id === selectedJobId);
 
   const [doTailor, setDoTailor] = useState(true);
@@ -142,8 +139,6 @@ export default function GeneratePage() {
       return { t, c, localCost };
     },
     onSuccess: ({ t, c, localCost }) => {
-      qc.invalidateQueries({ queryKey: ["jobs"] });
-      qc.invalidateQueries({ queryKey: ["overview"] });
       if (t) setTailored(t);
       if (c) setCover(c);
       setTotalCost((x) => x + localCost);

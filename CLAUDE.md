@@ -56,7 +56,6 @@ Self-hosted job search command center. Docker Compose monolith with React fronte
 - `config/prompts/pdf_to_latex.yaml` — full JobForge LaTeX template skeleton for PDF import
 
 `frontend/src/`
-- `lib/job-status.ts` — **single source of truth** for statuses (labels, icons, Tracker columns); wishlist = "Saved" (lives in Discovery), interview = "Interviewing". `components/shared/` holds the shared chips/cards
 - `lib/filenames.ts` — **single source of truth** for `extractResumeName()` and `tailoredDocFilename()`. Both `generate.tsx` and `job-detail-dialog.tsx` import from here. No duplicates.
 - `components/page-title.tsx` — sets `document.title = "JobForge | Section"` per route
 - `context/auth-context.tsx` — JWT in localStorage, auto-refresh via Axios interceptor
@@ -64,7 +63,7 @@ Self-hosted job search command center. Docker Compose monolith with React fronte
 ## Auth Gotchas
 
 - Google OAuth users have `password_hash=""` — login checks this before bcrypt to avoid "Invalid salt"
-- Frontend callback: `new_user=1` param routes to `/onboarding`, otherwise `/overview` (`/jobs` redirects to `/tracker`)
+- Frontend callback: `new_user=1` param routes to `/onboarding`, otherwise `/jobs`
 - Backend `/register` and `/login` kept for API compat but frontend only shows Google sign-in
 
 ## Onboarding

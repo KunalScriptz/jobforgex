@@ -40,50 +40,6 @@ const TYPE_META: Record<EntryType, { label: string; badge: string; icon: React.R
 
 const MONTHS: Month[] = [
   {
-    id: "2026-10",
-    label: "October 2026",
-    dot: "bg-teal-500",
-    border: "border-teal-500/40",
-    entries: [
-      {
-        date: "Oct 8",
-        type: "feature",
-        title: "A new home: Overview, Today and Discovery",
-        description: "Overview shows your funnel, weekly target and reply rate for each job board. Today lists the follow-ups due and the jobs ready to send. Discovery holds every job you've saved but not yet applied to. A navy sidebar groups it all, with a Setup quest to get you started.",
-      },
-      {
-        date: "Oct 8",
-        type: "feature",
-        title: "Tracker with seven stages",
-        description: "The board is now Applied, Acknowledged, Screening, Interviewing, Offer, Negotiating and Rejected, with fit scores, follow-up reminders and the job board on every card. Saved jobs live in Discovery until you mark them applied.",
-      },
-      {
-        date: "Oct 8",
-        type: "feature",
-        title: "Follow-up reminders and weekly goals",
-        description: "Set how many applications you want to send each week and how many days to wait before an unanswered one is flagged. The daily digest now includes replies and follow-ups due.",
-      },
-      {
-        date: "Oct 8",
-        type: "improvement",
-        title: "No more duplicate saves",
-        description: "Saving the same job twice (even from a different link to the same posting) now keeps one copy. The Chrome extension tells you when a job was already saved.",
-      },
-      {
-        date: "Oct 5",
-        type: "improvement",
-        title: "Daily digest",
-        description: "A morning (7 AM IST) and evening (6 PM IST) summary email, with a one-click unsubscribe and a switch in Settings. Use “Send me a test digest” to check it.",
-      },
-      {
-        date: "Oct 5",
-        type: "fix",
-        title: "Your data is private to your workspace",
-        description: "Job, document and resume endpoints now always check who is asking. Nobody else can read, change or delete your jobs and files.",
-      },
-    ],
-  },
-  {
     id: "2026-09",
     label: "September 2026",
     dot: "bg-emerald-500",

@@ -3,7 +3,6 @@
 
 import { useEffect, useState } from "react";
 import { Moon, Sun } from "lucide-react";
-import { cn } from "@/lib/utils";
 
 type Theme = "light" | "dark";
 
@@ -25,7 +24,7 @@ function applyTheme(theme: Theme) {
   try { localStorage.setItem(STORAGE_KEY, theme); } catch (_) {}
 }
 
-export function ThemeToggle({ className }: { className?: string }) {
+export function ThemeToggle() {
   const [theme, setTheme] = useState<Theme>("light");
   const [mounted, setMounted] = useState(false);
 
@@ -51,10 +50,7 @@ export function ThemeToggle({ className }: { className?: string }) {
       onClick={toggle}
       aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
       title={isDark ? "Light mode" : "Dark mode"}
-      className={cn(
-        "relative inline-flex h-9 w-9 items-center justify-center overflow-hidden rounded-full border border-border bg-background/60 text-foreground shadow-sm outline-none transition-all hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring",
-        className,
-      )}
+      className="relative inline-flex h-9 w-9 items-center justify-center overflow-hidden rounded-full border border-border bg-background/60 text-foreground shadow-sm outline-none transition-all hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring"
     >
       <Sun
         className={`h-4 w-4 transition-all duration-300 ${
