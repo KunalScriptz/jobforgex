@@ -40,6 +40,7 @@ Job hunting is a pipeline problem: dozens of postings, a different resume for ea
 | **Resume editor** | LaTeX editor with live server-compiled PDF preview, colour pickers, version history, PDF-to-LaTeX import |
 | **Chrome extension** | Save a job from any posting, autofill application forms from your profile |
 | **Tracking engine** | One place where every status change is recorded (timestamps, follow-up dates, audit trail); URL-based duplicate detection; overview metrics API |
+| **Admin dashboard** | For whoever runs the instance: user list and removal, open / invite-only / closed signups, per-user monthly AI caps, live service health, failure log, audit log, signup alerts and a daily summary by email. Admin sees accounts and aggregate counts, never anyone's jobs or resumes |
 | **Digest** | Optional 7 AM / 6 PM (IST) summary email with one-click unsubscribe |
 | **Cost ledger** | Every AI call logs tokens, cost, model and purpose per workspace |
 
@@ -116,6 +117,7 @@ Everything is configured through environment variables; [`.env.example`](.env.ex
 | `DB_PASSWORD`, `MINIO_SECRET_KEY`, `PGADMIN_PASSWORD` | Change from the defaults |
 | `SMTP_*` | Only needed for emails (welcome, password reset, digest) |
 | `DIGEST_ENABLED` | `true` to send the twice-daily digest (off by default) |
+| `ADMIN_EMAILS` | Comma-separated emails that get the **Admin** page (sign in with Google using one of them). Empty means no admin |
 | `CORS_ORIGINS`, `VITE_API_URL` | Set both when serving from your own domain |
 | `FEATURE_PIPELINE`, `FEATURE_GMAIL` | Feature flags for upcoming areas; leave `false` |
 

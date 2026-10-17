@@ -15,6 +15,8 @@ import LandingPage from "@/pages/landing";
 import PrivacyPage from "@/pages/privacy";
 import WhatsNewPage from "@/pages/whats-new";
 import UnsubscribePage from "@/pages/unsubscribe";
+import AdminPage from "@/pages/admin";
+import { AdminRoute } from "@/components/admin-route";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
@@ -58,6 +60,7 @@ export default function App() {
         <Route path="/billing-test" element={<Navigate to="/jobs" replace />} />
         <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
         <Route path="/whats-new" element={<ProtectedRoute><WhatsNewPage /></ProtectedRoute>} />
+        <Route path="/admin" element={<ProtectedRoute><AdminRoute><AdminPage /></AdminRoute></ProtectedRoute>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       <Toaster position="top-right" />

@@ -78,6 +78,38 @@ TEMPLATES = {
             </div>
         """,
     },
+    "admin_new_signup": {
+        "subject": "New JobForge signup: {email}",
+        "body_html": """
+            <div style="font-family:system-ui,sans-serif;max-width:480px;margin:0 auto;padding:32px;color:#0f172a">
+                <h2 style="color:#00008c;margin:0 0 12px">New signup</h2>
+                <table style="width:100%;font-size:14px;border-collapse:collapse">
+                    <tr><td style="padding:6px 0;color:#64748b">Email</td><td style="padding:6px 0">{email}</td></tr>
+                    <tr><td style="padding:6px 0;color:#64748b">Name</td><td style="padding:6px 0">{name}</td></tr>
+                    <tr><td style="padding:6px 0;color:#64748b">When</td><td style="padding:6px 0">{when}</td></tr>
+                    <tr><td style="padding:6px 0;color:#64748b">Total users</td><td style="padding:6px 0">{total_users}</td></tr>
+                </table>
+                <a href="{admin_url}" style="display:inline-block;padding:10px 20px;background:#00008c;color:#fff;border-radius:6px;text-decoration:none;margin:16px 0">Open admin dashboard</a>
+                <p style="font-size:12px;color:#94a3b8">You get this because you are listed in ADMIN_EMAILS. Turn it off in Admin, Access.</p>
+            </div>
+        """,
+    },
+    "admin_signup_blocked": {
+        "subject": "Blocked signup attempt: {email}",
+        "body_html": """
+            <div style="font-family:system-ui,sans-serif;max-width:480px;margin:0 auto;padding:32px;color:#0f172a">
+                <h2 style="color:#b45309;margin:0 0 12px">Signup blocked</h2>
+                <p style="font-size:14px"><b>{email}</b> tried to sign up at {when}, but signups are <b>{reason}</b> on this instance.</p>
+                <p style="font-size:14px">If you know them, add the email to the allowlist and ask them to try again.</p>
+                <a href="{admin_url}" style="display:inline-block;padding:10px 20px;background:#00008c;color:#fff;border-radius:6px;text-decoration:none;margin:16px 0">Open Access settings</a>
+                <p style="font-size:12px;color:#94a3b8">You get this because you are listed in ADMIN_EMAILS. Turn it off in Admin, Access.</p>
+            </div>
+        """,
+    },
+    "admin_daily_summary": {
+        "subject": "{subject}",
+        "body_html": "{body_html}",
+    },
     "digest": {
         "subject": "JobForge digest — {workspace_name}",
         "body_html": "{body_html}",
@@ -108,3 +140,34 @@ async def send_email(to: str, template_name: str, **kwargs) -> bool:
     except Exception:
         logger.exception("SMTP send failed to %s", to)
         return False
+
+
+def smtp_configured() -> bool:
+    return bool(settings.SMTP_USER and settings.SMTP_PASS)
+
+
+def send_email_background(to: str, template_name: str, **kwargs):
+    """Send an email from a daemon thread so it never blocks the response (and needs no Celery)."""
+    import asyncio
+    import threading
+
+    def _run():
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            loop.run_until_complete(send_email(to, template_name, **kwargs))
+        finally:
+            loop.close()
+
+    threading.Thread(target=_run, daemon=True).start()
+
+
+def notify_admins_background(template_name: str, **kwargs) -> int:
+    """Email every address in ADMIN_EMAILS (and nobody else). Returns how many were queued; zero
+    when no admin is configured or SMTP isn't set up, so callers can fire and forget."""
+    if not smtp_configured():
+        return 0
+    recipients = settings.admin_emails
+    for to in recipients:
+        send_email_background(to, template_name, **kwargs)
+    return len(recipients)

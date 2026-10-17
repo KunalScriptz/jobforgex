@@ -7,6 +7,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.database import get_db
+from app.models.user import User
+from app.models.user_role import UserRole
 from app.services.auth import decode_access_token
 
 security = HTTPBearer(auto_error=False)
@@ -30,10 +32,27 @@ async def get_current_user(
     if not user_id:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token claims")
 
+    # One primary-key lookup per request. It makes a deleted account's token stop working at once
+    # and makes a role change (ADMIN_EMAILS) take effect without waiting for the 15 min token to
+    # expire. The role comes from the database, not the JWT claim.
+    try:
+        user_uuid = uuid.UUID(user_id)
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token claims")
+    row = (
+        await db.execute(
+            select(User.id, UserRole.role)
+            .outerjoin(UserRole, UserRole.user_id == User.id)
+            .where(User.id == user_uuid)
+        )
+    ).first()
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Account no longer exists")
+
     return {
         "user_id": user_id,
         "email": payload.get("email"),
-        "role": payload.get("role", "user"),
+        "role": row.role or "user",
         "workspace_id": payload.get("workspace_id"),
     }
 

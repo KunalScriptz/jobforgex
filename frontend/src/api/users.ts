@@ -16,6 +16,7 @@ export interface UserProfile {
   current_company: string | null;
   digest_enabled: boolean;
   profile_complete: boolean;
+  is_admin: boolean;
 }
 
 export type UserProfileUpdate = Partial<

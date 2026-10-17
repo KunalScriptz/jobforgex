@@ -160,6 +160,18 @@ export default function PrivacyPage() {
 
             <section className="space-y-3">
               <h2 className="text-xl font-semibold tracking-tight text-foreground border-b pb-2">
+                What the Instance Administrator Can See
+              </h2>
+              <p className="text-muted-foreground">
+                JobForge is self-hosted, so each instance has an administrator. The administrator can see your account details (name, email, when you joined and last signed in) and aggregate usage: how many jobs you have saved, how many applications and tailored documents you created, and how many AI requests you made and what they cost. The administrator can also set a monthly AI usage limit for your account, and can delete accounts. The administrator may be emailed a daily summary of this activity and an alert when someone signs up.
+              </p>
+              <p className="text-muted-foreground">
+                The administrator's dashboard does not show the contents of your jobs, resumes, cover letters or notes.
+              </p>
+            </section>
+
+            <section className="space-y-3">
+              <h2 className="text-xl font-semibold tracking-tight text-foreground border-b pb-2">
                 Retention of Your Information
               </h2>
               <p className="text-muted-foreground">

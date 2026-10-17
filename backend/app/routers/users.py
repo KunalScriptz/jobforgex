@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/users", tags=["users"])
 
 
-def _to_out(user) -> UserProfileOut:
+def _to_out(user, is_admin: bool = False) -> UserProfileOut:
     return UserProfileOut(
         id=user.id,
         email=user.email,
@@ -34,6 +34,7 @@ def _to_out(user) -> UserProfileOut:
         current_company=user.current_company,
         digest_enabled=user.digest_enabled,
         profile_complete=bool(user.location),
+        is_admin=is_admin,
     )
 
 
@@ -45,7 +46,7 @@ async def get_me(
     profile = await user_service.get_profile(db, uuid.UUID(user["user_id"]))
     if not profile:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-    return _to_out(profile)
+    return _to_out(profile, is_admin=user.get("role") == "admin")
 
 
 @router.patch("/me", response_model=UserProfileOut)
@@ -58,7 +59,7 @@ async def update_me(
     profile = await user_service.update_profile(db, uuid.UUID(user["user_id"]), **fields)
     if not profile:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-    return _to_out(profile)
+    return _to_out(profile, is_admin=user.get("role") == "admin")
 
 
 class DigestUnsubscribe(BaseModel):

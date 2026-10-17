@@ -20,6 +20,9 @@ class UserProfileOut(BaseModel):
     current_company: Optional[str] = None
     digest_enabled: bool = True
     profile_complete: bool = False
+    # Role as the database sees it. Drives whether the UI shows the Admin link; the admin routes
+    # enforce access on their own.
+    is_admin: bool = False
 
     model_config = {"from_attributes": True}
 

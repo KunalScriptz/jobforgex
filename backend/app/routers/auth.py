@@ -19,32 +19,70 @@ from app.schemas.auth import (
     UserOut,
 )
 from app.services import auth as auth_service
-from app.services.email import send_email
+from app.services.email import send_email, send_email_background as _send_email_background
 from app.config import settings
+from app.services import instance_settings, ratelimit
+from app.services.instance_settings import SignupBlockedError
+from app.services.email import notify_admins_background
 from app.models.user import User
 from app.models.workspace import Workspace
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 
 
-def _send_email_background(to: str, template_name: str, **kwargs):
-    """Send email in a background thread so it never blocks the response."""
-    import threading
-    def _run():
-        import asyncio as _asyncio
-        loop = _asyncio.new_event_loop()
-        _asyncio.set_event_loop(loop)
-        try:
-            loop.run_until_complete(send_email(to, template_name, **kwargs))
-        finally:
-            loop.close()
-    threading.Thread(target=_run, daemon=True).start()
+def _utc_now_label() -> str:
+    from datetime import datetime, timezone
+    return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+
+
+async def _alert_admins_new_signup(db: AsyncSession, user: dict) -> None:
+    """Tell ADMIN_EMAILS (only) that someone signed up. Never raises: a mail problem must not
+    break sign-in."""
+    import html
+    from sqlalchemy import func
+    try:
+        if not (await instance_settings.get_all(db))["notify_signups"]:
+            return
+        total = (await db.execute(select(func.count()).select_from(User))).scalar_one()
+        notify_admins_background(
+            "admin_new_signup",
+            email=html.escape(user["email"]),
+            name=html.escape(user.get("full_name") or "-"),
+            when=_utc_now_label(),
+            total_users=total,
+            admin_url=f"{settings.FRONTEND_URL}/admin",
+        )
+    except Exception:
+        import logging
+        logging.getLogger(__name__).exception("admin signup alert failed")
+
+
+async def _alert_admins_signup_blocked(db: AsyncSession, blocked: SignupBlockedError) -> None:
+    import html
+    try:
+        if not (await instance_settings.get_all(db))["notify_signups"]:
+            return
+        # One alert per address per day, so a refresh-happy visitor can't flood the admin.
+        if not await ratelimit.allow(f"blocked-signup:{blocked.email.lower()}", 1, 86400):
+            return
+        notify_admins_background(
+            "admin_signup_blocked",
+            email=html.escape(blocked.email),
+            reason="closed" if blocked.reason == "closed" else "invite-only",
+            when=_utc_now_label(),
+            admin_url=f"{settings.FRONTEND_URL}/admin?tab=access",
+        )
+    except Exception:
+        import logging
+        logging.getLogger(__name__).exception("admin blocked-signup alert failed")
 
 
 @router.post("/register", response_model=TokenResponse)
 async def register(data: UserRegister, db: AsyncSession = Depends(get_db)):
     try:
         user_data = await auth_service.register_user(db, data.email, data.password, data.full_name)
+    except SignupBlockedError as e:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
 
@@ -123,6 +161,11 @@ async def google_login():
 async def google_callback(code: str = Query(...), db: AsyncSession = Depends(get_db)):
     try:
         result = await auth_service.google_auth_user(db, code)
+    except SignupBlockedError as e:
+        await _alert_admins_signup_blocked(db, e)
+        # A browser is mid-redirect here, so send it back to the app with a reason instead of
+        # showing raw JSON from the API domain.
+        return RedirectResponse(url=f"{settings.FRONTEND_URL}/auth?error={e.reason}")
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
@@ -135,6 +178,7 @@ async def google_callback(code: str = Query(...), db: AsyncSession = Depends(get
         params.append("new_user=1")
         frontend_url = settings.FRONTEND_URL
         _send_email_background(result["user"]["email"], "welcome", frontend_url=frontend_url)
+        await _alert_admins_new_signup(db, result["user"])
     frontend_callback = f"{auth_url}/auth?{'&'.join(params)}"
     return RedirectResponse(url=frontend_callback)
 

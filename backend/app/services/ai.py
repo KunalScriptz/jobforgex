@@ -330,6 +330,97 @@ async def log_ai_cost(
     await db.flush()
 
 
+class AIBudgetExceeded(Exception):
+    """The workspace has used up its monthly AI allowance (per-user admin cap or instance default)."""
+
+
+async def check_ai_budget(db: AsyncSession, workspace_id: str, role: str = "user") -> None:
+    """Raise AIBudgetExceeded if this workspace's AI spend this calendar month (UTC) has reached
+    its cap. The cap is the admin's per-user override if set, otherwise the instance default;
+    no cap at all means unlimited. Admins are exempt: the operator pays for the instance anyway
+    and must not be locked out of their own tools by a cap meant for other people."""
+    from datetime import timezone
+    from sqlalchemy import func, select
+    import uuid as _uuid
+    from app.models.ai_cost_log import AICostLog
+    from app.models.workspace import Workspace
+    from app.services import instance_settings
+
+    if role == "admin":
+        return
+    ws = await db.get(Workspace, _uuid.UUID(workspace_id))
+    if ws is None:
+        return
+    cap = ws.admin_ai_cap_usd
+    if cap is None:
+        cap = (await instance_settings.get_all(db))["default_ai_monthly_cap_usd"]
+    if cap is None:
+        return
+    now = datetime.now(timezone.utc)
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    spent = (
+        await db.execute(
+            select(func.coalesce(func.sum(AICostLog.total_cost), 0)).where(
+                AICostLog.workspace_id == ws.id, AICostLog.created_at >= month_start
+            )
+        )
+    ).scalar_one()
+    if spent >= cap:
+        raise AIBudgetExceeded("Monthly AI limit reached. Ask the instance admin to raise it.")
+
+
+def classify_ai_error(exc: BaseException) -> str:
+    """Coarse bucket for the admin failure log. Based on the exception only, never on user content."""
+    text = str(exc).lower()
+    if isinstance(exc, httpx.TimeoutException) or "timed out" in text:
+        return "timeout"
+    if isinstance(exc, (httpx.ConnectError, httpx.RemoteProtocolError)) or "connection error" in text:
+        return "connection"
+    if "not configured" in text:
+        return "not_configured"
+    if "cut off" in text:
+        return "truncated"
+    if "error 429" in text or "busy" in text:
+        return "rate_limited"
+    if "error 401" in text or "error 403" in text:
+        return "auth"
+    if "error 5" in text:
+        return "provider_error"
+    return "error"
+
+
+async def record_ai_failure(workspace_id, user_id, purpose: str, exc: BaseException) -> None:
+    """Persist a failed AI call for the admin dashboard.
+
+    Uses its own session and commits immediately: the request's session is rolled back when the
+    exception propagates, which would otherwise take this row with it. Best effort, never raises.
+    """
+    import logging
+    import uuid as _uuid
+    from app.database import async_session_factory
+    from app.models.admin import AIFailureLog
+
+    def _uid(v):
+        if v is None or isinstance(v, _uuid.UUID):
+            return v
+        return _uuid.UUID(str(v))
+
+    try:
+        async with async_session_factory() as session:
+            session.add(
+                AIFailureLog(
+                    workspace_id=_uid(workspace_id),
+                    user_id=_uid(user_id),
+                    purpose=(purpose or "custom")[:64],
+                    error_kind=classify_ai_error(exc),
+                    message=str(exc)[:300],
+                )
+            )
+            await session.commit()
+    except Exception:
+        logging.getLogger(__name__).exception("could not record AI failure")
+
+
 async def check_entitlement(db: AsyncSession, workspace_id: str, job_id: str | None = None) -> bool:
     # JobForge is free: there is no trial cap on tailored applications. Kept as the single gate the
     # AI routes call, so a future limit only has to change this function.

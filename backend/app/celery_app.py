@@ -11,6 +11,7 @@ celery_app = Celery(
     # (which doesn't exist), so before this nothing was ever registered with the worker.
     # Add new task modules here.
     include=[
+        "app.tasks.admin_digest",
         "app.tasks.digest",
         "app.tasks.email",
     ],
@@ -50,3 +51,12 @@ if settings.DIGEST_ENABLED:
             },
         }
     )
+
+# The admin summary goes only to ADMIN_EMAILS, so it is scheduled whenever an admin is configured
+# (independent of DIGEST_ENABLED, which governs the per-user digests). The task itself still
+# checks the dashboard toggle and SMTP, and sends at most once a day.
+if settings.admin_emails:
+    celery_app.conf.beat_schedule["send-admin-summary"] = {
+        "task": "app.tasks.admin_digest.send_admin_summary",
+        "schedule": crontab(hour=12, minute=30),  # 6:00 PM IST = 12:30 UTC
+    }

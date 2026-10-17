@@ -112,6 +112,26 @@ async def _require_own_job(db: AsyncSession, workspace_id: uuid.UUID, job_id: st
     return job
 
 
+async def _guard_ai_use(db: AsyncSession, ws, user: dict, job_id: str | None) -> None:
+    """Trial entitlement first, then the admin's monthly AI cap."""
+    allowed = await ai_service.check_entitlement(db, str(ws.id), job_id)
+    if not allowed:
+        raise HTTPException(status_code=status.HTTP_402_PAYMENT_REQUIRED, detail="Free trial limit reached")
+    try:
+        await ai_service.check_ai_budget(db, str(ws.id), user.get("role", "user"))
+    except ai_service.AIBudgetExceeded as e:
+        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=str(e))
+
+
+async def _call_ai(ws, user: dict, **kwargs) -> dict:
+    """call_deepseek, plus a row in the admin failure log when it fails (then re-raises)."""
+    try:
+        return await ai_service.call_deepseek(**kwargs)
+    except Exception as e:
+        await ai_service.record_ai_failure(ws.id, user["user_id"], kwargs.get("purpose", "custom"), e)
+        raise
+
+
 @router.post("/generate", response_model=DeepSeekResult)
 async def ai_generate(
     data: DeepSeekRequest,
@@ -121,9 +141,7 @@ async def ai_generate(
     ws = await get_workspace_info(user, db)
     await _require_own_job(db, ws.id, data.job_id)
 
-    allowed = await ai_service.check_entitlement(db, str(ws.id), data.job_id)
-    if not allowed:
-        raise HTTPException(status_code=status.HTTP_402_PAYMENT_REQUIRED, detail="Free trial limit reached")
+    await _guard_ai_use(db, ws, user, data.job_id)
 
     render_vars = {
         k: (ai_service._strip_artifact_placeholders(v) if isinstance(v, str) else v)
@@ -134,7 +152,8 @@ async def ai_generate(
     profile_block = _build_profile_block(profile)
 
     try:
-        result = await ai_service.call_deepseek(
+        result = await _call_ai(
+            ws, user,
             prompt_name=data.prompt_name,
             vars=render_vars,
             purpose=data.purpose,
@@ -192,7 +211,8 @@ async def ai_generate(
         experience = ai_service._extract_section(base_latex, "Experience") if base_latex else None
         if experience and "\\resumeItem" in experience:
             try:
-                rewritten = await ai_service.call_deepseek(
+                rewritten = await _call_ai(
+                    ws, user,
                     prompt_name="rewrite_experience",
                     vars={
                         "jd": str(render_vars.get("jd", "") or ""),
@@ -239,14 +259,13 @@ async def edit_resume(
     ws = await get_workspace_info(user, db)
     await _require_own_job(db, ws.id, data.job_id)
 
-    allowed = await ai_service.check_entitlement(db, str(ws.id), data.job_id)
-    if not allowed:
-        raise HTTPException(status_code=status.HTTP_402_PAYMENT_REQUIRED, detail="Free trial limit reached")
+    await _guard_ai_use(db, ws, user, data.job_id)
 
     profile = await user_service.get_profile(db, uuid.UUID(user["user_id"]))
     profile_block = _build_profile_block(profile)
 
-    res = await ai_service.call_deepseek(
+    res = await _call_ai(
+        ws, user,
         prompt_name="resume_chat",
         vars={"jd": data.latex_source, "question": data.question},
         purpose="custom",
@@ -270,14 +289,13 @@ async def ats_score(
     if not job:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
 
-    allowed = await ai_service.check_entitlement(db, str(ws.id), data.job_id)
-    if not allowed:
-        raise HTTPException(status_code=status.HTTP_402_PAYMENT_REQUIRED, detail="Free trial limit reached")
+    await _guard_ai_use(db, ws, user, data.job_id)
 
     profile = await user_service.get_profile(db, uuid.UUID(user["user_id"]))
     profile_block = _build_profile_block(profile)
 
-    result = await ai_service.call_deepseek(
+    result = await _call_ai(
+        ws, user,
         prompt_name="ats_score",
         vars={"jd": job.description or "", "resume_latex": data.latex_source},
         purpose="resume_scoring",
@@ -342,4 +360,10 @@ async def check_entitlement(
     ws = await get_workspace_info(user, db)
     await _require_own_job(db, ws.id, job_id)
     allowed = await ai_service.check_entitlement(db, str(ws.id), job_id)
-    return {"allowed": allowed}
+    if not allowed:
+        return {"allowed": False, "reason": "trial_limit"}
+    try:
+        await ai_service.check_ai_budget(db, str(ws.id), user.get("role", "user"))
+    except ai_service.AIBudgetExceeded:
+        return {"allowed": False, "reason": "ai_budget"}
+    return {"allowed": True}

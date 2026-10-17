@@ -12,6 +12,7 @@ from app.models.user import User, RefreshToken, VerificationToken, PasswordReset
 from app.models.user_role import UserRole
 from app.models.workspace import Workspace
 from app.models.subscription import Subscription
+from app.services.instance_settings import check_signup_allowed
 
 
 def hash_password(password: str) -> str:
@@ -44,6 +45,26 @@ def create_refresh_token() -> tuple[str, str, datetime]:
 
 def decode_access_token(token: str) -> dict:
     return jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
+
+
+async def resolve_role(db: AsyncSession, user: User) -> str:
+    """The user's role, with ADMIN_EMAILS as the single source of truth for "admin".
+
+    A verified email listed in ADMIN_EMAILS is an admin; anyone else is a plain user, so removing
+    an address from the env demotes it at that person's next login/refresh. `email_verified` is
+    required so nobody can claim an admin address through the password /register path.
+    """
+    is_admin = bool(user.email_verified) and user.email.strip().lower() in settings.admin_emails
+    wanted = "admin" if is_admin else "user"
+    result = await db.execute(select(UserRole).where(UserRole.user_id == user.id))
+    row = result.scalar_one_or_none()
+    if row is None:
+        db.add(UserRole(user_id=user.id, role=wanted))
+        await db.flush()
+    elif row.role != wanted:
+        row.role = wanted
+        await db.flush()
+    return wanted
 
 
 # --- Digest unsubscribe links -------------------------------------------------------------
@@ -88,6 +109,7 @@ async def register_user(db: AsyncSession, email: str, password: str, full_name: 
     existing = await db.execute(select(User).where(User.email == email))
     if existing.scalar_one_or_none():
         raise ValueError("A user with this email already exists")
+    await check_signup_allowed(db, email)
 
     user = User(
         email=email,
@@ -127,9 +149,8 @@ async def login_user(db: AsyncSession, email: str, password: str) -> dict:
     if not verify_password(password, user.password_hash):
         raise ValueError("Invalid email or password")
 
-    role_result = await db.execute(select(UserRole).where(UserRole.user_id == user.id))
-    user_role = role_result.scalar_one_or_none()
-    role = user_role.role if user_role else "user"
+    role = await resolve_role(db, user)
+    user.last_login_at = datetime.now(timezone.utc)
 
     ws_result = await db.execute(select(Workspace).where(Workspace.owner_user_id == user.id).limit(1))
     workspace = ws_result.scalar_one_or_none()
@@ -184,9 +205,8 @@ async def refresh_access_token(db: AsyncSession, refresh_token: str) -> dict:
     if not user:
         raise ValueError("User not found")
 
-    role_result = await db.execute(select(UserRole).where(UserRole.user_id == user.id))
-    user_role = role_result.scalar_one_or_none()
-    role = user_role.role if user_role else "user"
+    role = await resolve_role(db, user)
+    user.last_login_at = datetime.now(timezone.utc)
 
     ws_result = await db.execute(select(Workspace).where(Workspace.owner_user_id == user.id).limit(1))
     workspace = ws_result.scalar_one_or_none()
@@ -343,6 +363,7 @@ async def google_auth_user(db: AsyncSession, code: str) -> dict:
                 user.verified_at = datetime.now(timezone.utc)
             await db.flush()
         else:
+            await check_signup_allowed(db, email)
             user = User(
                 email=email,
                 password_hash="",
@@ -368,9 +389,8 @@ async def google_auth_user(db: AsyncSession, code: str) -> dict:
             await db.flush()
             is_new = True
 
-    role_result = await db.execute(select(UserRole).where(UserRole.user_id == user.id))
-    user_role = role_result.scalar_one_or_none()
-    role = user_role.role if user_role else "user"
+    role = await resolve_role(db, user)
+    user.last_login_at = datetime.now(timezone.utc)
 
     ws_result = await db.execute(select(Workspace).where(Workspace.owner_user_id == user.id).limit(1))
     workspace = ws_result.scalar_one_or_none()

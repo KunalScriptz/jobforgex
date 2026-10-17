@@ -72,6 +72,10 @@ class Settings(BaseSettings):
     # never actually ran, so enabling it is an explicit opt-in (set DIGEST_ENABLED=true).
     DIGEST_ENABLED: bool = False
 
+    # Instance admins: a comma-separated list of emails. Listed (and email-verified) users get the
+    # "admin" role at login/refresh; everyone else is a plain user. Empty means nobody is an admin.
+    ADMIN_EMAILS: str = ""
+
     # Feature flags. Each gates a whole area (nav items + routes' behaviour) that ships dark first.
     FEATURE_PIPELINE: bool = False
     FEATURE_GMAIL: bool = False
@@ -80,6 +84,10 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
     LOG_LEVEL: str = "INFO"
     CORS_ORIGINS: str = "*,http://localhost:5173,http://localhost:5454,https://*.helixos.pro"
+
+    @property
+    def admin_emails(self) -> list[str]:
+        return [e.strip().lower() for e in self.ADMIN_EMAILS.split(",") if e.strip()]
 
     @property
     def FRONTEND_URL(self) -> str:

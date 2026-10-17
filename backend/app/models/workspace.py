@@ -15,6 +15,8 @@ class Workspace(Base):
     name: Mapped[str] = mapped_column(String, nullable=False)
     timezone: Mapped[str] = mapped_column(String, default="UTC")
     monthly_budget_usd: Mapped[Decimal | None] = mapped_column(Numeric(10, 4), nullable=True)
+    # Admin-set monthly AI cap for this workspace; NULL falls back to the instance default.
+    admin_ai_cap_usd: Mapped[Decimal | None] = mapped_column(Numeric(10, 4), nullable=True)
     onboarding_step: Mapped[int] = mapped_column(Integer, default=1)
     onboarding_complete: Mapped[bool] = mapped_column(Boolean, default=False)
     plan: Mapped[str] = mapped_column(String, default="free")

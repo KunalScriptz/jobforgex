@@ -2,15 +2,22 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useEffect } from "react";
 
 import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useAuth } from "@/context/auth-context";
 import { PageTitle } from "@/components/page-title";
 import logoImg from "@/assets/logo.png";
 
+const SIGNUP_ERRORS: Record<string, string> = {
+  closed: "Signups are closed on this instance. If you already have an account, sign in with the Google account you used before.",
+  not_invited: "This instance is invite-only. Ask the admin to add your email, then try again.",
+};
+
 export default function AuthPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { isAuthenticated } = useAuth();
+  const signupError = SIGNUP_ERRORS[searchParams.get("error") ?? ""];
 
   useEffect(() => {
     const token = searchParams.get("token");
@@ -45,6 +52,11 @@ export default function AuthPage() {
           <CardDescription>Sign in or create your account with Google.</CardDescription>
         </CardHeader>
         <CardContent>
+          {signupError && (
+            <Alert variant="destructive" className="mb-4">
+              <AlertDescription>{signupError}</AlertDescription>
+            </Alert>
+          )}
           <Button
             type="button"
             variant="outline"

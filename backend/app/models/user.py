@@ -30,6 +30,8 @@ class User(Base):
     current_company: Mapped[str | None] = mapped_column(String(255), nullable=True)
     # Opt-out for the twice-daily digest email (on by default).
     digest_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default=true())
+    # Stamped on every login and token refresh, so it doubles as "last seen" (refresh runs ~every 15 min).
+    last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 

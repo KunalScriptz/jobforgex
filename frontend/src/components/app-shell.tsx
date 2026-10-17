@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { ListTodo, Wand2, FileText, ClipboardCheck, Settings, Sparkles, LogOut, Map } from "lucide-react";
+import { ListTodo, Wand2, FileText, ClipboardCheck, Settings, Sparkles, LogOut, Map, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import logoImg from "@/assets/logo.png";
@@ -9,6 +9,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { useAuth } from "@/context/auth-context";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { useTour } from "@/components/tour";
+import { useIsAdmin } from "@/hooks/use-admin";
 import { usersApi } from "@/api/users";
 import { UserAvatar } from "@/components/user-avatar";
 
@@ -21,6 +22,9 @@ const NAV = [
   { to: "/whats-new", label: "What's New", icon: Sparkles, tour: "nav-whats-new" },
 ] as const;
 
+// Shown only to admins (the server re-checks on every /admin request).
+const ADMIN_NAV = { to: "/admin", label: "Admin", icon: ShieldCheck, tour: "nav-admin" } as const;
+
 export function AppShell({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
@@ -29,6 +33,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { data: ws } = useWorkspace();
   const { data: profile } = useQuery({ queryKey: ["me"], queryFn: () => usersApi.getMe() });
   const tour = useTour();
+  const { isAdmin } = useIsAdmin();
+  const nav = isAdmin ? [...NAV, ADMIN_NAV] : NAV;
 
   async function signOut() {
     await qc.cancelQueries();
@@ -49,7 +55,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           JobForge
         </Link>
         <nav className="flex-1 space-y-1 overflow-y-auto p-2">
-          {NAV.map(({ to, label, icon: Icon, tour: tourId }) => {
+          {nav.map(({ to, label, icon: Icon, tour: tourId }) => {
             const active = location.pathname.startsWith(to);
             return (
               <Link key={to} to={to} data-tour={tourId} className={cn(

@@ -13,6 +13,7 @@ from app.models.extension_token import ExtensionToken
 from app.models.builder_resume import BuilderResume, BuilderResumeVersion
 from app.models.download_log import DownloadLog
 from app.models.prompt_log import PromptLog
+from app.models.admin import InstanceSetting, SignupAllowlist, AIFailureLog, AdminAuditLog
 
 __all__ = [
     "User",
@@ -40,4 +41,8 @@ __all__ = [
     "BuilderResumeVersion",
     "DownloadLog",
     "PromptLog",
+    "InstanceSetting",
+    "SignupAllowlist",
+    "AIFailureLog",
+    "AdminAuditLog",
 ]
