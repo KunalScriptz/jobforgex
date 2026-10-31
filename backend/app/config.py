@@ -79,11 +79,27 @@ class Settings(BaseSettings):
     # Feature flags. Each gates a whole area (nav items + routes' behaviour) that ships dark first.
     FEATURE_PIPELINE: bool = False
     FEATURE_GMAIL: bool = False
+    # Discovery: scrape job boards on a schedule into a per-workspace inbox. Gates the UI, the
+    # API routes and the daily beat schedule. Off by default; users also opt in per workspace.
+    # Scraping LinkedIn/Glassdoor may breach those sites' terms: personal self-hosted use only.
+    FEATURE_DISCOVERY: bool = False
+
+    # Discovery scraping. DISCOVERY_PROXIES is comma-separated proxy URLs (user:pass@host:port,
+    # or http://user:pass@host:port); it carries credentials, so it is a secret and never logged.
+    DISCOVERY_PROXIES: str = ""
+    # Cap on AI fit-scored postings per workspace per run (the rest keep their keyword score).
+    DISCOVERY_AI_MAX_PER_RUN: int = 60
+    # How long un-triaged ("new") postings stay in the inbox before the daily cleanup drops them.
+    DISCOVERY_RETENTION_DAYS: int = 30
 
     # App
     ENVIRONMENT: str = "development"
     LOG_LEVEL: str = "INFO"
     CORS_ORIGINS: str = "*,http://localhost:5173,http://localhost:5454,https://*.helixos.pro"
+
+    @property
+    def discovery_proxies(self) -> list[str]:
+        return [p.strip() for p in self.DISCOVERY_PROXIES.split(",") if p.strip()]
 
     @property
     def admin_emails(self) -> list[str]:

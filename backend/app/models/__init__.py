@@ -14,6 +14,7 @@ from app.models.builder_resume import BuilderResume, BuilderResumeVersion
 from app.models.download_log import DownloadLog
 from app.models.prompt_log import PromptLog
 from app.models.admin import InstanceSetting, SignupAllowlist, AIFailureLog, AdminAuditLog
+from app.models.discovery import DiscoverySearch, DiscoveredJob
 
 __all__ = [
     "User",
@@ -45,4 +46,6 @@ __all__ = [
     "SignupAllowlist",
     "AIFailureLog",
     "AdminAuditLog",
+    "DiscoverySearch",
+    "DiscoveredJob",
 ]

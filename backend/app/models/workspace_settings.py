@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Integer, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -21,5 +21,7 @@ class WorkspaceSettings(Base):
     )
     weekly_target: Mapped[int] = mapped_column(Integer, nullable=False, default=DEFAULT_WEEKLY_TARGET, server_default="10")
     follow_up_days: Mapped[int] = mapped_column(Integer, nullable=False, default=DEFAULT_FOLLOW_UP_DAYS, server_default="7")
+    # The user's own switch for the daily discovery run (the instance also needs FEATURE_DISCOVERY).
+    discovery_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
