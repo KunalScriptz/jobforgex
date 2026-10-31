@@ -16,6 +16,7 @@ import PrivacyPage from "@/pages/privacy";
 import WhatsNewPage from "@/pages/whats-new";
 import UnsubscribePage from "@/pages/unsubscribe";
 import AdminPage from "@/pages/admin";
+import DiscoveryPage from "@/pages/discovery";
 import { AdminRoute } from "@/components/admin-route";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -51,6 +52,7 @@ export default function App() {
         <Route path="/onboarding" element={<OnboardingPage />} />
         <Route path="/unsubscribe" element={<UnsubscribePage />} />
         <Route path="/jobs" element={<ProtectedRoute><JobsPage /></ProtectedRoute>} />
+        <Route path="/discovery" element={<ProtectedRoute><DiscoveryPage /></ProtectedRoute>} />
         <Route path="/resumes" element={<ProtectedRoute><ResumesPage /></ProtectedRoute>} />
         <Route path="/generate" element={<ProtectedRoute><GeneratePage /></ProtectedRoute>} />
         <Route path="/checker" element={<ProtectedRoute><CheckerPage /></ProtectedRoute>} />

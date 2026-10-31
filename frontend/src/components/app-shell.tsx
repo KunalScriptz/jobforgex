@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { ListTodo, Wand2, FileText, ClipboardCheck, Settings, Sparkles, LogOut, Map, ShieldCheck } from "lucide-react";
+import { ListTodo, Wand2, FileText, ClipboardCheck, Settings, Sparkles, LogOut, Map, ShieldCheck, Radar } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import logoImg from "@/assets/logo.png";
@@ -10,6 +10,7 @@ import { useAuth } from "@/context/auth-context";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { useTour } from "@/components/tour";
 import { useIsAdmin } from "@/hooks/use-admin";
+import { useFeatures } from "@/hooks/use-features";
 import { usersApi } from "@/api/users";
 import { UserAvatar } from "@/components/user-avatar";
 
@@ -21,6 +22,9 @@ const NAV = [
   { to: "/settings", label: "Settings", icon: Settings, tour: "nav-settings" },
   { to: "/whats-new", label: "What's New", icon: Sparkles, tour: "nav-whats-new" },
 ] as const;
+
+// Only shown when the deployment has FEATURE_DISCOVERY on (GET /workspace/features).
+const DISCOVERY_NAV = { to: "/discovery", label: "Discovery", icon: Radar, tour: "nav-discovery" } as const;
 
 // Shown only to admins (the server re-checks on every /admin request).
 const ADMIN_NAV = { to: "/admin", label: "Admin", icon: ShieldCheck, tour: "nav-admin" } as const;
@@ -34,7 +38,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { data: profile } = useQuery({ queryKey: ["me"], queryFn: () => usersApi.getMe() });
   const tour = useTour();
   const { isAdmin } = useIsAdmin();
-  const nav = isAdmin ? [...NAV, ADMIN_NAV] : NAV;
+  const { features } = useFeatures();
+  const base = features?.discovery ? [NAV[0], DISCOVERY_NAV, ...NAV.slice(1)] : NAV;
+  const nav = isAdmin ? [...base, ADMIN_NAV] : base;
 
   async function signOut() {
     await qc.cancelQueries();

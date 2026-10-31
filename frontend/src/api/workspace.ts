@@ -21,7 +21,16 @@ export interface Board {
   created_at: string;
 }
 
+export interface Features {
+  pipeline: boolean;
+  gmail: boolean;
+  discovery: boolean;
+}
+
 export const workspaceApi = {
+  getFeatures: () =>
+    apiClient.get<Features>("/api/v1/workspace/features").then((r) => r.data),
+
   getMyWorkspace: () =>
     apiClient.get<Workspace | null>("/api/v1/workspace/me").then((r) => r.data),
 
