@@ -386,7 +386,10 @@ async def test_features_endpoint_reports_flags(client, pair, monkeypatch):
     a, _ = pair
     monkeypatch.setattr(settings, "FEATURE_PIPELINE", False)
     monkeypatch.setattr(settings, "FEATURE_GMAIL", False)
-    assert (await client.get("/api/v1/workspace/features", headers=a.headers)).json() == {"pipeline": False, "gmail": False}
+    monkeypatch.setattr(settings, "FEATURE_DISCOVERY", False)
+    assert (await client.get("/api/v1/workspace/features", headers=a.headers)).json() == {
+        "pipeline": False, "gmail": False, "discovery": False,
+    }
     monkeypatch.setattr(settings, "FEATURE_PIPELINE", True)
     assert (await client.get("/api/v1/workspace/features", headers=a.headers)).json()["pipeline"] is True
     # pipeline stages appear in the funnel only when the flag is on

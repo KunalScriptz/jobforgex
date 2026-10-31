@@ -36,4 +36,5 @@ async def get_features(_: dict = Depends(get_current_user)):
     return {
         "pipeline": settings.FEATURE_PIPELINE,
         "gmail": settings.FEATURE_GMAIL,
+        "discovery": settings.FEATURE_DISCOVERY,
     }

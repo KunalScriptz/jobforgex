@@ -101,6 +101,7 @@ def test_digest_beat_schedule_is_opt_in(monkeypatch):
 
     try:
         monkeypatch.setattr(settings, "DIGEST_ENABLED", False)
+        monkeypatch.setattr(settings, "FEATURE_DISCOVERY", False)
         importlib.reload(celery_module)
         assert celery_module.celery_app.conf.beat_schedule == {}
 
@@ -111,6 +112,31 @@ def test_digest_beat_schedule_is_opt_in(monkeypatch):
         # 7:00 AM IST = 01:30 UTC and 6:00 PM IST = 12:30 UTC
         times = sorted((next(iter(e["schedule"].hour)), next(iter(e["schedule"].minute))) for e in schedule.values())
         assert times == [(1, 30), (12, 30)]
+    finally:
+        monkeypatch.undo()
+        importlib.reload(celery_module)
+
+
+def test_discovery_beat_schedule_is_opt_in(monkeypatch):
+    import app.celery_app as celery_module
+    from app.config import settings
+
+    try:
+        monkeypatch.setattr(settings, "DIGEST_ENABLED", False)
+        monkeypatch.setattr(settings, "FEATURE_DISCOVERY", False)
+        importlib.reload(celery_module)
+        assert not any("discovery" in e["task"] for e in celery_module.celery_app.conf.beat_schedule.values())
+
+        monkeypatch.setattr(settings, "FEATURE_DISCOVERY", True)
+        importlib.reload(celery_module)
+        schedule = celery_module.celery_app.conf.beat_schedule
+        assert {e["task"] for e in schedule.values()} == {
+            "app.tasks.discovery.run_all_discovery",
+            "app.tasks.discovery.cleanup_discovery",
+        }
+        celery_module.celery_app.loader.import_default_modules()
+        for task in ("run_all_discovery", "run_discovery_for_workspace", "cleanup_discovery"):
+            assert f"app.tasks.discovery.{task}" in celery_module.celery_app.tasks
     finally:
         monkeypatch.undo()
         importlib.reload(celery_module)

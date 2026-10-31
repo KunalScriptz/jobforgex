@@ -8,7 +8,7 @@ from app.config import settings
 from app.middleware.setup import SecurityHeadersMiddleware, RequestLoggingMiddleware
 from app.middleware.logging import setup_logging
 from app.middleware.cors import WildcardCORSMiddleware
-from app.routers import auth, workspace, workspace_settings, jobs, overview, resumes, ai, extension, files, health, users, admin
+from app.routers import auth, workspace, workspace_settings, jobs, overview, resumes, ai, extension, files, health, users, admin, discovery
 
 setup_logging()
 logger = structlog.get_logger()
@@ -53,6 +53,7 @@ app.include_router(ai.router)
 app.include_router(extension.router)
 app.include_router(files.router)
 app.include_router(admin.router)
+app.include_router(discovery.router)
 
 
 @app.get("/extension-version.json")

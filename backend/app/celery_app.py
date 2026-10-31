@@ -13,6 +13,7 @@ celery_app = Celery(
     include=[
         "app.tasks.admin_digest",
         "app.tasks.digest",
+        "app.tasks.discovery",
         "app.tasks.email",
     ],
 )
@@ -48,6 +49,22 @@ if settings.DIGEST_ENABLED:
             "send-daily-digest-evening": {
                 "task": "app.tasks.digest.send_daily_digest",
                 "schedule": crontab(hour=12, minute=30),  # 6:00 PM IST = 12:30 PM UTC
+            },
+        }
+    )
+
+# Discovery (job-board scraping) is opt-in at the instance level; each workspace also opts in.
+# 02:30 UTC = 08:00 IST, so fresh postings are waiting in the morning.
+if settings.FEATURE_DISCOVERY:
+    celery_app.conf.beat_schedule.update(
+        {
+            "run-daily-discovery": {
+                "task": "app.tasks.discovery.run_all_discovery",
+                "schedule": crontab(hour=2, minute=30),
+            },
+            "cleanup-discovery": {
+                "task": "app.tasks.discovery.cleanup_discovery",
+                "schedule": crontab(hour=3, minute=30),
             },
         }
     )
