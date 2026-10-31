@@ -41,6 +41,10 @@ x-backend-env: &backend-env
   ADMIN_EMAILS: ${ADMIN_EMAILS:-}
   FEATURE_PIPELINE: ${FEATURE_PIPELINE:-false}
   FEATURE_GMAIL: ${FEATURE_GMAIL:-false}
+  FEATURE_DISCOVERY: ${FEATURE_DISCOVERY:-false}
+  DISCOVERY_PROXIES: ${DISCOVERY_PROXIES:-}
+  DISCOVERY_AI_MAX_PER_RUN: ${DISCOVERY_AI_MAX_PER_RUN:-60}
+  DISCOVERY_RETENTION_DAYS: ${DISCOVERY_RETENTION_DAYS:-30}
   ENVIRONMENT: ${ENVIRONMENT:-development}
   LOG_LEVEL: ${LOG_LEVEL:-INFO}
   CORS_ORIGINS: ${CORS_ORIGINS:-*,http://localhost:5173,http://localhost:5454,https://*.helixos.pro}
@@ -175,6 +179,28 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     command: celery -A app.celery_app worker --loglevel=${LOG_LEVEL:-INFO} --concurrency=2
+    environment:
+      <<: *backend-env
+      WAIT_FOR_MIGRATIONS: "1"
+    volumes:
+      - ./backend:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - jobforge
+
+  # Job-board scraping runs here, alone: it is slow and blocking, so it must not starve the
+  # email/digest tasks the general worker handles. The general worker has no -Q flag, so it only
+  # consumes the default queue and never picks up app.tasks.discovery.* (routed to "discovery").
+  celery-discovery:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: celery -A app.celery_app worker -Q discovery -n discovery@%h --loglevel=${LOG_LEVEL:-INFO} --concurrency=1
     environment:
       <<: *backend-env
       WAIT_FOR_MIGRATIONS: "1"

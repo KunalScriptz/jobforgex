@@ -71,6 +71,8 @@ jobs:
           ADMIN_EMAILS=${{ secrets.ADMIN_EMAILS }}
           FEATURE_PIPELINE=${{ secrets.FEATURE_PIPELINE }}
           FEATURE_GMAIL=${{ secrets.FEATURE_GMAIL }}
+          FEATURE_DISCOVERY=${{ secrets.FEATURE_DISCOVERY }}
+          DISCOVERY_PROXIES=${{ secrets.DISCOVERY_PROXIES }}
           EOF
 
       # Run Alembic BEFORE tearing anything down: if a migration fails, the workflow stops here
