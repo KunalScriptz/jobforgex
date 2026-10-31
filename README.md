@@ -41,6 +41,7 @@ Job hunting is a pipeline problem: dozens of postings, a different resume for ea
 | **Chrome extension** | Save a job from any posting, autofill application forms from your profile |
 | **Tracking engine** | One place where every status change is recorded (timestamps, follow-up dates, audit trail); URL-based duplicate detection; overview metrics API |
 | **Admin dashboard** | For whoever runs the instance: user list and removal, open / invite-only / closed signups, per-user monthly AI caps, live service health, failure log, audit log, signup alerts and a daily summary by email. Admin sees accounts and aggregate counts, never anyone's jobs or resumes |
+| **Discovery** | Optional. Saved searches run daily on Indeed, Naukri, LinkedIn and Glassdoor ([JobSpy](https://github.com/speedyapply/JobSpy)); new postings land in an inbox, ranked by AI fit against your resume, and you add the good ones to your board or dismiss the rest. See [`docs/discovery.md`](docs/discovery.md) |
 | **Digest** | Optional 7 AM / 6 PM (IST) summary email with one-click unsubscribe |
 | **Cost ledger** | Every AI call logs tokens, cost, model and purpose per workspace |
 
@@ -120,6 +121,8 @@ Everything is configured through environment variables; [`.env.example`](.env.ex
 | `ADMIN_EMAILS` | Comma-separated emails that get the **Admin** page (sign in with Google using one of them). Empty means no admin |
 | `CORS_ORIGINS`, `VITE_API_URL` | Set both when serving from your own domain |
 | `FEATURE_PIPELINE`, `FEATURE_GMAIL` | Feature flags for upcoming areas; leave `false` |
+| `FEATURE_DISCOVERY` | `true` to enable Discovery (job-board scraping, off by default). Read the [disclaimer](docs/discovery.md#disclaimer) first |
+| `DISCOVERY_PROXIES` | Optional comma-separated proxy URLs for Discovery (a secret: they carry credentials) |
 
 ## Project structure
 
@@ -194,7 +197,8 @@ The repo ships with a GitHub Actions workflow that deploys to a self-hosted runn
 - [ ] New UI: grouped sidebar, Overview, Today, Discovery, 7-stage Tracker (API is done)
 - [ ] AI pipeline: fit analysis, evidence-only tailoring, AI review, approvals
 - [ ] Gmail sync to update application status automatically
-- [ ] Job discovery adapters (ATS feeds, job boards)
+- [x] Discovery: JobSpy job boards into a triage inbox
+- [ ] More discovery sources (Greenhouse, Lever, Ashby and country portals; see [`docs/discovery.md`](docs/discovery.md#writing-a-source))
 
 ## Contributing
 
